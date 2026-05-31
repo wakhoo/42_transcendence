@@ -2,6 +2,7 @@
 #  ft_transcendence — Makefile
 #  All services run inside Docker containers via docker compose
 # ============================================================
+DC=docker compose -f ./srcs/docker-compose.yml
 
 NAME	= ft_transcendence
 
@@ -9,47 +10,47 @@ all: up
 
 # Build images and start all containers
 up:
-	docker compose up --build
+	$(DC) up -d --build
 
 # Start containers without rebuilding
 start:
-	docker compose up
+	$(DC) up
 
 # Stop and remove containers
 down:
-	docker compose down
+	$(DC) down
 
 # Stop containers without removing
 stop:
-	docker compose stop
+	$(DC) stop
 
 # Rebuild from scratch (remove containers + volumes + images)
 re: fclean up
 
 # Show logs for all containers (live)
 logs:
-	docker compose logs -f
+	$(DC) logs -f
 
 # Show logs for a specific service
 # Usage: make log SERVICE=backend
 log:
-	docker compose logs -f $(SERVICE)
+	$(DC) logs -f $(SERVICE)
 
 # Show running containers
 ps:
-	docker compose ps
+	$(DC) ps
 
 # Open a shell inside a container
 # Usage: make sh SERVICE=backend
 sh:
-	docker compose exec $(SERVICE) sh
+	$(DC) exec $(SERVICE) sh
 
 # Remove containers and volumes (keeps images)
 clean:
-	docker compose down -v
+	$(DC) down -v
 
 # Remove containers, volumes, and all project images
 fclean:
-	docker compose down -v --rmi all
+	$(DC) down -v --rmi all
 
 .PHONY: all up start down stop re logs log ps sh clean fclean
