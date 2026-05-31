@@ -98,7 +98,7 @@ VAULT_ADDR=
 |--------|------|-----------------|
 | dancel | Product Owner + Developer | [feature] |
 | chajeon | Project Manager + Developer | Security, Docker infrastructure, WAF, Vault, 2FA |
-| asdiallo | Developer | [feature] |
+| asdiallo | Tech Lead + Developer | [feature] |
 | elxhafer | Developer | [feature] |
 | markipaj | Developer | [feature] |
 
@@ -241,7 +241,7 @@ VAULT_ADDR=
 - [Feature or module implemented]
 - Challenges: [Any challenges faced and how resolved]
 
-### asdiallo — Developer
+### asdiallo — Tech Lead + Developer
 - [Feature or module implemented]
 - [Feature or module implemented]
 - Challenges: [Any challenges faced and how resolved]
