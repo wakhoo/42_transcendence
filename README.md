@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by asdiallo, chajeon, dancel, elxhafer, mrakipaj.*
+*This project has been created as part of the 42 curriculum by asdiallo, chajeon, dancel, elxhafer.*
 
 ---
 
@@ -100,7 +100,6 @@ VAULT_ADDR=
 | chajeon | Project Manager + Developer | Security, Docker infrastructure, WAF, Vault, 2FA |
 | asdiallo | Tech Lead + Developer | [feature] |
 | elxhafer | Developer | [feature] |
-| markipaj | Developer | [feature] |
 
 ---
 
@@ -251,10 +250,6 @@ VAULT_ADDR=
 - [Feature or module implemented]
 - Challenges: [Any challenges faced and how resolved]
 
-### mrakipaj — Developer
-- [Feature or module implemented]
-- [Feature or module implemented]
-- Challenges: [Any challenges faced and how resolved]
 
 ---
 
