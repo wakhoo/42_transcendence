@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service — ft_transcendence</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #222222;
+      --accent: #00ff88;
+      --accent-dim: #00ff8822;
+      --text: #e8e8e8;
+      --text-muted: #666666;
+      --text-dim: #999999;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-weight: 300;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    header {
+      padding: 48px 0 40px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 40px;
+    }
+
+    .site-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    header h1 {
+      font-family: var(--mono);
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .meta {
+      margin-top: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .disclaimer {
+      background: #1a0a00;
+      border: 1px solid #ff880044;
+      border-left: 3px solid #ff8800;
+      padding: 14px 18px;
+      margin-bottom: 40px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: #ff8800aa;
+    }
+
+    .section {
+      margin-bottom: 48px;
+      padding-bottom: 48px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section:last-of-type { border-bottom: none; }
+
+    .section-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.15em;
+      margin-bottom: 8px;
+    }
+
+    .section h2 {
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 20px;
+      letter-spacing: -0.01em;
+    }
+
+    p {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    ul.legal-list {
+      list-style: none;
+      margin: 16px 0;
+    }
+
+    ul.legal-list li {
+      font-size: 14px;
+      color: var(--text-dim);
+      padding: 6px 0 6px 20px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+
+    ul.legal-list li:last-child { border-bottom: none; }
+
+    ul.legal-list li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      font-family: var(--mono);
+      color: var(--accent);
+      font-size: 12px;
+    }
+
+    .contact-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px 24px;
+      margin-top: 8px;
+    }
+
+    .contact-block .cb-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .contact-block .cb-value {
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--accent);
+    }
+
+    strong { color: var(--text); font-weight: 500; }
+
+    footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    footer span {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    footer a {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="site-label">ft_transcendence / legal</div>
+    <h1>Terms of Service</h1>
+    <div class="meta">Last updated: [DATE] &nbsp;·&nbsp; Version 1.0</div>
+  </header>
+
+  <div class="disclaimer">
+    ⚠ EDUCATIONAL PROJECT — This service is part of the 42 School Common Core curriculum and is provided for educational purposes only.
+  </div>
+
+  <div class="section">
+    <div class="section-num">01</div>
+    <h2>Acceptance of Terms</h2>
+    <p>By creating an account or using <strong>[Project Name]</strong> ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
+    <p>This Service is a student project created as part of the <strong>42 School Common Core curriculum</strong> and is provided for educational purposes only. The project may be discontinued upon completion of the academic evaluation.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">02</div>
+    <h2>Description of Service</h2>
+    <p>[Project Name] is a web-based platform that provides:</p>
+    <ul class="legal-list">
+      <li>[Feature 1 — e.g., Browser-based 3D game inspired by Cub3D]</li>
+      <li>[Feature 2 — e.g., Real-time multiplayer matches]</li>
+      <li>[Feature 3 — e.g., User profiles, friend system, leaderboard]</li>
+      <li>[Feature 4 — e.g., Real-time chat]</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-num">03</div>
+    <h2>Account Registration</h2>
+    <p>To use the Service, you must:</p>
+    <ul class="legal-list">
+      <li>Provide a valid email address</li>
+      <li>Choose a unique username</li>
+      <li>Create a secure password (minimum 8 characters)</li>
+    </ul>
+    <p>You are responsible for maintaining the confidentiality of your account credentials. You must notify us immediately of any unauthorized use of your account.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">04</div>
+    <h2>Prohibited Conduct</h2>
+    <p>You agree <strong>not</strong> to:</p>
+    <ul class="legal-list">
+      <li>Use the Service for any unlawful purpose</li>
+      <li>Attempt to gain unauthorized access to other accounts or systems</li>
+      <li>Upload malicious code, viruses, or harmful content</li>
+      <li>Harass, threaten, or abuse other users</li>
+      <li>Use automated tools (bots) to interact with the Service</li>
+      <li>Attempt to reverse engineer or exploit the Service</li>
+      <li>Share content that is offensive, discriminatory, or illegal</li>
+    </ul>
+    <p>Violation of these rules may result in immediate account suspension or termination.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">05</div>
+    <h2>User Content</h2>
+    <p>By submitting content (username, avatar, chat messages, etc.) to the Service, you grant us a limited license to display and store that content for the purpose of providing the Service.</p>
+    <p>You retain ownership of your content. We do not claim ownership over user-generated content.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">06</div>
+    <h2>Account Termination</h2>
+    <p>We reserve the right to suspend or terminate accounts that:</p>
+    <ul class="legal-list">
+      <li>Violate these Terms of Service</li>
+      <li>Engage in abusive behavior toward other users</li>
+      <li>Attempt to compromise the security or integrity of the Service</li>
+    </ul>
+    <p>You may delete your account at any time via the account settings page. Upon deletion, your data will be removed in accordance with our Privacy Policy.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">07</div>
+    <h2>Disclaimer of Warranties</h2>
+    <p>The Service is provided <strong>"as is"</strong> without warranties of any kind. As a student project, we do not guarantee:</p>
+    <ul class="legal-list">
+      <li>Continuous or uninterrupted availability</li>
+      <li>Freedom from bugs or errors</li>
+      <li>Fitness for any particular purpose</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-num">08</div>
+    <h2>Limitation of Liability</h2>
+    <p>To the fullest extent permitted by law, we are not liable for any indirect, incidental, or consequential damages arising from your use of the Service.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">09</div>
+    <h2>Privacy</h2>
+    <p>Your use of the Service is also governed by our <strong>Privacy Policy</strong>, which is incorporated into these Terms by reference. Please review our <a href="/privacy-policy" style="color:var(--accent);text-decoration:none;">Privacy Policy</a> to understand our data practices.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">10</div>
+    <h2>Changes to Terms</h2>
+    <p>We reserve the right to modify these Terms at any time. Continued use of the Service after changes are posted constitutes acceptance of the updated Terms.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">11</div>
+    <h2>Governing Law</h2>
+    <p>These Terms are governed by the laws of the <strong>European Union</strong> and applicable local law. Any disputes shall be resolved in accordance with GDPR and applicable regulations.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">12</div>
+    <h2>Contact</h2>
+    <p>For questions regarding these Terms:</p>
+    <div class="contact-block">
+      <div class="cb-label">Email</div>
+      <div class="cb-value">[contact@email.com]</div>
+    </div>
+    <div class="contact-block">
+      <div class="cb-label">Project</div>
+      <div class="cb-value">[Project Name] — 42 School Common Core</div>
+    </div>
+  </div>
+
+  <footer>
+    <span>© [Project Name] — 42 School Project</span>
+    <span>
+      <a href="/privacy-policy">Privacy Policy</a>
+      &nbsp;·&nbsp;
+      <a href="/terms-of-service">Terms of Service</a>
+    </span>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — ft_transcendence</title>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --border: #222222;
+      --accent: #00ff88;
+      --accent-dim: #00ff8822;
+      --text: #e8e8e8;
+      --text-muted: #666666;
+      --text-dim: #999999;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-weight: 300;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+
+    header {
+      padding: 48px 0 40px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 40px;
+    }
+
+    .site-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    header h1 {
+      font-family: var(--mono);
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .meta {
+      margin-top: 10px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .disclaimer {
+      background: #1a0a00;
+      border: 1px solid #ff880044;
+      border-left: 3px solid #ff8800;
+      padding: 14px 18px;
+      margin-bottom: 40px;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      color: #ff8800aa;
+    }
+
+    .section {
+      margin-bottom: 48px;
+      padding-bottom: 48px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section:last-of-type { border-bottom: none; }
+
+    .section-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.15em;
+      margin-bottom: 8px;
+    }
+
+    .section h2 {
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 20px;
+      letter-spacing: -0.01em;
+    }
+
+    p {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+
+    .data-table th {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 12px 14px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+      line-height: 1.5;
+    }
+
+    .data-table tr:last-child td { border-bottom: none; }
+
+    .data-table td:first-child {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    ul.legal-list {
+      list-style: none;
+      margin: 16px 0;
+    }
+
+    ul.legal-list li {
+      font-size: 14px;
+      color: var(--text-dim);
+      padding: 6px 0 6px 20px;
+      position: relative;
+      border-bottom: 1px solid var(--border);
+    }
+
+    ul.legal-list li:last-child { border-bottom: none; }
+
+    ul.legal-list li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      font-family: var(--mono);
+      color: var(--accent);
+      font-size: 12px;
+    }
+
+    .tag {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      padding: 2px 8px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 2px;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+
+    .security-block {
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      border-left: 3px solid var(--accent);
+      padding: 16px 20px;
+      margin: 20px 0;
+    }
+
+    .security-block .sb-title {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .security-block ul { list-style: none; }
+
+    .security-block ul li {
+      color: var(--text-dim);
+      padding: 3px 0 3px 16px;
+      position: relative;
+      font-size: 13px;
+    }
+
+    .security-block ul li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-family: var(--mono);
+    }
+
+    .rights-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .right-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 16px;
+    }
+
+    .right-card .rc-title {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .right-card .rc-art {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .right-card p {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .contact-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 20px 24px;
+      margin-top: 8px;
+    }
+
+    .contact-block .cb-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .contact-block .cb-value {
+      font-family: var(--mono);
+      font-size: 14px;
+      color: var(--accent);
+    }
+
+    strong { color: var(--text); font-weight: 500; }
+
+    footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    footer span {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    footer a {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      .rights-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="site-label">ft_transcendence / legal</div>
+    <h1>Privacy Policy</h1>
+    <div class="meta">Last updated: [DATE] &nbsp;·&nbsp; Version 1.0 &nbsp;·&nbsp; GDPR compliant</div>
+  </header>
+
+  <div class="disclaimer">
+    ⚠ EDUCATIONAL PROJECT — This service is part of the 42 School Common Core curriculum and is provided for educational purposes only.
+  </div>
+
+  <div class="section">
+    <div class="section-num">01</div>
+    <h2>Introduction</h2>
+    <p>Welcome to <strong>[Project Name]</strong>. We are committed to protecting your personal data in accordance with the <strong>General Data Protection Regulation (GDPR)</strong> and applicable data protection laws.</p>
+    <p>This Privacy Policy explains what data we collect, why we collect it, how we use it, and what rights you have regarding your data.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">02</div>
+    <h2>Data We Collect</h2>
+    <p>When you use [Project Name], we collect the following personal data:</p>
+    <table class="data-table">
+      <thead>
+        <tr><th>Data</th><th>Purpose</th><th>Source</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Email address</td><td>Account registration and login</td><td>User input / OAuth</td></tr>
+        <tr><td>Username</td><td>Display name in the application</td><td>User input</td></tr>
+        <tr><td>Password (bcrypt hash)</td><td>Authentication — never stored in plain text</td><td>User input</td></tr>
+        <tr><td>Avatar image</td><td>Profile display</td><td>User upload / OAuth</td></tr>
+        <tr><td>Game statistics</td><td>Match history, rankings, achievements</td><td>Auto-generated</td></tr>
+        <tr><td>Online status</td><td>Friend list and social features</td><td>Auto-generated</td></tr>
+        <tr><td>IP address</td><td>Security logging and abuse prevention</td><td>Auto-collected</td></tr>
+        <tr><td>Session tokens</td><td>Maintaining login sessions</td><td>Auto-generated</td></tr>
+      </tbody>
+    </table>
+    <p>We do <strong>not</strong> collect payment information, location data, or sensitive personal data as defined under GDPR Article 9.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">03</div>
+    <h2>Legal Basis for Processing</h2>
+    <p>We process your personal data under the following legal bases (GDPR Article 6):</p>
+    <ul class="legal-list">
+      <li><span class="tag">Art. 6(1)(b)</span> <strong>Contract performance</strong> — Processing necessary to provide the service you signed up for.</li>
+      <li><span class="tag">Art. 6(1)(a)</span> <strong>Consent</strong> — Optional features such as OAuth login (Google, GitHub).</li>
+      <li><span class="tag">Art. 6(1)(f)</span> <strong>Legitimate interests</strong> — Security logging and abuse prevention.</li>
+      <li><span class="tag">Art. 6(1)(c)</span> <strong>Legal obligation</strong> — Compliance with applicable laws.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <div class="section-num">04</div>
+    <h2>How We Use Your Data</h2>
+    <ul class="legal-list">
+      <li>Create and manage your account</li>
+      <li>Authenticate your identity (including 2FA if enabled)</li>
+      <li>Display your profile and statistics to other users</li>
+      <li>Enable real-time gameplay and chat features</li>
+      <li>Maintain security and prevent unauthorized access</li>
+      <li>Send administrative emails (2FA codes, account deletion confirmation)</li>
+    </ul>
+    <p>We do <strong>not</strong> sell, rent, or share your personal data with third parties for marketing purposes.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">05</div>
+    <h2>Data Retention</h2>
+    <table class="data-table">
+      <thead>
+        <tr><th>Data</th><th>Retention Period</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Account data</td><td>Until account deletion</td></tr>
+        <tr><td>Game statistics</td><td>Until account deletion</td></tr>
+        <tr><td>Security logs (IP)</td><td>30 days</td></tr>
+        <tr><td>Session tokens</td><td>1 hour or until logout</td></tr>
+      </tbody>
+    </table>
+    <p>Upon account deletion, all personal data will be permanently removed within <strong>30 days</strong>.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">06</div>
+    <h2>Security Measures</h2>
+    <div class="security-block">
+      <div class="sb-title">Implemented Security Controls</div>
+      <ul>
+        <li>Passwords hashed with <strong>bcrypt</strong> (12 rounds minimum) — never stored in plain text</li>
+        <li>All data transmission encrypted via <strong>HTTPS / TLS</strong></li>
+        <li>Web Application Firewall (<strong>ModSecurity + OWASP CRS</strong>) — SQLi, XSS, path traversal protection</li>
+        <li>Credentials managed via <strong>HashiCorp Vault</strong> — encrypted and isolated</li>
+        <li>4-layer Docker network isolation — database not exposed externally</li>
+        <li><strong>Two-Factor Authentication (2FA)</strong> available via TOTP</li>
+        <li>JWT tokens with expiration and invalidation support</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-num">07</div>
+    <h2>Your Rights Under GDPR</h2>
+    <div class="rights-grid">
+      <div class="right-card">
+        <div class="rc-title">Right of Access</div>
+        <div class="rc-art">Article 15</div>
+        <p>Request a copy of the personal data we hold about you.</p>
+      </div>
+      <div class="right-card">
+        <div class="rc-title">Right to Rectification</div>
+        <div class="rc-art">Article 16</div>
+        <p>Request correction of inaccurate personal data.</p>
+      </div>
+      <div class="right-card">
+        <div class="rc-title">Right to Erasure</div>
+        <div class="rc-art">Article 17</div>
+        <p>Request deletion of your data ("right to be forgotten").</p>
+      </div>
+      <div class="right-card">
+        <div class="rc-title">Right to Restriction</div>
+        <div class="rc-art">Article 18</div>
+        <p>Request that we limit how we process your data.</p>
+      </div>
+      <div class="right-card">
+        <div class="rc-title">Data Portability</div>
+        <div class="rc-art">Article 20</div>
+        <p>Request your data in a machine-readable format (JSON/CSV).</p>
+      </div>
+      <div class="right-card">
+        <div class="rc-title">Right to Object</div>
+        <div class="rc-art">Article 21</div>
+        <p>Object to processing based on legitimate interests.</p>
+      </div>
+    </div>
+    <p>We will respond to all requests within <strong>30 days</strong>. To exercise your rights, use the account settings page or contact us below.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">08</div>
+    <h2>Third-Party Services</h2>
+    <table class="data-table">
+      <thead>
+        <tr><th>Service</th><th>Purpose</th><th>Data Shared</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Google LLC</td><td>OAuth authentication</td><td>Email, display name</td></tr>
+        <tr><td>GitHub Inc.</td><td>OAuth authentication</td><td>Email, display name</td></tr>
+      </tbody>
+    </table>
+    <p>We do not use advertising networks, analytics platforms, or data brokers. No personal data is sold or shared for marketing purposes.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">09</div>
+    <h2>Cookies</h2>
+    <p>We use <strong>HTTP-only session cookies</strong> solely to maintain your login session. We do not use tracking, advertising, or analytics cookies.</p>
+    <table class="data-table">
+      <thead>
+        <tr><th>Cookie</th><th>Purpose</th><th>Duration</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>session_token</td><td>Login session maintenance</td><td>1 hour / until logout</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-num">10</div>
+    <h2>Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. We will notify you of significant changes via the application. Continued use of the service after changes constitutes acceptance of the updated policy.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-num">11</div>
+    <h2>Contact</h2>
+    <p>For privacy-related inquiries or to exercise your rights:</p>
+    <div class="contact-block">
+      <div class="cb-label">Email</div>
+      <div class="cb-value">[contact@email.com]</div>
+    </div>
+    <div class="contact-block">
+      <div class="cb-label">Project</div>
+      <div class="cb-value">[Project Name] — 42 School Common Core</div>
+    </div>
+  </div>
+
+  <footer>
+    <span>© [Project Name] — 42 School Project</span>
+    <span>
+      <a href="/privacy-policy">Privacy Policy</a>
+      &nbsp;·&nbsp;
+      <a href="/terms-of-service">Terms of Service</a>
+    </span>
+  </footer>
+
+</div>
+</body>
+</html>
