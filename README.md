@@ -293,6 +293,26 @@ TOTP_ISSUER=ft_transcendence
 - [OWASP CRS Documentation](https://coreruleset.org/docs)
 - [OWASP Top 10](https://owasp.org/www-project-top-ten)
 
+### Security Standards & Password Policy
+
+| Standard | Organization | Topic | URL |
+|----------|-------------|-------|-----|
+| SP 800-63B | NIST | Digital Identity Guidelines — Password Policy | https://pages.nist.gov/800-63-3/sp800-63b.html |
+| Authentication Cheat Sheet | OWASP | Secure Authentication Implementation | https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html |
+| Password Storage Cheat Sheet | OWASP | bcrypt, Argon2, password hashing | https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html |
+
+#### Password Policy Applied in This Project (based on NIST SP 800-63B + OWASP)
+
+| Rule | Value | Reference |
+|------|-------|-----------|
+| Minimum length | 8 characters | NIST SP 800-63B |
+| Maximum length | 128 characters | OWASP |
+| Complexity requirement | Not enforced | NIST SP 800-63B |
+| Hashing algorithm | bcrypt | OWASP Password Storage |
+| bcrypt cost factor | 12 (~300ms) | OWASP recommendation |
+| Failed attempt limit | 5 attempts → 30s delay | OWASP |
+| Allowed characters | All Unicode | OWASP |
+
 ### AI Usage
 - **Tool used**: Claude (Anthropic)
 - **Tasks assisted**:
