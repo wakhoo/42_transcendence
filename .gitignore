@@ -1,5 +1,29 @@
+# Environment — never send to build context
 .env
-*.pem
-*.key
-vault/data/
+*.env
+
+# SSL certificates
+srcs/nginx/certs/
+
+# Node modules — reinstalled inside container
 node_modules/
+**/node_modules/
+
+# Build output
+**/dist/
+**/.next/
+**/build/
+
+# Logs
+*.log
+**/logs/
+
+# Git
+.git/
+.gitignore
+
+# Editor
+.DS_Store
+.vscode/
+*.swp
+*.swo

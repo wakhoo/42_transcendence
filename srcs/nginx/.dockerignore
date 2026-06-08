@@ -1,0 +1,19 @@
+# SSL certificates — generated at runtime by init.sh
+certs/
+
+# Logs
+*.log
+logs/
+
+# Editor files
+.DS_Store
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# README
+README.md
