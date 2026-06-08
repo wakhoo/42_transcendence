@@ -1,7 +1,5 @@
 name: ft_transcendence
 
-
-
 # ============================================================
 #  Services
 # ============================================================
@@ -10,9 +8,6 @@ services:
   # ----------------------------------------------------------
   #  WAF — Nginx + ModSecurity
   #  Only container with external ports open
-  #  Healthcheck
-  #  Ensures the container is not just running but actually ready 
-  #  to accept connections before dependent services start.
   # ----------------------------------------------------------
   nginx:
     build:
@@ -32,8 +27,10 @@ services:
     depends_on:
       - frontend
       - backend
+    env_file: .env
     restart: unless-stopped
     healthcheck:
+      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
       test: ["CMD", "nginx", "-t"]
       interval: 30s
       timeout: 10s
@@ -50,11 +47,10 @@ services:
     container_name: frontend
     networks:
       - internal
-    environment:
-      - VITE_API_URL=${VITE_API_URL:-https://localhost/api}
-      - VITE_WS_URL=${VITE_WS_URL:-wss://localhost/ws}
+    env_file: .env
     restart: unless-stopped
     healthcheck:
+      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
       test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
@@ -74,45 +70,22 @@ services:
       - internal
       - db
       - vault_net
-    environment:
-      - NODE_ENV=production
-      - PORT=${BACKEND_PORT:-8080}
-      # Database — use container name, not localhost
-      - DB_HOST=mariadb
-      - DB_PORT=${DB_PORT:-3306}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      # # JWT
-      # - JWT_SECRET=${JWT_SECRET}
-      # - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-3600}
-      # # Vault
-      # - VAULT_ADDR=${VAULT_ADDR:-http://vault:8200}
-      # - VAULT_TOKEN=${VAULT_TOKEN}
-      # # OAuth
-      # - OAUTH_GOOGLE_CLIENT_ID=${OAUTH_GOOGLE_CLIENT_ID}
-      # - OAUTH_GOOGLE_CLIENT_SECRET=${OAUTH_GOOGLE_CLIENT_SECRET}
-      # - OAUTH_GITHUB_CLIENT_ID=${OAUTH_GITHUB_CLIENT_ID}
-      # - OAUTH_GITHUB_CLIENT_SECRET=${OAUTH_GITHUB_CLIENT_SECRET}
-      # # 2FA
-      # - TOTP_ISSUER=${TOTP_ISSUER:-ft_transcendence}
-      # Next.js
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-https://localhost}
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
     depends_on:
       mariadb:
         condition: service_healthy
-      vault:
-        condition: service_healthy
+      # vault:
+      #   condition: service_healthy
+    env_file: .env
     restart: unless-stopped
     healthcheck:
+      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
       interval: 30s
       timeout: 10s
       retries: 5
 
   # ----------------------------------------------------------
-  #  WebSocket — Real-time server (Next.js custom server)
+  #  WebSocket — Real-time server
   #  No external port — accessed through WAF only
   # ----------------------------------------------------------
   websocket:
@@ -122,13 +95,12 @@ services:
     container_name: websocket
     networks:
       - internal
-    environment:
-      - PORT=${WS_PORT:-9000}
-      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       - backend
+    env_file: .env
     restart: unless-stopped
     healthcheck:
+      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
       test: ["CMD", "wget", "-qO-", "http://localhost:9000/health"]
       interval: 30s
       timeout: 10s
@@ -139,20 +111,18 @@ services:
   #  db network only — no external access
   # ----------------------------------------------------------
   mariadb:
-    image: mariadb:11
+    build:
+      context: ./srcs/mariadb
+      dockerfile: Dockerfile
     container_name: mariadb
     networks:
       - db
-    environment:
-      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${DB_NAME}
-      - MYSQL_USER=${DB_USER}
-      - MYSQL_PASSWORD=${DB_PASSWORD}
     volumes:
       - mariadb_data:/var/lib/mysql
-      - ./srcs/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    env_file: .env
     restart: unless-stopped
     healthcheck:
+      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
       timeout: 5s
@@ -169,16 +139,15 @@ services:
   #   container_name: vault
   #   networks:
   #     - vault_net
-  #   environment:
-  #     - VAULT_ADDR=${VAULT_ADDR:-http://vault:8200}
-  #     - VAULT_DEV_ROOT_TOKEN_ID=${VAULT_TOKEN}
   #   volumes:
   #     - vault_data:/vault/data
   #     - ./srcs/vault/config:/vault/config:ro
+  #   env_file: .env
   #   cap_add:
   #     - IPC_LOCK
   #   restart: unless-stopped
   #   healthcheck:
+  #     # Ensures the container is not just running but actually ready to accept connections before dependent services start.
   #     test: ["CMD", "vault", "status"]
   #     interval: 10s
   #     timeout: 5s
@@ -189,14 +158,25 @@ services:
 #  Networks — 4-layer isolation
 # ============================================================
 networks:
-  dmz:          # WAF only — exposed to internet
-  internal:     # App services — no external access
-  db:           # Database layer — backend only
-  vault_net:    # Secret management — backend only
+  dmz:
+  internal:
+  db:
+  vault_net:
 
 # ============================================================
-#  Volumes — persistent data
+#  Volumes — bind mount to host path (Inception style)
 # ============================================================
 volumes:
   mariadb_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/dancel/data/mariadb
+
   vault_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/dancel/data/vault

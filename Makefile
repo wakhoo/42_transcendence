@@ -2,14 +2,17 @@
 #  ft_transcendence — Makefile
 #  All services run inside Docker containers via docker compose
 # ============================================================
-DC=docker compose -f ./srcs/docker-compose.yml
 
-NAME	= ft_transcendence
+DC        = docker compose -f ./srcs/docker-compose.yml
+NAME      = ft_transcendence
+DATA_PATH = /home/dancel/data
 
 all: up
 
 # Build images and start all containers
 up:
+	mkdir -p $(DATA_PATH)/mariadb
+	mkdir -p $(DATA_PATH)/vault
 	$(DC) up -d --build
 
 # Start containers without rebuilding
@@ -49,8 +52,9 @@ sh:
 clean:
 	$(DC) down -v
 
-# Remove containers, volumes, and all project images
+# Remove containers, volumes, images, and host data
 fclean:
 	$(DC) down -v --rmi all
+	rm -rf $(DATA_PATH)
 
 .PHONY: all up start down stop re logs log ps sh clean fclean
