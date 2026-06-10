@@ -14,13 +14,13 @@
 	"dependencies": {
 		"@nestjs/common": "^11.1.26",
 		"@nestjs/core": "^11.1.26",
-		"@nestjs/plateform-express": "^11.1.26",
+		"@nestjs/platform-express": "^11.1.26",
 		"reflect-metadata": "^0.2.2",
 		"rxjs": "^7.8.2"
 	},
 	"devDependencies": {
-		"@nestjs/cli": "^11.1.26",
-		"@nestjs/shematics": "^11.1.0",
+		"@nestjs/cli": "^11.0.23",
+		"@nestjs/schematics": "^11.1.0",
 		"@types/node": "^25.9.2",
 		"@typescript-eslint/eslint-plugin": "^8.61.0",
 		"@typescript-eslint/parser": "^8.61.0",

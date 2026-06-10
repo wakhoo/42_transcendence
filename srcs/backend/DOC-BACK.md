@@ -61,3 +61,23 @@ Runs Prettier on every `.ts` file inside `src/`. Prettier rewrites the files to 
 | `start:prod` | `node dist/main` | Run the compiled app (production / Docker) |
 | `lint` | `eslint "src/**/*.ts" --fix` | Find and auto-fix code problems |
 | `format` | `prettier --write "src/**/*.ts"` | Auto-format code to a consistent style |
+
+---
+
+## eslint.config.mjs — what it is and why it matters
+
+## What ESLint is
+ESLint is a **linter**: a tool that reads your code and flags problems — bugs (unused variables, unsafe patterns), and style inconsistencies. It runs through the `npm run lint` script.
+
+## What this file does
+`eslint.config.mjs` is **ESLint's configuration file**. It tells ESLint *which files to check* and *which rules to apply*. Without it, ESLint wouldn't know how to analyze a TypeScript NestJS project.
+
+The `.mjs` extension forces the file to use modern `import` syntax.
+
+## The "flat config" format
+Since ESLint 9, configuration uses the **flat config** format: the file exports an array of configuration objects. Instead of listing rule sets as text strings (the old `extends: [...]` style), you **import** what you need and add it to the list. It is more explicit — you can see exactly what is being used.
+
+## Why it is useful in the project
+- It catches mistakes early, before they become runtime bugs.
+- It enforces one consistent code style across the whole team, so everyone's code looks the same.
+- It is required by task 1.2 ("configure TS + ESLint + Prettier") and powers the `npm run lint` command.
