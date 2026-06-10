@@ -281,6 +281,98 @@ TOTP_ISSUER=ft_transcendence
 
 ---
 
+## Backend commands — help / cheat sheet
+
+> All commands below are run **inside `srcs/backend/`** (the folder that holds `package.json`).
+> Move there first: `cd srcs/backend`
+
+---
+
+## 1. Setup
+
+### `npm install`
+**What it does:** reads `package.json` and downloads every dependency into a local `node_modules/` folder.
+**When to use it:** the first time you set up the project, after cloning the repo, or any time `package.json` changes (a new dependency was added). You cannot run or build anything before doing this once.
+
+---
+
+## 2. Running the server (development)
+
+### `npm run start:dev`
+**What it does:** runs `nest start --watch`. It starts the backend HTTP server **and** watches your files: every time you save, it automatically recompiles and restarts. The server listens on `http://localhost:3000`.
+**When to use it:** this is your main command while coding. Keep it running in a terminal during development.
+
+### `npm run start`
+**What it does:** starts the server **once**, without watching files. If you change code you have to stop it and start it again manually.
+**When to use it:** rarely — only when you want a single run without auto-reload.
+
+---
+
+## 3. Building for production
+
+### `npm run build`
+**What it does:** runs `nest build`. It compiles your TypeScript (`src/`) into plain JavaScript inside a `dist/` folder.
+**When to use it:** before running the production version, or when the Docker image is built.
+
+### `npm run start:prod`
+**What it does:** runs `node dist/main` — the already-compiled JavaScript. It does **not** recompile, so you must run `npm run build` first.
+**When to use it:** to run the optimized version, typically inside the Docker container.
+
+---
+
+## 4. Code quality
+
+### `npm run lint`
+**What it does:** runs ESLint on all `.ts` files in `src/` and auto-fixes (`--fix`) everything it can (unused imports, style issues, common mistakes).
+**When to use it:** before committing, to keep the code clean and catch errors early.
+
+### `npm run format`
+**What it does:** runs Prettier on all `.ts` files in `src/` and rewrites them to follow a consistent style (quotes, spacing, commas).
+**When to use it:** before committing, or whenever the formatting drifts.
+
+---
+
+## 5. Generating NestJS code (scaffolding)
+
+> These use the NestJS CLI. Since it is a local dev dependency, prefix with `npx`.
+
+### `npx nest g controller <name>`
+**What it does:** creates a new controller (and its folder) with the boilerplate already written.
+**Example:** `npx nest g controller users` → creates `src/users/users.controller.ts`.
+
+### `npx nest g module <name>`
+**What it does:** creates a new module to group related features.
+**Example:** `npx nest g module users`.
+
+### `npx nest g service <name>`
+**What it does:** creates a new service (where business logic lives).
+**Example:** `npx nest g service users`.
+
+### `npx nest g resource <name>`
+**What it does:** generates a full feature at once — module, controller, service, and basic CRUD — and asks a few questions interactively.
+**When to use it:** to bootstrap a complete feature quickly.
+
+---
+
+## 6. Adding new dependencies
+
+### `npm install <package>`
+**What it does:** downloads a package and adds it to `"dependencies"` (needed at runtime).
+**Example:** `npm install @nestjs/jwt`.
+
+### `npm install -D <package>`
+**What it does:** same, but adds it to `"devDependencies"` (only needed while developing).
+**Example:** `npm install -D @types/jest`.
+
+---
+
+## 7. Testing the health endpoint
+
+### `curl http://localhost:3000/api/health`
+**What it does:** sends a GET request to your health route and prints the response in the terminal. A working endpoint returns the JSON body and HTTP status 200.
+**When to use it:** to confirm the server is up and `/api/health` works — this is how you validate task 1.2.
+**Tip:** add `-i` (`curl -i http://localhost:3000/api/health`) to also see the status line and headers, so you can confirm the `200`.
+
 ## Resources
 
 ### Documentation
