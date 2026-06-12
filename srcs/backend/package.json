@@ -1,7 +1,7 @@
 {
-	"name": "transcendence-backhend",
+	"name": "transcendence-backend",
 	"version": "0.0.1",
-	"description": "ft_transcendence backhend (NestJS)",
+	"description": "ft_transcendence backend (NestJS)",
 	"private": true,
 	"scripts": {
 		"build": "nest build",
