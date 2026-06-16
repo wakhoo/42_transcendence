@@ -23,7 +23,7 @@ services:
     volumes:
       - ./srcs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./srcs/nginx/modsecurity:/etc/nginx/modsecurity:ro
-      - ./srcs/nginx/certs:/etc/nginx/certs:ro
+      - ./srcs/nginx/certs:/etc/nginx/certs
     depends_on:
       - frontend
       - backend
@@ -79,7 +79,7 @@ services:
     restart: unless-stopped
     healthcheck:
       # Ensures the container is not just running but actually ready to accept connections before dependent services start.
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -169,14 +169,14 @@ networks:
 volumes:
   mariadb_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /home/dancel/data/mariadb
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /home/dancel/data/mariadb
 
   vault_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /home/dancel/data/vault
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /home/dancel/data/vault
