@@ -11,7 +11,7 @@ services:
   # ----------------------------------------------------------
   nginx:
     build:
-      context: ./srcs/nginx
+      context: ./nginx
       dockerfile: Dockerfile
     container_name: nginx
     networks:
@@ -42,7 +42,7 @@ services:
   # ----------------------------------------------------------
   frontend:
     build:
-      context: ./srcs/frontend
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: frontend
     networks:
@@ -63,7 +63,7 @@ services:
   # ----------------------------------------------------------
   backend:
     build:
-      context: ./srcs/backend
+      context: ./backend
       dockerfile: Dockerfile
     container_name: backend
     networks:
@@ -90,7 +90,7 @@ services:
   # ----------------------------------------------------------
   websocket:
     build:
-      context: ./srcs/websocket
+      context: ./websocket
       dockerfile: Dockerfile
     container_name: websocket
     networks:
@@ -112,7 +112,7 @@ services:
   # ----------------------------------------------------------
   mariadb:
     build:
-      context: ./srcs/mariadb
+      context: ./mariadb
       dockerfile: Dockerfile
     container_name: mariadb
     networks:
@@ -123,10 +123,11 @@ services:
     restart: unless-stopped
     healthcheck:
       # Ensures the container is not just running but actually ready to accept connections before dependent services start.
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD", "mariadb-admin", "ping", "--silent"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 60s
 
   # ----------------------------------------------------------
   #  HashiCorp Vault — Secret management

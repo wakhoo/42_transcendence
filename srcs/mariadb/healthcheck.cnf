@@ -1,0 +1,3 @@
+[mariadb-client]
+user=healthcheck
+host=127.0.0.1
