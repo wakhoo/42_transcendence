@@ -72,7 +72,7 @@ DB_PASSWORD=
 DB_NAME=ft_transcendence
 
 # Backend — Next.js
-BACKEND_PORT=8080
+BACKEND_PORT=3000
 NEXTAUTH_URL=https://dancel.42.fr
 NEXTAUTH_SECRET=
 
