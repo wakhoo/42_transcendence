@@ -5,7 +5,7 @@
 
 DC        = docker compose -f ./srcs/docker-compose.yml
 NAME      = ft_transcendence
-DATA_PATH = /home/dancel/data
+DATA_PATH = /home/$(USER)/data
 
 all: up
 

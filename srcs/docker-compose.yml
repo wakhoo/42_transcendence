@@ -11,7 +11,7 @@ services:
   # ----------------------------------------------------------
   nginx:
     build:
-      context: ./srcs/nginx
+      context: nginx
       dockerfile: Dockerfile
     container_name: nginx
     networks:
@@ -42,7 +42,7 @@ services:
   # ----------------------------------------------------------
   frontend:
     build:
-      context: ./srcs/frontend
+      context: frontend
       dockerfile: Dockerfile
     container_name: frontend
     networks:
@@ -63,7 +63,7 @@ services:
   # ----------------------------------------------------------
   backend:
     build:
-      context: ./srcs/backend
+      context: backend
       dockerfile: Dockerfile
     container_name: backend
     networks:
@@ -88,23 +88,23 @@ services:
   #  WebSocket — Real-time server
   #  No external port — accessed through WAF only
   # ----------------------------------------------------------
-  websocket:
-    build:
-      context: ./srcs/websocket
-      dockerfile: Dockerfile
-    container_name: websocket
-    networks:
-      - internal
-    depends_on:
-      - backend
-    env_file: .env
-    restart: unless-stopped
-    healthcheck:
-      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
-      test: ["CMD", "wget", "-qO-", "http://localhost:9000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+  # websocket:
+  #   build:
+  #     context: websocket
+  #     dockerfile: Dockerfile
+  #   container_name: websocket
+  #   networks:
+  #     - internal
+  #   depends_on:
+  #     - backend
+  #   env_file: .env
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     # Ensures the container is not just running but actually ready to accept connections before dependent services start.
+  #     test: ["CMD", "wget", "-qO-", "http://localhost:9000/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
 
   # ----------------------------------------------------------
   #  MariaDB — Database
@@ -112,7 +112,7 @@ services:
   # ----------------------------------------------------------
   mariadb:
     build:
-      context: ./srcs/mariadb
+      context: mariadb
       dockerfile: Dockerfile
     container_name: mariadb
     networks:

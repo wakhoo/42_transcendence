@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Faux Joueur Skribbl</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Je suis un faux joueur !</h1>
+    <button onclick="simulerDessin()">Dessiner un point rouge !</button>
+
+    <script>
+        const socket = io("http://localhost:3000");
+
+        socket.on("connect", () => {
+            console.log("🟢 Connecté avec l'ID : " + socket.id);
+        });
+
+        // 1. La fonction qui s'active quand on clique sur le bouton
+        function simulerDessin() {
+            const fauxTrait = { x: 150, y: 200, couleur: "rouge" };
+            // On crie dans le tuyau "draw" pour l'envoyer au serveur
+            socket.emit("draw", fauxTrait);
+            console.log("✏️ J'ai envoyé un dessin au serveur !");
+        }
+
+        // 2. On écoute si le serveur nous renvoie un dessin d'un AUTRE joueur
+        socket.on("draw", (donneesRecues) => {
+            console.log("🔥 ALERTE ! Quelqu'un a dessiné :", donneesRecues);
+        });
+    </script>
+</body>
+</html>
