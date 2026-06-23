@@ -2,6 +2,7 @@ import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UserService } from '../user/user.service';
+import { GoogleProfile } from './strategies/google.strategy';
 import { SessionService } from './session.service';
 
 const BCRYPT_ROUNDS = 12;
@@ -61,6 +62,38 @@ export class AuthService {
 
     async logout(token: string): Promise<void> {
         await this.sessionService.delete(token);
+    }
+
+    async googleLogin(
+        profile: GoogleProfile,
+    ): Promise<{ accessToken: string; refreshToken: string }> {
+        let user = await this.userService.findByOAuthId('google', profile.oauthId);
+
+        if (!user) {
+            const existing = await this.userService.findByEmail(profile.email);
+            if (existing) throw new ConflictException('Email already registered with a password account');
+
+            const username = await this.generateUsername(profile.email);
+            user = await this.userService.createOAuthUser(
+                'google',
+                profile.oauthId,
+                profile.email,
+                username,
+                profile.avatarUrl,
+            );
+        }
+
+        return this.issueTokens(user.id, user.email);
+    }
+
+    private async generateUsername(email: string): Promise<string> {
+        const base = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 18);
+        let username = base;
+        let suffix = 1;
+        while (await this.userService.findByUsername(username)) {
+            username = `${base}_${suffix++}`;
+        }
+        return username;
     }
 
     private async issueTokens(

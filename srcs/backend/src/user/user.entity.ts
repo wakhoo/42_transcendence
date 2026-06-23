@@ -14,6 +14,15 @@ export class User {
     @Column({ name: 'password_hash', type: 'varchar', length: 60, nullable: true })
     passwordHash: string | null = null;
 
+    @Column({ name: 'avatar_url', type: 'varchar', length: 500, nullable: true })
+    avatarUrl: string | null = null;
+
+    @Column({ name: 'oauth_provider', type: 'varchar', length: 20, nullable: true })
+    oauthProvider: string | null = null;
+
+    @Column({ name: 'oauth_id', type: 'varchar', length: 255, nullable: true })
+    oauthId: string | null = null;
+
     @CreateDateColumn()
     createdAt!: Date;
 }

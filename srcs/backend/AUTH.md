@@ -1,6 +1,6 @@
-# AUTH.md — Email Authentication
+# AUTH.md — Authentication
 
-This document covers the email/password authentication implementation: what was built, how each piece works, and how to use the API endpoints.
+This document covers the authentication implementation: email/password registration and login, session management with refresh tokens, JWT guard, and Google OAuth.
 
 ---
 
@@ -11,9 +11,9 @@ The authentication system is split across two NestJS modules:
 | Module | Responsibility |
 |---|---|
 | `UserModule` | Database access — stores and retrieves users |
-| `AuthModule` | Business logic — hashing, verification, JWT issuance, session management |
+| `AuthModule` | Business logic — hashing, verification, JWT issuance, session management, OAuth |
 
-On successful register or login, the API returns two tokens:
+On successful register, login, or OAuth login, the API returns two tokens:
 - **`accessToken`** — short-lived JWT (15 minutes), used in the `Authorization` header for protected routes
 - **`refreshToken`** — long-lived opaque token (7 days), stored hashed in the `sessions` table, used to get a new access token without re-entering credentials
 
@@ -24,23 +24,25 @@ On successful register or login, the API returns two tokens:
 ```
 src/
 ├── types/
-│   └── express.d.ts        # Extends Express Request with user: JwtPayload
+│   └── express.d.ts              # Extends Express Request with user: JwtPayload
 ├── user/
-│   ├── user.entity.ts      # TypeORM entity → maps to the `users` table
-│   ├── user.service.ts     # DB queries: create, findByEmail, findByUsername, findById
-│   └── user.module.ts      # Registers the repository, exports UserService
+│   ├── user.entity.ts            # TypeORM entity → maps to the `users` table
+│   ├── user.service.ts           # DB queries: create, findByEmail, findByUsername, findById, findByOAuthId, createOAuthUser
+│   └── user.module.ts            # Registers the repository, exports UserService
 └── auth/
     ├── dto/
-    │   ├── register.dto.ts # Input validation for /register
-    │   ├── login.dto.ts    # Input validation for /login
-    │   └── refresh.dto.ts  # Input validation for /refresh and /logout
+    │   ├── register.dto.ts       # Input validation for /register
+    │   ├── login.dto.ts          # Input validation for /login
+    │   └── refresh.dto.ts        # Input validation for /refresh and /logout
     ├── guards/
-    │   └── jwt.guard.ts    # Validates Bearer token on protected routes
-    ├── session.entity.ts   # TypeORM entity → maps to the `sessions` table
-    ├── session.service.ts  # Session DB operations: create, findValid, delete
-    ├── auth.service.ts     # Register, login, refresh, logout logic
-    ├── auth.controller.ts  # HTTP routes for all auth endpoints
-    └── auth.module.ts      # Wires JwtModule, TypeORM, SessionService, JwtGuard
+    │   └── jwt.guard.ts          # Validates Bearer token on protected routes
+    ├── strategies/
+    │   └── google.strategy.ts    # Passport Google OAuth 2.0 strategy
+    ├── session.entity.ts         # TypeORM entity → maps to the `sessions` table
+    ├── session.service.ts        # Session DB operations: create, findValid, delete
+    ├── auth.service.ts           # Register, login, refresh, logout, googleLogin logic
+    ├── auth.controller.ts        # HTTP routes for all auth endpoints
+    └── auth.module.ts            # Wires JwtModule, PassportModule, TypeORM, strategies, guards
 ```
 
 ---
@@ -55,8 +57,11 @@ Managed by TypeORM via `user.entity.ts`. The `synchronize: true` option in `app.
 |---|---|---|---|
 | `id` | INT | PK, AUTO_INCREMENT | |
 | `email` | VARCHAR(255) | NOT NULL, UNIQUE | |
-| `username` | VARCHAR(20) | NOT NULL, UNIQUE | |
+| `username` | VARCHAR(20) | NOT NULL, UNIQUE | Auto-generated for OAuth users |
 | `password_hash` | VARCHAR(60) | DEFAULT NULL | `NULL` for OAuth-only accounts |
+| `avatar_url` | VARCHAR(500) | DEFAULT NULL | Set from Google profile photo |
+| `oauth_provider` | VARCHAR(20) | DEFAULT NULL | e.g. `"google"` |
+| `oauth_id` | VARCHAR(255) | DEFAULT NULL | Google's unique user ID |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Set by TypeORM `@CreateDateColumn` |
 
 `password_hash` is exactly 60 characters — the fixed output length of bcrypt with the `$2b$` prefix.
@@ -162,6 +167,42 @@ POST /api/auth/login
 
 > "User not found" and "wrong password" both return the same `401 "Invalid credentials"` — this prevents attackers from discovering whether an email is registered.
 
+### Google OAuth flow
+
+```
+GET /api/auth/google
+  │
+  └─ Passport redirects browser to Google consent screen
+        (clientID, scope: email + profile, callbackURL from NEXTAUTH_URL)
+
+      [User approves on Google]
+
+GET /api/auth/callback/google  ← Google redirects here with auth code
+  │
+  └─ Passport exchanges code for Google profile (id, email, displayName, photo)
+        │
+        ├─ GoogleStrategy.validate() → returns GoogleProfile object
+        │
+        └─ AuthService.googleLogin(profile)
+              │
+              ├─ UserService.findByOAuthId('google', oauthId)
+              │     → found: skip to issueTokens
+              │
+              ├─ UserService.findByEmail(profile.email)
+              │     → found (email/password account): 409 Conflict
+              │
+              ├─ generateUsername(email)
+              │     → email prefix, stripped of special chars, max 18 chars
+              │     → appends _1, _2... if username is taken
+              │
+              ├─ UserService.createOAuthUser(provider, oauthId, email, username, avatarUrl)
+              │
+              └─ issueTokens(userId, email)
+                    → 302 redirect to ${NEXTAUTH_URL}/auth/callback?accessToken=...&refreshToken=...
+```
+
+**Frontend responsibility:** The frontend must implement a `/auth/callback` page that reads `accessToken` and `refreshToken` from the URL query params and stores them.
+
 ### Refresh flow
 
 ```
@@ -227,7 +268,7 @@ Base URL: `https://<host>/api`
 
 ### `POST /auth/register`
 
-Creates a new user account.
+Creates a new user account with email and password.
 
 **Request body**
 
@@ -264,7 +305,7 @@ curl -sk -X POST https://localhost/api/auth/register \
 
 ### `POST /auth/login`
 
-Authenticates an existing user.
+Authenticates an existing email/password user.
 
 **Request body**
 
@@ -320,7 +361,7 @@ curl -sk -X POST https://localhost/api/auth/refresh \
 
 ### `POST /auth/logout`
 
-Invalidates the refresh token. Requires a valid access token. **Protected by JwtGuard.**
+Invalidates the refresh token. **Protected by JwtGuard.**
 
 **Headers**
 
@@ -353,12 +394,45 @@ curl -sk -X POST https://localhost/api/auth/logout \
 
 ---
 
+### `GET /auth/google`
+
+Initiates Google OAuth login. Redirects the browser to the Google consent screen.
+
+```
+https://localhost/api/auth/google
+```
+
+No request body or headers required. Open in a browser.
+
+---
+
+### `GET /auth/callback/google`
+
+Google redirects here after the user approves. Handled entirely by Passport — do not call this directly.
+
+On success, redirects to:
+```
+${NEXTAUTH_URL}/auth/callback?accessToken=<jwt>&refreshToken=<token>
+```
+
+**Responses**
+
+| Status | Condition |
+|---|---|
+| 302 | Redirect to frontend with tokens |
+| 409 | Email already registered with a password account |
+
+---
+
 ## Environment Variables
 
 | Variable | Description | Example |
 |---|---|---|
 | `JWT_SECRET` | Secret key for signing access tokens | `47d5bc8c...` |
 | `JWT_EXPIRES_IN` | Access token lifetime in seconds | `900` (15 min) |
+| `NEXTAUTH_URL` | Base URL of the app (used for OAuth callback and frontend redirect) | `https://localhost` |
+| `OAUTH_GOOGLE_CLIENT_ID` | Google OAuth client ID | `1012791832136-...` |
+| `OAUTH_GOOGLE_CLIENT_SECRET` | Google OAuth client secret | `GOCSPX-...` |
 | `MARIADB_HOST` | Database host | `mariadb` |
 | `MARIADB_PORT` | Database port | `3306` |
 | `MARIADB_USER` | Database user | `User` |
@@ -372,5 +446,5 @@ curl -sk -X POST https://localhost/api/auth/logout \
 | Feature | Planned branch |
 |---|---|
 | Login rate limiting (5 attempts → delay) | `feat/auth-rate-limit` |
-| OAuth provider login (Google, GitHub) | `feat/auth-oauth` |
 | Two-factor authentication (TOTP) | `feat/auth-2fa` |
+| Frontend `/auth/callback` page (token storage) | frontend branch |
