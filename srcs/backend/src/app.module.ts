@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './auth/auth.module';
+import { Session } from './auth/session.entity';
 import { UserModule } from './user/user.module';
 import { User } from './user/user.entity';
 
@@ -18,7 +19,7 @@ import { User } from './user/user.entity';
                 username: config.getOrThrow('MARIADB_USER'),
                 password: config.getOrThrow('MARIADB_PASSWORD'),
                 database: config.getOrThrow('MARIADB_DATABASE'),
-                entities: [User],
+                entities: [User, Session],
                 synchronize: true,
             }),
         }),

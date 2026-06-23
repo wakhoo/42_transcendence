@@ -22,4 +22,8 @@ export class UserService {
     findByUsername(username: string): Promise<User | null> {
         return this.repo.findOne({ where: { username } });
     }
+
+    findById(id: number): Promise<User | null> {
+        return this.repo.findOne({ where: { id } });
+    }
 }
