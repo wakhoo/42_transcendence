@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Faux Joueur Skribbl</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Je suis un faux joueur !</h1>
+    <button onclick="simulerDessin()">Dessiner un point rouge !</button>
+
+    <button onclick="simulerStart()">🚀 Lancer le jeu !</button>
+  <script>
+        const socket = io("http://localhost:3000");
+
+        // --- 1. LES ÉCOUTEURS (Ils écoutent en permanence dès le chargement de la page) ---
+        
+        socket.on("connect", () => {
+            console.log("🟢 Connecté avec l'ID : " + socket.id);
+        });
+
+        socket.on("draw", (donneesRecues) => {
+            console.log("🔥 ALERTE ! Quelqu'un a dessiné :", donneesRecues);
+        });
+
+        socket.on("secret_word", (mot) => {
+            console.log("🤫 CHUT ! Tu es le dessinateur. Le mot secret est : " + mot);
+        });
+
+        socket.on("word_hint", (infos) => {
+            console.log(`📢 Le tour commence ! Le dessinateur est ${infos.drawer}. Le mot fait ${infos.wordLength} lettres.`);
+        });
+
+
+        // --- 2. LES FONCTIONS (Elles ne s'activent QUE quand on clique sur un bouton) ---
+
+        function simulerDessin() {
+            const fauxTrait = { x: 150, y: 200, couleur: "rouge" };
+            socket.emit("draw", fauxTrait);
+            console.log("✏️ J'ai envoyé un dessin au serveur !");
+        }
+
+        function simulerStart() {
+            const donneesAdmin = {
+                roomId: "Room-Test",
+                players: [socket.id, "un_autre_joueur"]
+            };
+            socket.emit("start_game", donneesAdmin);
+            console.log("🚀 Demande de lancement envoyée au serveur !");
+        }
+    </script>
+</body>
+</html>
