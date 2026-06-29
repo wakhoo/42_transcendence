@@ -1,19 +1,29 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+} from "typeorm";
 
-@Entity('users')
+@Entity("users")
 export class User {
-    @PrimaryGeneratedColumn()
-    id!: number;
+  @PrimaryGeneratedColumn()
+  id!: number;
 
-    @Column({ unique: true })
-    email!: string;
+  @Column({ unique: true })
+  email!: string;
 
-    @Column({ length: 20, unique: true })
-    username!: string;
+  @Column({ length: 20, unique: true })
+  username!: string;
 
-    @Column({ name: 'password_hash', type: 'varchar', length: 60, nullable: true })
-    passwordHash: string | null = null;
+  @Column({
+    name: "password_hash",
+    type: "varchar",
+    length: 60,
+    nullable: true,
+  })
+  passwordHash: string | null = null;
 
-    @CreateDateColumn()
-    createdAt!: Date;
+  @CreateDateColumn()
+  createdAt!: Date;
 }
