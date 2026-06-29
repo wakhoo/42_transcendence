@@ -169,7 +169,7 @@ export class GameGateway implements OnGatewayDisconnect{
             this.playerPoints[client.id] = 0;
 
           clearInterval(this.timer);
-
+          
           if(this.timeLeft >= 50)
             this.playerPoints[client.id] += 100;
           else if(this.timeLeft >= 40 )
@@ -208,13 +208,14 @@ export class GameGateway implements OnGatewayDisconnect{
         }
         this.currentDrawer = this.playerList[this.currentPlayerIndex];
         this.secretWord = this.wordList[Math.floor(Math.random() * this.wordList.length)];
-         this.server.emit('word_hint' , {
+        this.server.emit('word_hint' , {
 
           drawer : this.currentDrawer,
           wordLength: this.secretWord.length
         });
 
         this.server.to(this.currentDrawer).emit('secret_word', this.secretWord);
+        this.timer = setTimeout(() => {
         this.timeLeft = 60;
         this.timer = setInterval(() => {
 
@@ -231,7 +232,7 @@ export class GameGateway implements OnGatewayDisconnect{
             this.handleNextTurn();
           },5000)
         }
-     },1000);
-
+      },1000);
+     },10000);
     }
   }
