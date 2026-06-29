@@ -36,12 +36,11 @@ export class GameGateway {
 
   //   }
 
-
-
   // debut de la boucle du jeu declaratio nde variable globale utilsiable dans toutes les fonctions 
     @WebSocketServer()
     server!: Server;
     secretWord: string = "";
+    currentWord:  string ="";
     spectatorId : string[] = [];
     timer: any;
     timeLeft: number = 0;
@@ -50,6 +49,8 @@ export class GameGateway {
     playerList: string[] = [];
     currentPlayerIndex: number = 0;
     historicDraw : string[] = [];
+    currentRound: number = 1;
+    roundmax: number = 3;
     playerPoints: Record<string,number> = {};
 
     //chaque decorateur a utilsier avant sa fonction 
@@ -58,6 +59,8 @@ export class GameGateway {
     handleGame(client: any , data: any) {
 
       console.log('Game started ');
+      console.log('manche numero 1');
+
 
       // random pour choix du mot secret a chaque tour stockage du joueur numero un qui dessine 
       
@@ -75,7 +78,6 @@ export class GameGateway {
         wordLength: this.secretWord.length
       });
 
-
       // on donne le mot secret au dessinateur
      
         this.server.to(this.currentDrawer).emit('secret_word', this.secretWord);
@@ -92,7 +94,9 @@ export class GameGateway {
         if(this.timeLeft == 0){
 
           clearInterval(this.timer);
-          console.log('Fin du temps reglementaire');
+          this.server.emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
+          this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
+          this.handleNextTurn();
         }
      },1000);
     }
@@ -109,7 +113,6 @@ export class GameGateway {
       //si spectateur essaye de dessiner message d erreur
       else
         console.log('Spectateur essaye de dessiner ')
-
     }
 
     @SubscribeMessage('request_history')
@@ -146,6 +149,51 @@ export class GameGateway {
           else if(this.timeLeft > 0)
             this.playerPoints[client.id] += 5;
           this.server.emit('chat_message', `${client.id} a trouver le mot`);
+          this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
+          this.handleNextTurn();
           }
+      }
+
+      handleNextTurn() {
+
+        this.historicDraw = [];
+        this.currentPlayerIndex += 1;
+        if (!this.playerList[this.currentPlayerIndex]){
+          
+          if(this.currentRound >= this.roundmax){
+
+            this.server.emit('game_over',this.playerPoints);
+            return;
+          }
+          this.currentRound +=1;
+          this.currentPlayerIndex = 0;
+          this.server.emit('next_round', `Manche numero ${this.currentRound}`);
+        }
+        this.currentDrawer = this.playerList[this.currentPlayerIndex];
+        this.secretWord = this.wordList[Math.floor(Math.random() * this.wordList.length)];
+         this.server.emit('word_hint' , {
+
+          drawer : this.currentDrawer,
+          wordLength: this.secretWord.length
+        });
+
+        this.server.to(this.currentDrawer).emit('secret_word', this.secretWord);
+        this.timeLeft = 60;
+        this.timer = setInterval(() => {
+
+        // debut de boucle de temps decrementation sur 60 s
+        this.timeLeft -= 1;
+        console.log(`Temps restant : ${this.timeLeft}s`);
+
+        if(this.timeLeft == 0){
+
+          clearInterval(this.timer);
+          this.server.emit('chat_message',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
+          this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
+          this.handleNextTurn();
+        }
+     },1000);
+
+
       }
   }

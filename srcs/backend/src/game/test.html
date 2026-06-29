@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html>
 <head>
     <title>Faux Joueur Skribbl</title>
@@ -46,6 +46,87 @@
             };
             socket.emit("start_game", donneesAdmin);
             console.log("🚀 Demande de lancement envoyée au serveur !");
+        }
+    </script>
+</body>
+</html>
+ -->
+
+ <!DOCTYPE html>
+<html>
+<head>
+    <title>Faux Joueur Skribbl</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Je suis un faux joueur !</h1>
+    <button onclick="simulerDessin()">✏️ Dessiner un point rouge !</button>
+    <button onclick="simulerStart()">🚀 Lancer le jeu !</button>
+    
+    <hr>
+    
+    <h3>Trouver le mot :</h3>
+    <input type="text" id="motPropose" placeholder="Devine le mot ici...">
+    <button onclick="simulerDevinette()">❓ Proposer ce mot</button>
+
+  <script>
+        const socket = io("http://localhost:3000");
+
+        // --- 1. LES ÉCOUTEURS (Ils écoutent en permanence) ---
+        
+        socket.on("connect", () => {
+            console.log("🟢 Connecté avec l'ID : " + socket.id);
+        });
+
+        socket.on("draw", (donneesRecues) => {
+            console.log("🔥 Quelqu'un a dessiné :", donneesRecues);
+        });
+
+        socket.on("secret_word", (mot) => {
+            console.log("🤫 CHUT ! Le mot secret est : " + mot);
+        });
+
+        socket.on("word_hint", (infos) => {
+            console.log(`📢 Tour commence ! Dessinateur: ${infos.drawer}. Lettres: ${infos.wordLength}`);
+        });
+
+        // NOUVEAU : Les écouteurs de ta boucle de jeu
+        socket.on("chat_message", (msg) => {
+            console.log("💬 CHAT : " + msg);
+        });
+
+        socket.on("next_round", (info) => {
+            console.log("🔄 " + info);
+        });
+
+        socket.on("game_over", (scores) => {
+            console.log("🏆 FIN DE PARTIE ! Scores du serveur :", scores);
+        });
+
+
+        // --- 2. LES FONCTIONS (Déclenchées par les boutons) ---
+
+        function simulerDessin() {
+            const fauxTrait = { x: 150, y: 200, couleur: "rouge" };
+            socket.emit("draw", fauxTrait);
+            console.log("✏️ Dessin envoyé !");
+        }
+
+        function simulerStart() {
+            const donneesAdmin = {
+                roomId: "Room-Test",
+                players: [socket.id, "joueur_2_imaginaire"]
+            };
+            socket.emit("start_game", donneesAdmin);
+            console.log("🚀 Demande de lancement envoyée !");
+        }
+
+        // NOUVEAU : La fonction pour envoyer le mot
+        function simulerDevinette() {
+            const mot = document.getElementById("motPropose").value;
+            socket.emit("wordCheck", mot);
+            console.log("❓ J'ai proposé :", mot);
+            document.getElementById("motPropose").value = ""; // Vide la case
         }
     </script>
 </body>
