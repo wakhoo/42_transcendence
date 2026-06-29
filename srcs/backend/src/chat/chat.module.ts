@@ -13,10 +13,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
     imports: [
-        // donne accès aux repositories TypeORM pour ces 4 entités
         TypeOrmModule.forFeature([Channel, ChannelMember, Message, Friendship]),
 
-        // JWT pour vérifier l'identité des utilisateurs dans le gateway WebSocket
         JwtModule.registerAsync({
             imports: [ConfigModule],
             inject: [ConfigService],
@@ -25,9 +23,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
             }),
         }),
     ],
-    // classe qui definie toutes les URLs avec les requêtes GET /messages et POST /login
     controllers: [ChatController],
-    // contient la logique et les services
     providers: [ChatService, ChatGateway, JwtAuthGuard],
 })
 export class ChatModule {}

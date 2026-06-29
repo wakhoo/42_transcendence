@@ -29,8 +29,7 @@ export class ChatService {
     ) {}
 
     // ─────────────────────────────────────────────────────────────────────────
-    // INITIALISATION
-    // Appelé au démarrage : crée le salon général s'il n'existe pas encore
+    // INITIALISATION : si salon general n'existe pas, le cree
     // ─────────────────────────────────────────────────────────────────────────
 
     async ensureGeneralChannel(): Promise<Channel> {
@@ -43,32 +42,19 @@ export class ChatService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // CHANNELS — création et consultation
+    // CHANNELS : creation + getters
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Retourne tous les channels publics (visible dans la liste des salons)
     async getPublicChannels(): Promise<Channel[]> {
         return this.channelRepo.find({ where: { isPrivate: false } });
     }
 
-    // Retourne les channels dont l'utilisateur est membre
     async getMyChannels(userId: number): Promise<Channel[]> {
-        const memberships = await this.memberRepo.find({
-            where: { user: { id: userId } },
-            relations: ['channel'],
-        });
+        const memberships = await this.memberRepo.find({ where: { user: { id: userId } }, relations: ['channel'], });
         return memberships.map((m) => m.channel);
     }
 
-    // Crée un nouveau channel et ajoute le créateur comme admin
-    async createChannel(
-        userId: number,
-        name: string,
-        type: 'general' | 'game' | 'dm',
-        isPrivate: boolean,
-        password?: string,
-        maxMembers?: number,
-    ): Promise<Channel> {
+    async createChannel(userId: number, name: string, type: 'general' | 'game' | 'dm', isPrivate: boolean, password?: string, maxMembers?: number): Promise<Channel> {
         const existing = await this.channelRepo.findOne({ where: { name } });
         if (existing) throw new BadRequestException('Channel name already taken');
 
@@ -86,7 +72,6 @@ export class ChatService {
         });
         const saved = await this.channelRepo.save(channel);
 
-        // Le créateur devient automatiquement admin du salon
         const membership = this.memberRepo.create({
             user: { id: userId },
             channel: { id: saved.id },
@@ -101,28 +86,208 @@ export class ChatService {
     // CHANNELS — rejoindre et quitter
     // ─────────────────────────────────────────────────────────────────────────
 
+    async joinChannel(userId: number, channelId: number, password?: string): Promise<ChannelMember> {
+        const channel = await this.channelRepo.findOne({ where: { id: channelId } });
+        if (!channel) throw new NotFoundException('Channel not found');
 
+        if (channel.passwordHash) {
+            if (!password) throw new ForbiddenException('This channel requires a password');
+            const valid = await bcrypt.compare(password, channel.passwordHash);
+            if (!valid) throw new ForbiddenException('Wrong password');
+        }
+
+        if (channel.maxMembers !== null) {
+            const count = await this.memberRepo.count({ where: { channel: { id: channelId } } });
+            if (count >= channel.maxMembers) throw new ForbiddenException('Channel is full');
+        }
+
+        const existing = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
+        if (existing) throw new BadRequestException('Already a member of this channel');
+
+        const membership = this.memberRepo.create({
+            user: { id: userId },
+            channel: { id: channelId },
+            role: 'member',
+        });
+        return this.memberRepo.save(membership);
+    }
+
+    async leaveChannel(userId: number, channelId: number): Promise<void> {
+        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
+        if (!membership) throw new NotFoundException('You are not a member of this channel');
+        await this.memberRepo.remove(membership);
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // CHANNELS — actions admin (kick, invite, mute, password, suppression)
     // ─────────────────────────────────────────────────────────────────────────
 
+    private async requireAdmin(userId: number, channelId: number): Promise<void> {
+        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
+        if (!membership || membership.role !== 'admin') {
+            throw new ForbiddenException('Admin privileges required');
+        }
+    }
 
+    async kickMember(adminId: number, channelId: number, targetUserId: number): Promise<void> {
+        await this.requireAdmin(adminId, channelId);
+        const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
+        if (!target) throw new NotFoundException('Target user is not in this channel');
+        await this.memberRepo.remove(target);
+    }
+
+    async inviteUser(adminId: number, channelId: number, targetUserId: number): Promise<ChannelMember> {
+        await this.requireAdmin(adminId, channelId);
+        const existing = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
+        if (existing) throw new BadRequestException('User is already in this channel');
+        const membership = this.memberRepo.create({
+            user: { id: targetUserId },
+            channel: { id: channelId },
+            role: 'member',
+        });
+        return this.memberRepo.save(membership);
+    }
+
+    async muteMember(adminId: number, channelId: number, targetUserId: number, minutes: number): Promise<void> {
+        await this.requireAdmin(adminId, channelId);
+        const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
+        if (!target) throw new NotFoundException('Target user is not in this channel');
+        target.mutedUntil = minutes > 0 ? new Date(Date.now() + minutes * 60000) : null;
+        await this.memberRepo.save(target);
+    }
+
+    async setChannelPassword(adminId: number, channelId: number, password: string | null): Promise<void> {
+        await this.requireAdmin(adminId, channelId);
+        const channel = await this.channelRepo.findOne({ where: { id: channelId } });
+        if (!channel) throw new NotFoundException('Channel not found');
+        channel.passwordHash = password ? await bcrypt.hash(password, 10) : null;
+        await this.channelRepo.save(channel);
+    }
+
+    async setChannelPrivacy(adminId: number, channelId: number, isPrivate: boolean): Promise<void> {
+        await this.requireAdmin(adminId, channelId);
+        const channel = await this.channelRepo.findOne({ where: { id: channelId } });
+        if (!channel) throw new NotFoundException('Channel not found');
+        channel.isPrivate = isPrivate;
+        await this.channelRepo.save(channel);
+    }
+
+    async deleteChannel(adminId: number, channelId: number): Promise<void> {
+        await this.requireAdmin(adminId, channelId);
+        const channel = await this.channelRepo.findOne({ where: { id: channelId } });
+        if (!channel) throw new NotFoundException('Channel not found');
+        if (channel.type === 'general') throw new ForbiddenException('Cannot delete the general channel');
+        await this.channelRepo.remove(channel);
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // MESSAGES
     // ─────────────────────────────────────────────────────────────────────────
 
+    async sendMessage(userId: number, channelId: number, content: string): Promise<Message> {
+        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
+        if (!membership) throw new ForbiddenException('You are not a member of this channel');
 
+        if (membership.mutedUntil && membership.mutedUntil > new Date()) {
+            throw new ForbiddenException('You are muted in this channel');
+        }
+
+        const message = this.messageRepo.create({
+            content,
+            sender: { id: userId },
+            channel: { id: channelId },
+        });
+        return this.messageRepo.save(message);
+    }
+
+    async getMessages(channelId: number, limit = 50): Promise<Message[]> {
+        return this.messageRepo.find({ where: { channel: { id: channelId } }, order: { createdAt: 'DESC' }, take: limit});
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // MESSAGES PRIVÉS — crée ou retrouve un channel DM entre deux users
     // ─────────────────────────────────────────────────────────────────────────
 
+    async getOrCreateDmChannel(userId: number, targetUserId: number): Promise<Channel> {
+        const dmName = `dm_${Math.min(userId, targetUserId)}_${Math.max(userId, targetUserId)}`;
+
+        let channel = await this.channelRepo.findOne({ where: { name: dmName } });
+        if (!channel) {
+            channel = await this.channelRepo.save(
+                this.channelRepo.create({ name: dmName, type: 'dm', isPrivate: true }),
+            );
+            await this.memberRepo.save([
+                this.memberRepo.create({ user: { id: userId }, channel: { id: channel.id }, role: 'member' }),
+                this.memberRepo.create({ user: { id: targetUserId }, channel: { id: channel.id }, role: 'member' }),
+            ]);
+        }
+        return channel;
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // AMIS
     // ─────────────────────────────────────────────────────────────────────────
 
+    async sendFriendRequest(requesterId: number, addresseeId: number): Promise<Friendship> {
+        if (requesterId === addresseeId) throw new BadRequestException('Cannot add yourself');
 
+        const existing = await this.friendshipRepo.findOne({
+            where: [
+                { requester: { id: requesterId }, addressee: { id: addresseeId } },
+                { requester: { id: addresseeId }, addressee: { id: requesterId } },
+            ],
+        });
+        if (existing) throw new BadRequestException('A relation already exists with this user');
+
+        const friendship = this.friendshipRepo.create({
+            requester: { id: requesterId },
+            addressee: { id: addresseeId },
+            status: 'pending',
+        });
+        return this.friendshipRepo.save(friendship);
+    }
+
+    async acceptFriendRequest(userId: number, friendshipId: number): Promise<Friendship> {
+        const friendship = await this.friendshipRepo.findOne({ where: { id: friendshipId } });
+        if (!friendship) throw new NotFoundException('Friend request not found');
+        if (friendship.addressee.id !== userId) throw new ForbiddenException('Not your request');
+        if (friendship.status !== 'pending') throw new BadRequestException('Request is not pending');
+        friendship.status = 'accepted';
+        return this.friendshipRepo.save(friendship);
+    }
+
+    async rejectFriendRequest(userId: number, friendshipId: number): Promise<void> {
+        const friendship = await this.friendshipRepo.findOne({ where: { id: friendshipId } });
+        if (!friendship) throw new NotFoundException('Friend request not found');
+        if (friendship.addressee.id !== userId) throw new ForbiddenException('Not your request');
+        await this.friendshipRepo.remove(friendship);
+    }
+
+    async blockUser(userId: number, targetUserId: number): Promise<Friendship> {
+        const existing = await this.friendshipRepo.findOne({ where: [{ requester: { id: userId }, addressee: { id: targetUserId } },
+            { requester: { id: targetUserId }, addressee: { id: userId } },],});
+        if (existing) await this.friendshipRepo.remove(existing);
+
+        const block = this.friendshipRepo.create({requester: { id: userId }, addressee: { id: targetUserId }, status: 'blocked'});
+        return this.friendshipRepo.save(block);
+    }
+
+    async getFriends(userId: number): Promise<Friendship[]> {
+        return this.friendshipRepo.find({ where: [ { requester: { id: userId }, status: 'accepted' }, { addressee: { id: userId }, status: 'accepted' } ] });
+    }
+
+    async getPendingRequests(userId: number): Promise<Friendship[]> {
+        return this.friendshipRepo.find({ where: { addressee: { id: userId }, status: 'pending' }, });
+    }
+
+    async isBlocked(userId: number, targetUserId: number): Promise<boolean> {
+        const block = await this.friendshipRepo.findOne({ where: [ { requester: { id: userId }, addressee: { id: targetUserId }, status: 'blocked' },
+                { requester: { id: targetUserId }, addressee: { id: userId }, status: 'blocked' } ] });
+        return !!block;
+    }
+
+    async getMemberRole(userId: number, channelId: number): Promise<'admin' | 'member' | null> {
+        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } } });
+        return membership?.role ?? null;
+    }
 }

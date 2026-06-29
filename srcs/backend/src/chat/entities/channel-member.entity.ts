@@ -16,11 +16,9 @@ export class ChannelMember {
     @PrimaryGeneratedColumn()
     id!: number;
 
-    // Rôle dans le salon : admin (créateur, peut kick/inviter/etc.) ou simple membre
     @Column({ type: 'enum', enum: ['admin', 'member'], default: 'member' })
     role!: 'admin' | 'member';
 
-    // Muté jusqu'à cette date (null = pas muté)
     @Column({ type: 'datetime', nullable: true })
     mutedUntil: Date | null = null;
 
