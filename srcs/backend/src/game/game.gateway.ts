@@ -1,15 +1,15 @@
-import { SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import { SubscribeMessage, WebSocketGateway, WebSocketServer, OnGatewayDisconnect } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 
 @WebSocketGateway({ cors: true})
 
-export class GameGateway {
+export class GameGateway implements OnGatewayDisconnect{
   
 /* Fonction pour Dorian permettant de stocker chaque client se connectant et deconnectant etc*/
 
 
   //   tab : string[] = [];
-  //   secretWord : string = "secret";
+  
     
 
   //   handleConnection(client: any){
@@ -53,13 +53,21 @@ export class GameGateway {
     roundmax: number = 3;
     playerPoints: Record<string,number> = {};
 
+    
     //chaque decorateur a utilsier avant sa fonction 
     //rappel decorateur etiquette intelligente ici subscribe message un ecouteur start game qui recueprera les doneee adequates
     @SubscribeMessage('start_game')
     handleGame(client: any , data: any) {
 
+
+      if (data.players.length  < 2) {
+
+          console.log('manque de joueurs');
+          return;
+      }
+
       console.log('Game started ');
-      console.log('manche numero 1');
+      console.log('la manche numero 1 va demaree');
 
 
       // random pour choix du mot secret a chaque tour stockage du joueur numero un qui dessine 
@@ -81,24 +89,50 @@ export class GameGateway {
       // on donne le mot secret au dessinateur
      
         this.server.to(this.currentDrawer).emit('secret_word', this.secretWord);
-
       // tableau d historique de dessin mis a null pour stocker chaque dessi nen temps reel a recueprer niveau front
-      this.historicDraw = [];
-      this.timeLeft = 60;
-      this.timer = setInterval(() => {
+       
+        this.historicDraw = [];
+        this.timer = setTimeout(() =>{
+
+          this.timeLeft = 60;
+          this.timer = setInterval(() => {
 
         // debut de boucle de temps decrementation sur 60 s
-        this.timeLeft -= 1;
-        console.log(`Temps restant : ${this.timeLeft}s`);
+          this.timeLeft -= 1;
+          console.log(`Temps restant : ${this.timeLeft}s`);
 
-        if(this.timeLeft == 0){
+          if(this.timeLeft == 0){
 
-          clearInterval(this.timer);
-          this.server.emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
-          this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
-          this.handleNextTurn();
-        }
-     },1000);
+            clearInterval(this.timer);
+            this.server.emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
+            this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
+            this.timer = setTimeout(() =>{
+              this.handleNextTurn();
+            },5000);
+          
+          }
+        },1000);
+      },10000);
+    
+    }
+
+    handleDisconnect(client: any) {
+
+      console.log('');
+
+      if (!this.playerList.includes(client.id))
+          return;
+      
+      if(client.id === this.currentDrawer)
+      {
+
+        clearInterval(this.timer);
+        this.server.emit('chat_message',  `${client.id} c'est deconnecte`);
+
+        this.currentPlayerIndex -= 1;
+        this.handleNextTurn();
+      }
+      this.playerList = this.playerList.filter(id => id !== client.id);
     }
 
     @SubscribeMessage('draw')
@@ -150,8 +184,11 @@ export class GameGateway {
             this.playerPoints[client.id] += 5;
           this.server.emit('chat_message', `${client.id} a trouver le mot`);
           this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
+
+          this.timer = setTimeout(() => {
           this.handleNextTurn();
-          }
+          },5000);
+        }
       }
 
       handleNextTurn() {
@@ -190,10 +227,11 @@ export class GameGateway {
           clearInterval(this.timer);
           this.server.emit('chat_message',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
           this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
-          this.handleNextTurn();
+          this.timer = setTimeout(() =>{
+            this.handleNextTurn();
+          },5000)
         }
      },1000);
 
-
-      }
+    }
   }
