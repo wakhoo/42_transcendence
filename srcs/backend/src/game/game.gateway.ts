@@ -1,6 +1,14 @@
 import { SubscribeMessage, WebSocketGateway, WebSocketServer, OnGatewayDisconnect } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 
+
+export interface playerData {
+
+  socketId: string;
+  dbId: number;
+}
+
+
 @WebSocketGateway({ cors: true})
 
 export class GameGateway implements OnGatewayDisconnect{
@@ -42,11 +50,12 @@ export class GameGateway implements OnGatewayDisconnect{
     secretWord: string = "";
     currentWord:  string ="";
     spectatorId : string[] = [];
+    player: string[] = [];
     timer: any;
     timeLeft: number = 0;
     wordList : string[] = ['pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica'];
     currentDrawer: string = "";
-    playerList: string[] = [];
+    playerList: playerData[] = [];
     currentPlayerIndex: number = 0;
     historicDraw : string[] = [];
     currentRound: number = 1;
@@ -54,7 +63,7 @@ export class GameGateway implements OnGatewayDisconnect{
     playerPoints: Record<string,number> = {};
 
     
-    //chaque decorateur a utilsier avant sa fonction 
+    //chaque decorateur a utiliser avant sa fonction 
     //rappel decorateur etiquette intelligente ici subscribe message un ecouteur start game qui recueprera les doneee adequates
     @SubscribeMessage('start_game')
     handleGame(client: any , data: any) {
@@ -73,8 +82,8 @@ export class GameGateway implements OnGatewayDisconnect{
       // random pour choix du mot secret a chaque tour stockage du joueur numero un qui dessine 
       
       this.secretWord = this.wordList[Math.floor(Math.random() * this.wordList.length)];
-      this.currentDrawer = data.players[0];
       this.playerList = data.players;
+      this.currentDrawer = this.playerList[0].socketId;
       console.log(this.secretWord);
       console.log("Dessinateur :", this.currentDrawer);
      
@@ -105,6 +114,7 @@ export class GameGateway implements OnGatewayDisconnect{
 
             clearInterval(this.timer);
             this.server.emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
+            this.server.emit('classement',this.playerPoints);
             this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
             this.timer = setTimeout(() =>{
               this.handleNextTurn();
@@ -118,7 +128,7 @@ export class GameGateway implements OnGatewayDisconnect{
 
     handleDisconnect(client: any) {
 
-      console.log('');
+      console.log('Le dessinateur est partie');
 
       if (!this.playerList.includes(client.id))
           return;
@@ -161,28 +171,32 @@ export class GameGateway implements OnGatewayDisconnect{
     handleWordFinding(client: any, wordProposition: any){
 
 
+      const realPlayer = this.playerList.find(player => player.socketId === client.id);
+      if(!realPlayer)
+          return;
       if(client.id === this.currentDrawer || this.spectatorId.includes(client.id))
           return;
       if(wordProposition === this.secretWord) {
 
-        if(!this.playerPoints[client.id])
-            this.playerPoints[client.id] = 0;
+        if(!this.playerPoints[realPlayer.dbId])
+            this.playerPoints[realPlayer.dbId] = 0;
 
           clearInterval(this.timer);
           
           if(this.timeLeft >= 50)
-            this.playerPoints[client.id] += 100;
+            this.playerPoints[realPlayer.dbId] += 100;
           else if(this.timeLeft >= 40 )
-            this.playerPoints[client.id] += 80;
+            this.playerPoints[realPlayer.dbId] += 80;
           else if(this.timeLeft >= 30)
-            this.playerPoints[client.id] += 60;
+            this.playerPoints[realPlayer.dbId] += 60;
           else if(this.timeLeft >= 20 )
-            this.playerPoints[client.id] += 40;
+            this.playerPoints[realPlayer.dbId] += 40;
           else if(this.timeLeft >= 10 )
-            this.playerPoints[client.id] += 20;
+            this.playerPoints[realPlayer.dbId] += 20;
           else if(this.timeLeft > 0)
-            this.playerPoints[client.id] += 5;
-          this.server.emit('chat_message', `${client.id} a trouver le mot`);
+            this.playerPoints[realPlayer.dbId] += 5;
+          this.server.emit('chat_message', `${realPlayer.dbId} a trouver le mot`);
+          this.server.emit('classement',this.playerPoints);
           this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
 
           this.timer = setTimeout(() => {
@@ -206,7 +220,7 @@ export class GameGateway implements OnGatewayDisconnect{
           this.currentPlayerIndex = 0;
           this.server.emit('next_round', `Manche numero ${this.currentRound}`);
         }
-        this.currentDrawer = this.playerList[this.currentPlayerIndex];
+        this.currentDrawer = this.playerList[this.currentPlayerIndex].socketId;
         this.secretWord = this.wordList[Math.floor(Math.random() * this.wordList.length)];
         this.server.emit('word_hint' , {
 
@@ -227,6 +241,7 @@ export class GameGateway implements OnGatewayDisconnect{
 
           clearInterval(this.timer);
           this.server.emit('chat_message',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
+          this.server.emit('classement',this.playerPoints);
           this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
           this.timer = setTimeout(() =>{
             this.handleNextTurn();

@@ -50,6 +50,10 @@
         socket.on("game_over", (scores) => {
             console.log("🏆 FIN DE PARTIE ! Scores du serveur :", scores);
         });
+        socket.on("classement", (playerPoints) => {
+
+                console.log(" classement : " , playerPoints);
+        });
 
 
         // --- 2. LES FONCTIONS (Déclenchées par les boutons) ---
@@ -63,7 +67,7 @@
         function simulerStart() {
             const donneesAdmin = {
                 roomId: "Room-Test",
-                players: [socket.id, "joueur_2_imaginaire"]
+                players: [ {socketId: socket.id, dbId: 1}, {socketId: "joueur2", dbId: 2}]
             };
             socket.emit("start_game", donneesAdmin);
             console.log("🚀 Demande de lancement envoyée !");
