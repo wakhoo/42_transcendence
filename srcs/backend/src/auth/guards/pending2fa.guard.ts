@@ -1,15 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
-
-export interface JwtPayload {
-    sub: number;
-    email: string;
-    pending2fa?: boolean;
-}
+import { JwtPayload } from './jwt.guard';
 
 @Injectable()
-export class JwtGuard implements CanActivate {
+export class Pending2faGuard implements CanActivate {
     constructor(private readonly jwtService: JwtService) {}
 
     canActivate(context: ExecutionContext): boolean {
@@ -19,7 +14,7 @@ export class JwtGuard implements CanActivate {
 
         try {
             const payload = this.jwtService.verify<JwtPayload>(token);
-            if (payload.pending2fa) throw new UnauthorizedException('2FA verification required');
+            if (!payload.pending2fa) throw new UnauthorizedException('Invalid token type');
             request.user = payload;
             return true;
         } catch {

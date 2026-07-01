@@ -1,6 +1,6 @@
 # AUTH.md — Authentication
 
-This document covers the authentication implementation: email/password registration and login, session management with refresh tokens, JWT guard, and Google OAuth.
+This document covers the authentication implementation: email/password registration and login, session management with refresh tokens, JWT guard, Google OAuth, and two-factor authentication (TOTP).
 
 ---
 
@@ -33,14 +33,16 @@ src/
     ├── dto/
     │   ├── register.dto.ts       # Input validation for /register
     │   ├── login.dto.ts          # Input validation for /login
-    │   └── refresh.dto.ts        # Input validation for /refresh and /logout
+    │   ├── refresh.dto.ts        # Input validation for /refresh and /logout
+    │   └── totp.dto.ts           # Input validation for /2fa/* endpoints (6-digit code)
     ├── guards/
-    │   └── jwt.guard.ts          # Validates Bearer token on protected routes
+    │   ├── jwt.guard.ts          # Validates full Bearer token on protected routes
+    │   └── pending2fa.guard.ts   # Validates partial token (pending2fa: true) on /2fa/verify
     ├── strategies/
     │   └── google.strategy.ts    # Passport Google OAuth 2.0 strategy
     ├── session.entity.ts         # TypeORM entity → maps to the `sessions` table
     ├── session.service.ts        # Session DB operations: create, findValid, delete
-    ├── auth.service.ts           # Register, login, refresh, logout, googleLogin logic
+    ├── auth.service.ts           # Register, login, refresh, logout, googleLogin, 2FA logic
     ├── auth.controller.ts        # HTTP routes for all auth endpoints
     └── auth.module.ts            # Wires JwtModule, PassportModule, TypeORM, strategies, guards
 ```
@@ -62,6 +64,8 @@ Managed by TypeORM via `user.entity.ts`. The `synchronize: true` option in `app.
 | `avatar_url` | VARCHAR(500) | DEFAULT NULL | Set from Google profile photo |
 | `oauth_provider` | VARCHAR(20) | DEFAULT NULL | e.g. `"google"` |
 | `oauth_id` | VARCHAR(255) | DEFAULT NULL | Google's unique user ID |
+| `totp_secret` | VARCHAR(255) | DEFAULT NULL | TOTP secret key (base32). `NULL` until 2FA setup |
+| `totp_enabled` | BOOLEAN | DEFAULT FALSE | Whether 2FA is active for this account |
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Set by TypeORM `@CreateDateColumn` |
 
 `password_hash` is exactly 60 characters — the fixed output length of bcrypt with the `$2b$` prefix.
@@ -102,10 +106,18 @@ Enforced in two places:
 
 ### Access Token
 - Format: signed JWT (`HS256`)
-- Lifetime: 15 minutes (`JWT_EXPIRES_IN=900`)
+- Lifetime: configurable via `JWT_EXPIRES_IN` (seconds, default 900)
 - Payload: `{ sub: userId, email, iat, exp }`
 - Usage: `Authorization: Bearer <accessToken>`
 - Stateless — verified by signature alone, no DB lookup
+
+### Partial Token (2FA pending)
+- Format: signed JWT (`HS256`), same secret as access token
+- Lifetime: 5 minutes (fixed)
+- Payload: `{ sub: userId, email, pending2fa: true, iat, exp }`
+- Usage: `Authorization: Bearer <partialToken>` on `POST /auth/2fa/verify` only
+- `JwtGuard` rejects this token — cannot be used on any other protected route
+- `Pending2faGuard` accepts only this token type
 
 ### Refresh Token
 - Format: 32 random bytes as hex string (64 chars)
@@ -161,7 +173,11 @@ POST /api/auth/login
   ├─ bcrypt.compare(password, passwordHash)
   │     → mismatch: 401 "Invalid credentials"
   │
-  └─ issueTokens(userId, email)
+  ├─ user.totpEnabled?
+  │     → YES: JwtService.sign({ sub, email, pending2fa: true }, { expiresIn: 300 })
+  │           → 201 { twoFactorRequired: true, partialToken }
+  │
+  └─ NO: issueTokens(userId, email)
         → 201 { accessToken, refreshToken }
 ```
 
@@ -197,11 +213,17 @@ GET /api/auth/callback/google  ← Google redirects here with auth code
               │
               ├─ UserService.createOAuthUser(provider, oauthId, email, username, avatarUrl)
               │
-              └─ issueTokens(userId, email)
+              ├─ user.totpEnabled?
+              │     → YES: sign partial token
+              │           → 302 redirect to ${NEXTAUTH_URL}/auth/2fa?partialToken=...
+              │
+              └─ NO: issueTokens(userId, email)
                     → 302 redirect to ${NEXTAUTH_URL}/auth/callback?accessToken=...&refreshToken=...
 ```
 
-**Frontend responsibility:** The frontend must implement a `/auth/callback` page that reads `accessToken` and `refreshToken` from the URL query params and stores them.
+**Frontend responsibility:**
+- `/auth/callback` — reads `accessToken` and `refreshToken` from URL params and stores them
+- `/auth/2fa` — reads `partialToken` from URL params, shows 2FA code input, calls `POST /auth/2fa/verify`
 
 ### Refresh flow
 
@@ -221,6 +243,69 @@ POST /api/auth/refresh
         → 201 { accessToken, refreshToken }
 ```
 
+### 2FA setup flow
+
+```
+POST /api/auth/2fa/setup  [protected by JwtGuard]
+  │
+  ├─ UserService.findById(userId)
+  │
+  ├─ authenticator.generateSecret()  → random base32 secret
+  │
+  ├─ UserService.setTotpSecret(userId, secret)  → stored in totp_secret (not yet active)
+  │
+  └─ authenticator.keyuri(email, issuer, secret) → otpauthUrl
+        toDataURL(otpauthUrl) → QR code PNG as base64
+        → 201 { otpauthUrl, secret, qrCode }
+```
+
+```
+POST /api/auth/2fa/enable  [protected by JwtGuard]
+  │
+  ├─ UserService.findById(userId)
+  │     → no totp_secret: 400 "2FA setup not started"
+  │
+  ├─ authenticator.verify({ token: code, secret })
+  │     → invalid: 401 "Invalid 2FA code"
+  │
+  └─ UserService.enableTotp(userId)  → totp_enabled = true
+        → 200 (empty body)
+```
+
+### 2FA verification flow (during login)
+
+```
+POST /api/auth/2fa/verify  [protected by Pending2faGuard]
+  │
+  ├─ Pending2faGuard validates Authorization: Bearer <partialToken>
+  │     → missing/invalid: 401
+  │     → token has no pending2fa: true: 401
+  │
+  ├─ UserService.findById(userId)
+  │     → not found or 2FA not configured: 401
+  │
+  ├─ authenticator.verify({ token: code, secret: user.totpSecret })
+  │     → invalid: 401 "Invalid 2FA code"
+  │
+  └─ issueTokens(userId, email)
+        → 201 { accessToken, refreshToken }
+```
+
+### 2FA disable flow
+
+```
+POST /api/auth/2fa/disable  [protected by JwtGuard]
+  │
+  ├─ UserService.findById(userId)
+  │     → totp_enabled === false: 400 "2FA is not enabled"
+  │
+  ├─ authenticator.verify({ token: code, secret })
+  │     → invalid: 401 "Invalid 2FA code"
+  │
+  └─ UserService.disableTotp(userId)  → totp_secret = null, totp_enabled = false
+        → 200 (empty body)
+```
+
 ### Logout flow
 
 ```
@@ -235,15 +320,18 @@ POST /api/auth/logout  [protected by JwtGuard]
 
 ---
 
-## JWT Guard
+## Guards
 
-`JwtGuard` (`src/auth/guards/jwt.guard.ts`) protects routes that require authentication.
+### JwtGuard
+
+`JwtGuard` (`src/auth/guards/jwt.guard.ts`) protects routes that require full authentication.
 
 **How it works:**
 1. Reads the `Authorization: Bearer <token>` header
 2. Verifies the JWT signature and expiry using `JwtService.verify()`
-3. Attaches the decoded payload to `request.user`
-4. Throws `401` if the header is missing, malformed, or the token is expired
+3. Rejects tokens with `pending2fa: true` — partial tokens cannot access protected routes
+4. Attaches the decoded payload to `request.user`
+5. Throws `401` if the header is missing, malformed, expired, or is a partial token
 
 **How to use on a route:**
 
@@ -257,6 +345,16 @@ getProfile(@Request() req) {
     return req.user; // { sub: userId, email, iat, exp }
 }
 ```
+
+### Pending2faGuard
+
+`Pending2faGuard` (`src/auth/guards/pending2fa.guard.ts`) is used exclusively on `POST /auth/2fa/verify`.
+
+**How it works:**
+1. Reads the `Authorization: Bearer <token>` header
+2. Verifies the JWT signature and expiry
+3. Accepts **only** tokens with `pending2fa: true` — rejects full access tokens
+4. Attaches the decoded payload to `request.user`
 
 ---
 
@@ -410,17 +508,149 @@ No request body or headers required. Open in a browser.
 
 Google redirects here after the user approves. Handled entirely by Passport — do not call this directly.
 
-On success, redirects to:
+On success (2FA disabled):
 ```
-${NEXTAUTH_URL}/auth/callback?accessToken=<jwt>&refreshToken=<token>
+302 → ${NEXTAUTH_URL}/auth/callback?accessToken=<jwt>&refreshToken=<token>
+```
+
+On success (2FA enabled):
+```
+302 → ${NEXTAUTH_URL}/auth/2fa?partialToken=<jwt>
 ```
 
 **Responses**
 
 | Status | Condition |
 |---|---|
-| 302 | Redirect to frontend with tokens |
+| 302 | Redirect to frontend (with tokens or partialToken) |
 | 409 | Email already registered with a password account |
+
+---
+
+### `POST /auth/2fa/setup`
+
+Generates a TOTP secret and returns a QR code. Does **not** activate 2FA — call `/auth/2fa/enable` after scanning. **Protected by JwtGuard.**
+
+**Headers**
+
+```
+Authorization: Bearer <accessToken>
+```
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 201 | `{ otpauthUrl, secret, qrCode }` | Secret generated |
+| 401 | Unauthorized | Invalid or missing access token |
+
+- `otpauthUrl` — `otpauth://totp/...` URI (for manual app entry)
+- `secret` — base32 secret key (for manual app entry)
+- `qrCode` — `data:image/png;base64,...` (paste in browser address bar to scan)
+
+```bash
+curl -sk -X POST https://localhost/api/auth/2fa/setup \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+---
+
+### `POST /auth/2fa/enable`
+
+Verifies the first TOTP code and activates 2FA. **Protected by JwtGuard.**
+
+**Headers**
+
+```
+Authorization: Bearer <accessToken>
+```
+
+**Request body**
+
+```json
+{ "code": "123456" }
+```
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 200 | (empty) | 2FA activated |
+| 400 | `"2FA setup not started"` | `/auth/2fa/setup` was not called first |
+| 401 | `"Invalid 2FA code"` | Wrong TOTP code |
+
+```bash
+curl -sk -X POST https://localhost/api/auth/2fa/enable \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"123456"}'
+```
+
+---
+
+### `POST /auth/2fa/verify`
+
+Completes login when 2FA is required. Accepts the partial token from login response. **Protected by Pending2faGuard.**
+
+**Headers**
+
+```
+Authorization: Bearer <partialToken>
+```
+
+**Request body**
+
+```json
+{ "code": "123456" }
+```
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 201 | `{ accessToken, refreshToken }` | Code valid — full tokens issued |
+| 401 | `"Invalid 2FA code"` | Wrong TOTP code |
+| 401 | Unauthorized | Missing, expired, or non-partial token |
+
+```bash
+curl -sk -X POST https://localhost/api/auth/2fa/verify \
+  -H "Authorization: Bearer <partialToken>" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"123456"}'
+```
+
+---
+
+### `POST /auth/2fa/disable`
+
+Deactivates 2FA after verifying the current TOTP code. **Protected by JwtGuard.**
+
+**Headers**
+
+```
+Authorization: Bearer <accessToken>
+```
+
+**Request body**
+
+```json
+{ "code": "123456" }
+```
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 200 | (empty) | 2FA deactivated |
+| 400 | `"2FA is not enabled"` | 2FA was not active |
+| 401 | `"Invalid 2FA code"` | Wrong TOTP code |
+
+```bash
+curl -sk -X POST https://localhost/api/auth/2fa/disable \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d '{"code":"123456"}'
+```
 
 ---
 
@@ -433,6 +663,7 @@ ${NEXTAUTH_URL}/auth/callback?accessToken=<jwt>&refreshToken=<token>
 | `NEXTAUTH_URL` | Base URL of the app (used for OAuth callback and frontend redirect) | `https://localhost` |
 | `OAUTH_GOOGLE_CLIENT_ID` | Google OAuth client ID | `1012791832136-...` |
 | `OAUTH_GOOGLE_CLIENT_SECRET` | Google OAuth client secret | `GOCSPX-...` |
+| `TOTP_ISSUER` | Issuer name shown in authenticator apps | `ft_transcendence` |
 | `MARIADB_HOST` | Database host | `mariadb` |
 | `MARIADB_PORT` | Database port | `3306` |
 | `MARIADB_USER` | Database user | `User` |
@@ -446,5 +677,5 @@ ${NEXTAUTH_URL}/auth/callback?accessToken=<jwt>&refreshToken=<token>
 | Feature | Planned branch |
 |---|---|
 | Login rate limiting (5 attempts → delay) | `feat/auth-rate-limit` |
-| Two-factor authentication (TOTP) | `feat/auth-2fa` |
 | Frontend `/auth/callback` page (token storage) | frontend branch |
+| Frontend `/auth/2fa` page (TOTP code input) | frontend branch |
