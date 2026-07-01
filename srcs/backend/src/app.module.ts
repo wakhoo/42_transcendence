@@ -9,9 +9,9 @@ import { User } from "./user/user.entity";
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
+    TypeOrmModule.forRootAsync({ //ouvre connexion MariaDB et sync les tables
+      inject: [ConfigService], //lire le .env
+      useFactory: (config: ConfigService) => ({ //construction de la config
         type: "mysql",
         host: config.getOrThrow("MARIADB_HOST"),
         port: config.get<number>("MARIADB_PORT", 3306),
@@ -22,10 +22,10 @@ import { User } from "./user/user.entity";
         synchronize: true,
       }),
     }),
-    AuthModule,
+    AuthModule, 
     UserModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController],//GET /api/health dans le routeur HTTP
   providers: [],
 })
 export class AppModule {}
