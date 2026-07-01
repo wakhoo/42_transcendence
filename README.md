@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by aboutale, asdiallo, chajeon, dancel, elxhafer.*
+*This project has been created as part of the 42 curriculum by asdiallo, chajeon, dancel, elxhafer.*
 
 ---
 
@@ -120,7 +120,6 @@ TOTP_ISSUER=ft_transcendence
 | dancel | Product Owner + Developer | Product vision, backlog, game part |
 | chajeon | Project Manager + Developer | Team coordination, security, Docker infrastructure, WAF, 2FA |
 | asdiallo | Tech Lead + Developer | Architecture, backend (Next.js), database design |
-| aboutale | Developer | Backend - game |
 | elxhafer | Developer | Frontend (React) |
 
 ---
@@ -139,10 +138,10 @@ TOTP_ISSUER=ft_transcendence
 
 ### Branch Strategy
 - `main` — stable, production-ready
-- `feat/[feature-name]` — feature branches
-  - ex. `feat/user-auth`
-- `fix/[issue]` — bug fixes
-  - ex. `fix/cors-error`
+- `feat/[feature-name(login)]` — feature branches
+  - ex. `feat/user-auth(chajeon)`
+- `fix/[issue(login)]` — bug fixes
+  - ex. `fix/cors-error(chajeon)`
 - Pull requests require 1 approval before merging
 
 ---
@@ -217,7 +216,6 @@ TOTP_ISSUER=ft_transcendence
 | Database Design | MariaDB schema and relations | asdiallo |
 | Frontend UI | React components and pages | elxhafer |
 | [Game Feature] | [Description] | dancel |
-| [Game Backend] | [Description] | aboutale |
 | Privacy Policy Page | Accessible from footer | chajeon |
 | Terms of Service Page | Accessible from footer | chajeon |
 
@@ -272,11 +270,6 @@ TOTP_ISSUER=ft_transcendence
 - Technology stack decisions
 - Backend development (Next.js API routes)
 - Database schema design (MariaDB)
-- [Feature or module implemented]
-- Challenges: [Any challenges faced and how resolved]
-
-### aboutale — Developer
-- Backend development (Game)
 - [Feature or module implemented]
 - Challenges: [Any challenges faced and how resolved]
 

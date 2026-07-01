@@ -22,6 +22,9 @@ export class ChannelMember {
     @Column({ type: 'datetime', nullable: true })
     mutedUntil: Date | null = null;
 
+    @Column({ default: 0 })
+    warnings!: number;
+
     @CreateDateColumn()
     joinedAt!: Date;
 

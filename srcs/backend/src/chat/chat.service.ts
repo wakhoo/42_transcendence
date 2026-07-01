@@ -11,6 +11,7 @@ import { Channel } from './entities/channel.entity';
 import { ChannelMember } from './entities/channel-member.entity';
 import { Message } from './entities/message.entity';
 import { Friendship } from './entities/friendship.entity';
+import { BadWord } from './entities/bad-word.entity';
 
 @Injectable()
 export class ChatService {
@@ -26,6 +27,9 @@ export class ChatService {
 
         @InjectRepository(Friendship)
         private readonly friendshipRepo: Repository<Friendship>,
+
+        @InjectRepository(BadWord)
+        private readonly badWordRepo: Repository<BadWord>,
     ) {}
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -185,11 +189,37 @@ export class ChatService {
     // ─────────────────────────────────────────────────────────────────────────
 
     async sendMessage(userId: number, channelId: number, content: string): Promise<Message> {
-        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
+        const membership = await this.memberRepo.findOne({
+            where: { user: { id: userId }, channel: { id: channelId } },
+            relations: { channel: true },
+        });
         if (!membership) throw new ForbiddenException('You are not a member of this channel');
 
         if (membership.mutedUntil && membership.mutedUntil > new Date()) {
             throw new ForbiddenException('You are muted in this channel');
+        }
+
+        const badWords = await this.badWordRepo.find();
+        const lower = content.toLowerCase();
+        const found = badWords.find((bw) => lower.includes(bw.word));
+
+        if (found) {
+            membership.warnings += 1;
+
+            if (membership.warnings >= 2) {
+                if (membership.channel.type === 'game') {
+                    await this.memberRepo.remove(membership);
+                    throw new ForbiddenException('You were kicked from the game channel for repeated inappropriate messages.');
+                } else {
+                    membership.mutedUntil = new Date(Date.now() + 5 * 60000);
+                    membership.warnings = 0;
+                    await this.memberRepo.save(membership);
+                    throw new ForbiddenException('You have been muted for 5 minutes for repeated inappropriate messages.');
+                }
+            }
+
+            await this.memberRepo.save(membership);
+            throw new ForbiddenException(`Your message was blocked: inappropriate content. Warning ${membership.warnings}/2.`);
         }
 
         const message = this.messageRepo.create({
