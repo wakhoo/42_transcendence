@@ -1,5 +1,6 @@
 import { SubscribeMessage, WebSocketGateway, WebSocketServer, OnGatewayDisconnect } from '@nestjs/websockets';
 import { Server } from 'socket.io';
+import {GameService} from './game.service';
 
 
 export interface playerData {
@@ -8,50 +9,21 @@ export interface playerData {
   dbId: number;
 }
 
-
 @WebSocketGateway({ cors: true})
 
 export class GameGateway implements OnGatewayDisconnect{
   
-/* Fonction pour Dorian permettant de stocker chaque client se connectant et deconnectant etc*/
-
-
-  //   tab : string[] = [];
-  
-    
-
-  //   handleConnection(client: any){
-
-  //     this.tab.push(client.id);
-  //     console.log("conexion : " , client.id);
-  //     console.log("joueur actuel " ,this.tab);
-      
-  //   }
-
-  //   handleDisconnect(client: any) {
-
-  //     this.tab = this.tab.filter(id => id !== client.id);
-  //     console.log("deconnexion " , client.id);
-  //     console.log("joueur deco " ,this.tab);
-  //   }
-
-  //   @SubscribeMessage('draw')
-  //   handleDraw(client: any, donnees : any) {
-
-  // console.log(`✏️ Le joueur ${client.id} vient de dessiner :`, donnees);
-
-  //     client.broadcast.emit('draw', donnees);
-
-  //   }
-
+    constructor(private readonly gameService: GameService) {}
   // debut de la boucle du jeu declaratio nde variable globale utilsiable dans toutes les fonctions 
     @WebSocketServer()
     server!: Server;
+    roomId: string = "";
     secretWord: string = "";
     currentWord:  string ="";
     spectatorId : string[] = [];
     player: string[] = [];
     timer: any;
+    timeOut: any;
     timeLeft: number = 0;
     wordList : string[] = ['pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica'];
     currentDrawer: string = "";
@@ -64,7 +36,7 @@ export class GameGateway implements OnGatewayDisconnect{
 
     
     //chaque decorateur a utiliser avant sa fonction 
-    //rappel decorateur etiquette intelligente ici subscribe message un ecouteur start game qui recueprera les doneee adequates
+    //rappel decorateur etiquette intelligente qui donne un ordre au framework  ici subscribe message un ecouteur start game qui recueprera les doneee adequates
     @SubscribeMessage('start_game')
     handleGame(client: any , data: any) {
 
@@ -75,7 +47,8 @@ export class GameGateway implements OnGatewayDisconnect{
           return;
       }
 
-      console.log('Game started ');
+      this.roomId = data.roomId;
+      console.log('Game started in room ', this.roomId);
       console.log('la manche numero 1 va demaree');
 
 
@@ -89,7 +62,7 @@ export class GameGateway implements OnGatewayDisconnect{
      
 
       //on donne un indice a tout les autres joueur la taille du mot
-      this.server.emit('word_hint' , {
+      this.server.to(this.roomId).emit('word_hint' , {
 
         drawer : this.currentDrawer,
         wordLength: this.secretWord.length
@@ -101,7 +74,7 @@ export class GameGateway implements OnGatewayDisconnect{
       // tableau d historique de dessin mis a null pour stocker chaque dessi nen temps reel a recueprer niveau front
        
         this.historicDraw = [];
-        this.timer = setTimeout(() =>{
+        this.timeOut = setTimeout(() =>{
 
           this.timeLeft = 60;
           this.timer = setInterval(() => {
@@ -113,10 +86,10 @@ export class GameGateway implements OnGatewayDisconnect{
           if(this.timeLeft == 0){
 
             clearInterval(this.timer);
-            this.server.emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
-            this.server.emit('classement',this.playerPoints);
+            this.server.to(this.roomId).emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
+            this.server.to(this.roomId).emit('classement',this.playerPoints);
             this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
-            this.timer = setTimeout(() =>{
+            this.timeOut = setTimeout(() =>{
               this.handleNextTurn();
             },5000);
           
@@ -128,21 +101,31 @@ export class GameGateway implements OnGatewayDisconnect{
 
     handleDisconnect(client: any) {
 
-      console.log('Le dessinateur est partie');
-
-      if (!this.playerList.includes(client.id))
-          return;
       
-      if(client.id === this.currentDrawer)
+      const leftPlayer = this.playerList.find(player => player.socketId == client.id);
+      if(!leftPlayer)
+          return;
+        
+      this.playerList = this.playerList.filter(player => player.socketId !== client.id)
+      if (this.playerList.length < 2){
+
+          console.log("Pas assez de joueur connecter");
+          clearInterval(this.timer);
+          clearTimeout(this.timeOut);
+          this.server.to(this.roomId).emit('chat_message', "Partie terminée : il n'y a plus assez de joueurs.");
+          return;
+      }
+      if(leftPlayer.socketId === this.currentDrawer)
       {
 
         clearInterval(this.timer);
-        this.server.emit('chat_message',  `${client.id} c'est deconnecte`);
+        clearTimeout(this.timeOut);
+        console.log('Le dessinateur est partie');
+        this.server.to(this.roomId).emit('chat_message',  `${client.id} c'est deconnecte`);
 
         this.currentPlayerIndex -= 1;
         this.handleNextTurn();
       }
-      this.playerList = this.playerList.filter(id => id !== client.id);
     }
 
     @SubscribeMessage('draw')
@@ -150,15 +133,17 @@ export class GameGateway implements OnGatewayDisconnect{
 
       // recuperation du dessin push dans tab si le dessinateur dessine
       if(client.id === this.currentDrawer){
-          this.server.emit('draw', drawData);
+          this.server.to(this.roomId).emit('draw', drawData);
           this.historicDraw.push(drawData);
           console.log(this.historicDraw.length);
       }
-      //si spectateur essaye de dessiner message d erreur
+      //si spectateur essaye de dessiner message d erreur ou si quelqun dessine via la console
       else
         console.log('Spectateur essaye de dessiner ')
     }
 
+
+    // sauvegarde  le dessin au cas ou o ndois le reafficher (f5 par exemple)
     @SubscribeMessage('request_history')
     handleRequest(client: any, drawData: any) {
 
@@ -171,11 +156,14 @@ export class GameGateway implements OnGatewayDisconnect{
     handleWordFinding(client: any, wordProposition: any){
 
 
+      //stock le dossier du joueur
       const realPlayer = this.playerList.find(player => player.socketId === client.id);
       if(!realPlayer)
           return;
+      // seul ceux qui devinent on le droit de proposer un mot
       if(client.id === this.currentDrawer || this.spectatorId.includes(client.id))
           return;
+
       if(wordProposition === this.secretWord) {
 
         if(!this.playerPoints[realPlayer.dbId])
@@ -195,11 +183,11 @@ export class GameGateway implements OnGatewayDisconnect{
             this.playerPoints[realPlayer.dbId] += 20;
           else if(this.timeLeft > 0)
             this.playerPoints[realPlayer.dbId] += 5;
-          this.server.emit('chat_message', `${realPlayer.dbId} a trouver le mot`);
-          this.server.emit('classement',this.playerPoints);
+          this.server.to(this.roomId).emit('chat_message', `${realPlayer.dbId} a trouver le mot`);
+          this.server.to(this.roomId).emit('classement',this.playerPoints);
           this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
 
-          this.timer = setTimeout(() => {
+          this.timeOut = setTimeout(() => {
           this.handleNextTurn();
           },5000);
         }
@@ -209,27 +197,37 @@ export class GameGateway implements OnGatewayDisconnect{
 
         this.historicDraw = [];
         this.currentPlayerIndex += 1;
+        //verification pour passer la manche suivante 
         if (!this.playerList[this.currentPlayerIndex]){
           
+          //verification pas depassement du roundmax defini
           if(this.currentRound >= this.roundmax){
 
-            this.server.emit('game_over',this.playerPoints);
+            this.server.to(this.roomId).emit('game_over',this.playerPoints);
+            const matchFinalData = {
+
+              room: this.roomId,
+              players: this.playerList,
+              scores: this.playerPoints,
+
+            };
+            this.gameService.saveMatchHistory(matchFinalData);
             return;
           }
           this.currentRound +=1;
           this.currentPlayerIndex = 0;
-          this.server.emit('next_round', `Manche numero ${this.currentRound}`);
+          this.server.to(this.roomId).emit('next_round', `Manche numero ${this.currentRound}`);
         }
         this.currentDrawer = this.playerList[this.currentPlayerIndex].socketId;
         this.secretWord = this.wordList[Math.floor(Math.random() * this.wordList.length)];
-        this.server.emit('word_hint' , {
+        this.server.to(this.roomId).emit('word_hint' , {
 
           drawer : this.currentDrawer,
           wordLength: this.secretWord.length
         });
 
         this.server.to(this.currentDrawer).emit('secret_word', this.secretWord);
-        this.timer = setTimeout(() => {
+        this.timeOut = setTimeout(() => {
         this.timeLeft = 60;
         this.timer = setInterval(() => {
 
@@ -240,10 +238,10 @@ export class GameGateway implements OnGatewayDisconnect{
         if(this.timeLeft == 0){
 
           clearInterval(this.timer);
-          this.server.emit('chat_message',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
-          this.server.emit('classement',this.playerPoints);
+          this.server.to(this.roomId).emit('chat_message',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
+          this.server.to(this.roomId).emit('classement',this.playerPoints);
           this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
-          this.timer = setTimeout(() =>{
+          this.timeOut = setTimeout(() =>{
             this.handleNextTurn();
           },5000)
         }
