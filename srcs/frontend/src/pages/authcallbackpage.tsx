@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { setAccessToken } from '../api/auth';
 
 export function AuthCallbackPage() {
   const navigate = useNavigate();
