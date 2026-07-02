@@ -24,6 +24,11 @@ export class User {
   })
   passwordHash: string | null = null;
 
+<<<<<<< HEAD
   @CreateDateColumn()
   createdAt!: Date;
+=======
+    @CreateDateColumn()
+    createdAt!: Date;
+>>>>>>> dancel
 }
