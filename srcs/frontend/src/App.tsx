@@ -1,20 +1,13 @@
-import { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import HomePage from './pages/HomePage.tsx';
 
 function App() {
-  const [status, setStatus] = useState<string>('chargement...');
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then((response) => response.json())
-      .then((data) => setStatus(data.status))
-      .catch(() => setStatus('erreur : back injoignable'));
-  }, []);
-
   return (
-    <div>
-      <h1>ft_transcendence</h1>
-      <p>Statut du back : {status}</p>
-    </div>
+      <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 

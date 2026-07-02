@@ -21,6 +21,9 @@
     "globals": "^17.6.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "tailwindcss": "^4.1.11",
+    "@tailwindcss/vite": "^4.1.11",
+    "react-router-dom": "^7.6.3"
   }
 }

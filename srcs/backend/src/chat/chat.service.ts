@@ -54,7 +54,7 @@ export class ChatService {
     }
 
     async getMyChannels(userId: number): Promise<Channel[]> {
-        const memberships = await this.memberRepo.find({ where: { user: { id: userId } }, relations: ['channel'], });
+        const memberships = await this.memberRepo.find({ where: { user: { id: userId } }, relations: {'channel': true}, });
         return memberships.map((m) => m.channel);
     }
 
