@@ -23,6 +23,12 @@ export class User {
     @Column({ name: 'oauth_id', type: 'varchar', length: 255, nullable: true })
     oauthId: string | null = null;
 
+    @Column({ name: 'totp_secret', type: 'varchar', length: 255, nullable: true })
+    totpSecret: string | null = null;
+
+    @Column({ name: 'totp_enabled', type: 'boolean', default: false })
+    totpEnabled: boolean = false;
+
     @CreateDateColumn()
     createdAt!: Date;
 }

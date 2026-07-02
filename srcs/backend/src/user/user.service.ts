@@ -31,6 +31,18 @@ export class UserService {
         return this.repo.findOne({ where: { oauthProvider: provider, oauthId } });
     }
 
+    async setTotpSecret(userId: number, secret: string | null): Promise<void> {
+        await this.repo.update(userId, { totpSecret: secret });
+    }
+
+    async enableTotp(userId: number): Promise<void> {
+        await this.repo.update(userId, { totpEnabled: true });
+    }
+
+    async disableTotp(userId: number): Promise<void> {
+        await this.repo.update(userId, { totpSecret: null, totpEnabled: false });
+    }
+
     async createOAuthUser(
         provider: string,
         oauthId: string,

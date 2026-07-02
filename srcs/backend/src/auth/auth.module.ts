@@ -7,6 +7,7 @@ import { UserModule } from '../user/user.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtGuard } from './guards/jwt.guard';
+import { Pending2faGuard } from './guards/pending2fa.guard';
 import { Session } from './session.entity';
 import { SessionService } from './session.service';
 import { GoogleStrategy } from './strategies/google.strategy';
@@ -20,12 +21,12 @@ import { GoogleStrategy } from './strategies/google.strategy';
             inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
                 secret: config.getOrThrow<string>('JWT_SECRET'),
-                signOptions: { expiresIn: config.get<number>('JWT_EXPIRES_IN', 900) },
+                signOptions: { expiresIn: parseInt(config.get('JWT_EXPIRES_IN', '900'), 10) },
             }),
         }),
     ],
     controllers: [AuthController],
-    providers: [AuthService, SessionService, JwtGuard, GoogleStrategy],
-    exports: [JwtGuard, JwtModule],
+    providers: [AuthService, SessionService, JwtGuard, Pending2faGuard, GoogleStrategy],
+    exports: [JwtGuard, Pending2faGuard, JwtModule],
 })
 export class AuthModule {}

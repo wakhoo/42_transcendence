@@ -1,11 +1,17 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { authenticator } from 'otplib';
+import { toDataURL } from 'qrcode';
 import { UserService } from '../user/user.service';
 import { GoogleProfile } from './strategies/google.strategy';
 import { SessionService } from './session.service';
 
 const BCRYPT_ROUNDS = 12;
+
+type TokenPair = { accessToken: string; refreshToken: string };
+type LoginResult = TokenPair | { twoFactorRequired: true; partialToken: string };
 
 @Injectable()
 export class AuthService {
@@ -13,13 +19,10 @@ export class AuthService {
         private readonly userService: UserService,
         private readonly sessionService: SessionService,
         private readonly jwtService: JwtService,
+        private readonly config: ConfigService,
     ) {}
 
-    async register(
-        email: string,
-        username: string,
-        password: string,
-    ): Promise<{ accessToken: string; refreshToken: string }> {
+    async register(email: string, username: string, password: string): Promise<TokenPair> {
         const existing = await this.userService.findByEmail(email);
         if (existing) throw new ConflictException('Email already in use');
 
@@ -32,10 +35,7 @@ export class AuthService {
         return this.issueTokens(user.id, user.email);
     }
 
-    async login(
-        email: string,
-        password: string,
-    ): Promise<{ accessToken: string; refreshToken: string }> {
+    async login(email: string, password: string): Promise<LoginResult> {
         const user = await this.userService.findByEmail(email);
         if (!user) throw new UnauthorizedException('Invalid credentials');
 
@@ -43,19 +43,24 @@ export class AuthService {
         const valid = await bcrypt.compare(password, user.passwordHash);
         if (!valid) throw new UnauthorizedException('Invalid credentials');
 
+        if (user.totpEnabled) {
+            const partialToken = this.jwtService.sign(
+                { sub: user.id, email: user.email, pending2fa: true },
+                { expiresIn: 300 },
+            );
+            return { twoFactorRequired: true, partialToken };
+        }
+
         return this.issueTokens(user.id, user.email);
     }
 
-    async refresh(
-        token: string,
-    ): Promise<{ accessToken: string; refreshToken: string }> {
+    async refresh(token: string): Promise<TokenPair> {
         const session = await this.sessionService.findValid(token);
         if (!session) throw new UnauthorizedException('Invalid or expired refresh token');
 
         const user = await this.userService.findById(session.userId);
         if (!user) throw new UnauthorizedException('Invalid or expired refresh token');
 
-        // rotate: delete old session, issue new pair
         await this.sessionService.delete(token);
         return this.issueTokens(user.id, user.email);
     }
@@ -64,9 +69,7 @@ export class AuthService {
         await this.sessionService.delete(token);
     }
 
-    async googleLogin(
-        profile: GoogleProfile,
-    ): Promise<{ accessToken: string; refreshToken: string }> {
+    async googleLogin(profile: GoogleProfile): Promise<LoginResult> {
         let user = await this.userService.findByOAuthId('google', profile.oauthId);
 
         if (!user) {
@@ -83,7 +86,63 @@ export class AuthService {
             );
         }
 
+        if (user.totpEnabled) {
+            const partialToken = this.jwtService.sign(
+                { sub: user.id, email: user.email, pending2fa: true },
+                { expiresIn: 300 },
+            );
+            return { twoFactorRequired: true, partialToken };
+        }
+
         return this.issueTokens(user.id, user.email);
+    }
+
+    async setupTotp(userId: number): Promise<{ otpauthUrl: string; secret: string; qrCode: string }> {
+        const user = await this.userService.findById(userId);
+        if (!user) throw new UnauthorizedException();
+
+        const secret = authenticator.generateSecret();
+        await this.userService.setTotpSecret(userId, secret);
+
+        const issuer = this.config.get('TOTP_ISSUER', 'ft_transcendence');
+        const otpauthUrl = authenticator.keyuri(user.email, issuer, secret);
+        const qrCode = await toDataURL(otpauthUrl);
+
+        return { otpauthUrl, secret, qrCode };
+    }
+
+    async enableTotp(userId: number, code: string): Promise<void> {
+        const user = await this.userService.findById(userId);
+        if (!user || !user.totpSecret) {
+            throw new BadRequestException('2FA setup not started. Call POST /auth/2fa/setup first.');
+        }
+
+        const valid = authenticator.verify({ token: code, secret: user.totpSecret });
+        if (!valid) throw new UnauthorizedException('Invalid 2FA code');
+
+        await this.userService.enableTotp(userId);
+    }
+
+    async disableTotp(userId: number, code: string): Promise<void> {
+        const user = await this.userService.findById(userId);
+        if (!user || !user.totpEnabled) throw new BadRequestException('2FA is not enabled');
+
+        const valid = authenticator.verify({ token: code, secret: user.totpSecret! });
+        if (!valid) throw new UnauthorizedException('Invalid 2FA code');
+
+        await this.userService.disableTotp(userId);
+    }
+
+    async verifyTotp(userId: number, email: string, code: string): Promise<TokenPair> {
+        const user = await this.userService.findById(userId);
+        if (!user || !user.totpEnabled || !user.totpSecret) {
+            throw new UnauthorizedException('2FA not configured');
+        }
+
+        const valid = authenticator.verify({ token: code, secret: user.totpSecret });
+        if (!valid) throw new UnauthorizedException('Invalid 2FA code');
+
+        return this.issueTokens(userId, email);
     }
 
     private async generateUsername(email: string): Promise<string> {
@@ -96,10 +155,7 @@ export class AuthService {
         return username;
     }
 
-    private async issueTokens(
-        userId: number,
-        email: string,
-    ): Promise<{ accessToken: string; refreshToken: string }> {
+    private async issueTokens(userId: number, email: string): Promise<TokenPair> {
         const accessToken = this.jwtService.sign({ sub: userId, email });
         const refreshToken = await this.sessionService.create(userId);
         return { accessToken, refreshToken };
