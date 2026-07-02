@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+/*import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../context/AuthContext';
@@ -91,3 +91,4 @@ export function LoginPage() {
     </div>
   );
 }
+*/
