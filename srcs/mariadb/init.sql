@@ -25,8 +25,3 @@ CREATE TABLE IF NOT EXISTS sessions (
     FOREIGN KEY (user_id) REFERENCES users(id)
                            ON DELETE CASCADE
 );
-
--- CREATE USER IF NOT EXISTS 'healthcheck'@'localhost';
--- CREATE USER IF NOT EXISTS 'healthcheck'@'127.0.0.1';
--- GRANT USAGE ON *.* TO 'healthcheck'@'localhost';
--- GRANT USAGE ON *.* TO 'healthcheck'@'127.0.0.1';
