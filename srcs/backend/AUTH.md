@@ -1,4 +1,4 @@
-# AUTH.md — Authentication
+# AUTH.md — Email Authentication
 
 This document covers the authentication implementation: email/password registration and login, session management with refresh tokens, JWT guard, Google OAuth, and two-factor authentication (TOTP).
 
@@ -11,11 +11,9 @@ The authentication system is split across two NestJS modules:
 | Module | Responsibility |
 |---|---|
 | `UserModule` | Database access — stores and retrieves users |
-| `AuthModule` | Business logic — hashing, verification, JWT issuance, session management, OAuth |
+| `AuthModule` | Business logic — hashing, verification, JWT issuance |
 
-On successful register, login, or OAuth login, the API returns two tokens:
-- **`accessToken`** — short-lived JWT (15 minutes), used in the `Authorization` header for protected routes
-- **`refreshToken`** — long-lived opaque token (7 days), stored hashed in the `sessions` table, used to get a new access token without re-entering credentials
+On successful register or login, the API returns a signed **JWT access token**. The token encodes the user's `id` and `email` and expires after the number of seconds defined in `JWT_EXPIRES_IN`.
 
 ---
 
@@ -23,12 +21,10 @@ On successful register, login, or OAuth login, the API returns two tokens:
 
 ```
 src/
-├── types/
-│   └── express.d.ts              # Extends Express Request with user: JwtPayload
 ├── user/
-│   ├── user.entity.ts            # TypeORM entity → maps to the `users` table
-│   ├── user.service.ts           # DB queries: create, findByEmail, findByUsername, findById, findByOAuthId, createOAuthUser
-│   └── user.module.ts            # Registers the repository, exports UserService
+│   ├── user.entity.ts      # TypeORM entity → maps to the `users` table
+│   ├── user.service.ts     # DB queries: create, findByEmail, findByUsername
+│   └── user.module.ts      # Registers the repository, exports UserService
 └── auth/
     ├── dto/
     │   ├── register.dto.ts       # Input validation for /register
@@ -49,9 +45,7 @@ src/
 
 ---
 
-## Database
-
-### `users` table
+## Database — `users` table
 
 Managed by TypeORM via `user.entity.ts`. The `synchronize: true` option in `app.module.ts` creates or updates the table automatically on startup (development only — set to `false` in production).
 
@@ -59,7 +53,7 @@ Managed by TypeORM via `user.entity.ts`. The `synchronize: true` option in `app.
 |---|---|---|---|
 | `id` | INT | PK, AUTO_INCREMENT | |
 | `email` | VARCHAR(255) | NOT NULL, UNIQUE | |
-| `username` | VARCHAR(20) | NOT NULL, UNIQUE | Auto-generated for OAuth users |
+| `username` | VARCHAR(20) | NOT NULL, UNIQUE | |
 | `password_hash` | VARCHAR(60) | DEFAULT NULL | `NULL` for OAuth-only accounts |
 | `avatar_url` | VARCHAR(500) | DEFAULT NULL | Set from Google profile photo |
 | `oauth_provider` | VARCHAR(20) | DEFAULT NULL | e.g. `"google"` |
@@ -69,20 +63,6 @@ Managed by TypeORM via `user.entity.ts`. The `synchronize: true` option in `app.
 | `created_at` | TIMESTAMP | DEFAULT NOW() | Set by TypeORM `@CreateDateColumn` |
 
 `password_hash` is exactly 60 characters — the fixed output length of bcrypt with the `$2b$` prefix.
-
-### `sessions` table
-
-Stores active refresh tokens. One user can have multiple concurrent sessions (multiple devices).
-
-| Column | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | INT | PK, AUTO_INCREMENT | |
-| `user_id` | INT | FK → users.id, CASCADE DELETE | |
-| `token_hash` | VARCHAR(255) | NOT NULL | SHA-256 hash of the refresh token |
-| `expires_at` | TIMESTAMP | NOT NULL | 7 days from creation |
-| `created_at` | TIMESTAMP | DEFAULT NOW() | |
-
-The raw refresh token is never stored — only its SHA-256 hash. This means a DB breach does not expose usable tokens.
 
 ---
 
@@ -136,25 +116,25 @@ Enforced in two places:
 POST /api/auth/register
   │
   ├─ ValidationPipe checks DTO
-  │     email     → valid email format
-  │     username  → non-empty, max 20 chars
-  │     password  → 8–128 chars
+  │     email     → must be a valid email address
+  │     username  → non-empty string, max 20 chars
+  │     password  → string, 8–128 chars
   │     → invalid: 400 Bad Request
   │
   ├─ UserService.findByEmail()
-  │     → duplicate: 409 "Email already in use"
+  │     → duplicate email: 409 Conflict "Email already in use"
   │
   ├─ UserService.findByUsername()
-  │     → duplicate: 409 "Username already in use"
+  │     → duplicate username: 409 Conflict "Username already in use"
   │
   ├─ bcrypt.hash(password, 12)
+  │     → produces a 60-char hash, stored in password_hash column
   │
   ├─ UserService.create(email, username, hash)
+  │     → INSERT INTO users ...
   │
-  └─ issueTokens(userId, email)
-        ├─ JwtService.sign({ sub, email }) → accessToken
-        └─ SessionService.create(userId)   → refreshToken (stored as SHA-256 hash)
-        → 201 { accessToken, refreshToken }
+  └─ JwtService.sign({ sub: id, email })
+        → 200 OK { accessToken }
 ```
 
 ### Login flow
@@ -163,15 +143,18 @@ POST /api/auth/register
 POST /api/auth/login
   │
   ├─ ValidationPipe checks DTO
+  │     email    → must be a valid email address
+  │     password → must be a string
+  │     → invalid: 400 Bad Request
   │
   ├─ UserService.findByEmail()
-  │     → not found: 401 "Invalid credentials"
+  │     → user not found: 401 Unauthorized "Invalid credentials"
   │
   ├─ user.passwordHash === null?
-  │     → OAuth-only account: 401 "Invalid credentials"
+  │     → OAuth-only account: 401 Unauthorized "Invalid credentials"
   │
-  ├─ bcrypt.compare(password, passwordHash)
-  │     → mismatch: 401 "Invalid credentials"
+  ├─ bcrypt.compare(password, user.passwordHash)
+  │     → mismatch: 401 Unauthorized "Invalid credentials"
   │
   ├─ user.totpEnabled?
   │     → YES: JwtService.sign({ sub, email, pending2fa: true }, { expiresIn: 300 })
@@ -388,10 +371,12 @@ Creates a new user account with email and password.
 
 | Status | Body | Condition |
 |---|---|---|
-| 201 | `{ accessToken, refreshToken }` | User created |
-| 400 | Validation error details | Invalid input |
-| 409 | `"Email already in use"` | Duplicate email |
-| 409 | `"Username already in use"` | Duplicate username |
+| 200 | `{ "accessToken": "<jwt>" }` | User created successfully |
+| 400 | Validation error details | Invalid field format or length |
+| 409 | `"Email already in use"` | Email is taken |
+| 409 | `"Username already in use"` | Username is taken |
+
+**Example**
 
 ```bash
 curl -sk -X POST https://localhost/api/auth/register \
@@ -399,11 +384,17 @@ curl -sk -X POST https://localhost/api/auth/register \
   -d '{"email":"user@example.com","username":"myusername","password":"securepassword"}'
 ```
 
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
 ---
 
 ### `POST /auth/login`
 
-Authenticates an existing email/password user.
+Authenticates an existing user with email and password.
 
 **Request body**
 
@@ -414,13 +405,20 @@ Authenticates an existing email/password user.
 }
 ```
 
+| Field | Type | Rules |
+|---|---|---|
+| `email` | string | Valid email format |
+| `password` | string | Non-empty string |
+
 **Responses**
 
 | Status | Body | Condition |
 |---|---|---|
-| 201 | `{ accessToken, refreshToken }` | Credentials valid |
-| 400 | Validation error details | Invalid input |
-| 401 | `"Invalid credentials"` | Wrong email, password, or OAuth-only account |
+| 200 | `{ "accessToken": "<jwt>" }` | Credentials valid |
+| 400 | Validation error details | Invalid field format |
+| 401 | `"Invalid credentials"` | Email not found, wrong password, or OAuth-only account |
+
+**Example**
 
 ```bash
 curl -sk -X POST https://localhost/api/auth/login \
@@ -428,40 +426,37 @@ curl -sk -X POST https://localhost/api/auth/login \
   -d '{"email":"user@example.com","password":"securepassword"}'
 ```
 
----
-
-### `POST /auth/refresh`
-
-Issues a new token pair using a valid refresh token. The old refresh token is invalidated immediately (rotation).
-
-**Request body**
-
 ```json
 {
-  "refreshToken": "<refresh_token>"
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
-**Responses**
-
-| Status | Body | Condition |
-|---|---|---|
-| 201 | `{ accessToken, refreshToken }` | Token rotated |
-| 401 | `"Invalid or expired refresh token"` | Token not found, expired, or already used |
-
-```bash
-curl -sk -X POST https://localhost/api/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d '{"refreshToken":"<refresh_token>"}'
-```
-
 ---
 
-### `POST /auth/logout`
+## JWT Token
 
-Invalidates the refresh token. **Protected by JwtGuard.**
+The token is signed with `HS256` using `JWT_SECRET` from the environment.
 
-**Headers**
+**Payload structure**
+
+```json
+{
+  "sub": 1,
+  "email": "user@example.com",
+  "iat": 1782114695,
+  "exp": 1782118295
+}
+```
+
+| Claim | Description |
+|---|---|
+| `sub` | User ID (primary key) |
+| `email` | User email |
+| `iat` | Issued at (Unix timestamp) |
+| `exp` | Expiry (Unix timestamp, `iat + JWT_EXPIRES_IN`) |
+
+Use this token in the `Authorization` header for protected routes (JWT guard not yet implemented — planned for `feat/auth-guard`):
 
 ```
 Authorization: Bearer <accessToken>

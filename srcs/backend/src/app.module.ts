@@ -3,9 +3,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './auth/auth.module';
-import { Session } from './auth/session.entity';
 import { UserModule } from './user/user.module';
-import { User } from './user/user.entity';
+//import { ChatModule } from './chat/chat.module';
 
 @Module({
     imports: [
@@ -19,12 +18,13 @@ import { User } from './user/user.entity';
                 username: config.getOrThrow('MARIADB_USER'),
                 password: config.getOrThrow('MARIADB_PASSWORD'),
                 database: config.getOrThrow('MARIADB_DATABASE'),
-                entities: [User, Session],
+                entities: [__dirname + '/**/*.entity{.ts,.js}'],
                 synchronize: true,
             }),
         }),
         AuthModule,
         UserModule,
+//        ChatModule,
     ],
     controllers: [HealthController],
     providers: [],

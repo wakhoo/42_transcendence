@@ -64,6 +64,95 @@ Runs Prettier on every `.ts` file inside `src/`. Prettier rewrites the files to 
 
 ---
 
+---
+
+## Docker — Containers and how to run them
+
+### How to start the full stack
+
+```bash
+docker compose up --build
+```
+
+Run this from the `srcs/` directory (where `docker-compose.yml` lives).
+
+- `up` starts all the containers defined in `docker-compose.yml`
+- `--build` forces Docker to rebuild every image from scratch before starting — use it when you changed a `Dockerfile` or added/removed dependencies
+
+To stop everything:
+```bash
+docker compose down
+```
+
+To stop and wipe the volumes (database included):
+```bash
+docker compose down -v
+```
+
+---
+
+### Container overview
+
+| Container | Image built from | Exposed port | Role |
+|-----------|-----------------|--------------|------|
+| `nginx` | `./nginx/` | 443 (HTTPS), 80 (HTTP) | Reverse proxy + WAF |
+| `frontend` | `./frontend/` | none (internal only) | React/Vite UI |
+| `backend` | `./backend/` | none (internal only) | NestJS API |
+| `websocket` | `./websocket/` | none (internal only) | Real-time server |
+| `mariadb` | `./mariadb/` | none (internal only) | Database |
+
+---
+
+### Container details
+
+#### `nginx` — Reverse proxy / WAF
+The only container that accepts traffic from the outside world. It receives every HTTP and HTTPS request and routes them to the right internal container. It also runs ModSecurity as a Web Application Firewall (WAF) to block common attacks (SQLi, XSS…). Nothing reaches the backend or the frontend without going through it first.
+
+#### `frontend` — React/Vite UI
+Serves the React application. It is not exposed directly to the internet — nginx proxies requests to it on the internal Docker network. In production mode the Vite build outputs static files that are served by a small HTTP server.
+
+#### `backend` — NestJS API
+The business logic of the application. It exposes a REST API under `/api` on port 3000 **inside** the Docker network. Nginx forwards `/api/*` requests to it. It connects to `mariadb` for data and to `vault` (when enabled) for secrets.
+
+#### `websocket` — Real-time server
+Handles WebSocket connections for features that need live updates (game state, chat…). Runs on port 9000 inside the Docker network. Nginx proxies WebSocket upgrade requests to it.
+
+#### `mariadb` — Database
+Stores all persistent data. It is only reachable from the `backend` container via the `db` network — no other container can talk to it directly, and it has no port exposed to the host. The data is persisted in the `mariadb_data` Docker volume so it survives container restarts.
+
+---
+
+### Network isolation
+
+The stack uses four separate Docker networks to enforce strict isolation:
+
+| Network | Who is on it | Why |
+|---------|-------------|-----|
+| `dmz` | nginx | Faces the internet |
+| `internal` | nginx, frontend, backend, websocket | Internal app traffic |
+| `db` | backend, mariadb | Database access only |
+| `vault_net` | backend (+ vault when enabled) | Secrets management |
+
+A container can only reach another container if they share a network. `mariadb` is on `db` only — the frontend can never reach it directly, even by accident.
+
+---
+
+### Healthchecks
+
+Each container declares a healthcheck so Docker knows when it is truly ready (not just started):
+
+| Container | Healthcheck command | What it verifies |
+|-----------|-------------------|-----------------|
+| `nginx` | `nginx -t` | Nginx config is valid and the process is running |
+| `frontend` | `curl http://localhost:3000` | The frontend server responds |
+| `backend` | `curl http://localhost:3000/api/health` | The NestJS API responds (via `HealthController`) |
+| `websocket` | `curl http://localhost:9000/health` | The WebSocket server responds |
+| `mariadb` | `mariadb-admin ping` | The database accepts connections |
+
+`backend` waits for `mariadb` to be healthy before starting. This prevents NestJS from crashing on startup because the database is not ready yet.
+
+---
+
 ## eslint.config.mjs — what it is and why it matters
 
 ## What ESLint is

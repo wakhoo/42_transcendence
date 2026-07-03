@@ -1,7 +1,7 @@
 import { WebSocketServer } from 'ws';
 import http from 'http';
 
-// server http pour le heathcheck du compose
+// server http pour le healthcheck du compose
 const server = http.createServer((req, res) => {
     if (req.url === '/health') {
         res.writeHead(200, { 'Content-Type': 'text/plain' });
@@ -14,12 +14,12 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocketServer({ server });
 
-wss.on('connexion', (ws) => {
+wss.on('connection', (ws) => {
     console.log('Client connected');
     ws.on('message', (message) => {
         console.log('Message received', message.toString());
     });
-    ws.on('close', () => consle.log('Client disconnected'));
+    ws.on('close', () => console.log('Client disconnected'));
 });
 
 server.listen(9000, '0.0.0.0', () => {
