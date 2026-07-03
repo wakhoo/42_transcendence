@@ -12,7 +12,7 @@
 		"format": "prettier --write \"src/**/*.ts\""
 	},
 	"dependencies": {
-		"@nestjs/common": "^11.1.26",
+		"@nestjs/common": "^11.1.27",
 		"@nestjs/config": "^4.0.4",
 		"@nestjs/core": "^11.1.26",
 		"@nestjs/jwt": "^11.0.0",
@@ -33,6 +33,7 @@
 		"@nestjs/cli": "^11.0.23",
 		"@nestjs/schematics": "^11.1.0",
 		"@types/bcrypt": "^5.0.2",
+		"@types/express": "^5.0.6",
 		"@types/node": "^25.9.2",
 		"@typescript-eslint/eslint-plugin": "^8.61.0",
 		"@typescript-eslint/parser": "^8.61.0",
