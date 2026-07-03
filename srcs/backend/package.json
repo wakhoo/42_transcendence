@@ -16,6 +16,7 @@
 		"@nestjs/config": "^4.0.4",
 		"@nestjs/core": "^11.1.27",
 		"@nestjs/jwt": "^11.0.0",
+		"@nestjs/passport": "^11.0.5",
 		"@nestjs/platform-express": "^11.1.26",
 		"@nestjs/platform-socket.io": "^11.1.27",
 		"@nestjs/typeorm": "^11.0.3",
@@ -37,12 +38,12 @@
 		"@nestjs/cli": "^11.0.23",
 		"@nestjs/schematics": "^11.1.0",
 		"@types/bcrypt": "^5.0.2",
+		"@types/express": "^5.0.0",
 		"@types/node": "^25.9.2",
 		"@types/passport-google-oauth20": "^2.0.17",
 		"@types/qrcode": "^1.5.6",
 		"@typescript-eslint/eslint-plugin": "^8.61.0",
 		"@typescript-eslint/parser": "^8.61.0",
-		"typescript": "^6.0.3",
-		"@types/express":"^5.0.0"
+		"typescript": "^6.0.3"
 	}
 }

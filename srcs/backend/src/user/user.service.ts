@@ -30,4 +30,35 @@ export class UserService {
     findByUsername(username: string): Promise<User | null> {
         return this.repo.findOne({ where: { username } });
     }
+
+    findById(id: number): Promise<User | null> {
+        return this.repo.findOne({ where: { id } });
+    }
+
+    findByOAuthId(provider: string, oauthId: string): Promise<User | null> {
+        return this.repo.findOne({ where: { oauthProvider: provider, oauthId } });
+    }
+
+    async setTotpSecret(userId: number, secret: string | null): Promise<void> {
+        await this.repo.update(userId, { totpSecret: secret });
+    }
+
+    async enableTotp(userId: number): Promise<void> {
+        await this.repo.update(userId, { totpEnabled: true });
+    }
+
+    async disableTotp(userId: number): Promise<void> {
+        await this.repo.update(userId, { totpSecret: null, totpEnabled: false });
+    }
+
+    async createOAuthUser(
+        provider: string,
+        oauthId: string,
+        email: string,
+        username: string,
+        avatarUrl: string | null,
+    ): Promise<User> {
+        const user = this.repo.create({ email, username, oauthProvider: provider, oauthId, avatarUrl });
+        return this.repo.save(user);
+    }
 }
