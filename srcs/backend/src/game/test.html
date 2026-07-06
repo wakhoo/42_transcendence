@@ -1,4 +1,4 @@
-
+<!-- 
 
  <!DOCTYPE html>
 <html>
@@ -79,6 +79,77 @@
             socket.emit("wordCheck", mot);
             console.log("❓ J'ai proposé :", mot);
             document.getElementById("motPropose").value = ""; // Vide la case
+        }
+    </script>
+</body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Pictionary 42</title>
+    <!-- On importe le client Socket.io officiel -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body style="font-family: Arial, sans-serif; padding: 20px;">
+
+    <h1>Mon Joueur : <span id="nomJoueur"></span></h1>
+    
+    <!-- Boutons d'action -->
+    <button onclick="lancerPartie()" style="padding: 10px; background: green; color: white;">Démarrer la partie</button>
+    <br><br>
+    
+    <input type="text" id="motPropose" placeholder="Taper un mot...">
+    <button onclick="proposerMot()">Proposer le mot</button>
+
+    <h3>Console du jeu (regarde ici !) :</h3>
+    <div id="logs" style="background: #eee; padding: 10px; height: 300px; overflow-y: scroll;"></div>
+
+    <script>
+        // 1. Demande dynamiquement l'ID (sans rien coder en dur !)
+        const monId = prompt("Entrez votre numéro de joueur (ex: 1, 2 ou 3) :");
+        document.getElementById('nomJoueur').innerText = "Joueur " + monId;
+
+        // 2. Connexion au Backend (Vérifie que ton port est bien 3000)
+        const socket = io('http://localhost:3000');
+        const maRoom = "Room-Test";
+
+        socket.on('connect', () => {
+            logMessage("Connecté au serveur ! Mon Socket ID : " + socket.id);
+            // Dès qu'on est connecté, on rentre dans la salle d'attente
+            socket.emit('join_room', { roomId: maRoom, dbId: parseInt(monId) });
+        });
+
+        // --- ENVOI DES ACTIONS AU BACKEND ---
+
+        function lancerPartie() {
+            // Un seul joueur a besoin de cliquer pour lancer !
+            socket.emit('start_game', { roomId: maRoom });
+        }
+
+        function proposerMot() {
+            const mot = document.getElementById('motPropose').value;
+            socket.emit('wordCheck', mot);
+            document.getElementById('motPropose').value = ""; // on vide la case
+        }
+
+        // --- RÉCEPTION DES MESSAGES DU BACKEND ---
+
+        socket.on('chat_message', (msg) => logMessage("📢 " + msg));
+        socket.on('word_hint', (data) => logMessage("💡 Indice : le mot contient " + data.wordLength + " lettres."));
+        socket.on('secret_word', (mot) => logMessage("🤫 CHUT ! Ton mot secret est : " + mot));
+        socket.on('next_round', (msg) => logMessage("🔄 " + msg));
+        socket.on('classement', (scores) => logMessage("🏆 CLASSEMENT : " + JSON.stringify(scores)));
+        socket.on('game_over', (scores) => logMessage("🏁 FIN DU JEU ! Scores finaux : " + JSON.stringify(scores)));
+        socket.on('timer_update',(timeLeft) => logMessage(timeLeft));
+
+        // Petite fonction pour écrire sur la page web
+        function logMessage(texte) {
+            const logs = document.getElementById('logs');
+            logs.innerHTML += `<p>${texte}</p>`;
+            logs.scrollTop = logs.scrollHeight; // Descend tout en bas automatiquement
         }
     </script>
 </body>

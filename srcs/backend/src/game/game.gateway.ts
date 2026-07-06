@@ -25,10 +25,11 @@ export class GameGateway implements OnGatewayDisconnect{
     timer: any;
     timeOut: any;
     timeLeft: number = 0;
-    wordList : string[] = ['pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica'];
+    wordList : string[] = ['pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica', 'guitare' ,'montagne', 'chat', 'biche'];
     currentDrawer: string = "";
     playerList: playerData[] = [];
     currentPlayerIndex: number = 0;
+    playersWhoGuessed: string[] = [];
     historicDraw : string[] = [];
     currentRound: number = 1;
     roundmax: number = 3;
@@ -41,12 +42,18 @@ export class GameGateway implements OnGatewayDisconnect{
     handleGame(client: any , data: any) {
 
 
-      if (data.players.length  < 2) {
+      if (this.playerList.length  < 2) {
 
-          console.log('manque de joueurs');
-          return;
+        this.server.to(this.roomId).emit('message_channel','manque de joueurs');
+        return;
       }
 
+      for (let i = 0; i < this.playerList.length ; i++) {
+
+        const idPlayer = this.playerList[i].dbId;
+        this.playerPoints[idPlayer] = 0;
+            
+      }
       this.roomId = data.roomId;
       console.log('Game started in room ', this.roomId);
       console.log('la manche numero 1 va demaree');
@@ -55,7 +62,7 @@ export class GameGateway implements OnGatewayDisconnect{
       // random pour choix du mot secret a chaque tour stockage du joueur numero un qui dessine 
       
       this.secretWord = this.wordList[Math.floor(Math.random() * this.wordList.length)];
-      this.playerList = data.players;
+      //this.playerList = data.players;
       this.currentDrawer = this.playerList[0].socketId;
       console.log(this.secretWord);
       console.log("Dessinateur :", this.currentDrawer);
@@ -81,7 +88,7 @@ export class GameGateway implements OnGatewayDisconnect{
 
         // debut de boucle de temps decrementation sur 60 s
           this.timeLeft -= 1;
-          console.log(`Temps restant : ${this.timeLeft}s`);
+          this.server.to(this.roomId).emit('timer_update',`${this.timeLeft}s`);
 
           if(this.timeLeft == 0){
 
@@ -98,6 +105,17 @@ export class GameGateway implements OnGatewayDisconnect{
       },10000);
     
     }
+
+    @SubscribeMessage('join_room')
+    handleJoinRoom(client: any, data: {roomId: string, dbId: number}) {
+
+      client.join(data.roomId);
+      this.playerList.push({socketId: client.id, dbId: data.dbId});
+      console.log(`le joueur ${data.dbId} a rejoint la room ${data.roomId}`);
+      console.log(`jouers actuel ${this.playerList.length}`);
+    }
+
+
 
     handleDisconnect(client: any) {
 
@@ -156,6 +174,8 @@ export class GameGateway implements OnGatewayDisconnect{
     handleWordFinding(client: any, wordProposition: any){
 
 
+      if(this.playersWhoGuessed.includes(client.id))
+          return;
       //stock le dossier du joueur
       const realPlayer = this.playerList.find(player => player.socketId === client.id);
       if(!realPlayer)
@@ -166,36 +186,49 @@ export class GameGateway implements OnGatewayDisconnect{
 
       if(wordProposition === this.secretWord) {
 
-        if(!this.playerPoints[realPlayer.dbId])
-            this.playerPoints[realPlayer.dbId] = 0;
+        this.playersWhoGuessed.push(client.id);
+      
 
-          clearInterval(this.timer);
+        // if(!this.playerPoints[realPlayer.dbId])
+        //     this.playerPoints[realPlayer.dbId] = 0;
+
           
-          if(this.timeLeft >= 50)
-            this.playerPoints[realPlayer.dbId] += 100;
-          else if(this.timeLeft >= 40 )
-            this.playerPoints[realPlayer.dbId] += 80;
-          else if(this.timeLeft >= 30)
-            this.playerPoints[realPlayer.dbId] += 60;
-          else if(this.timeLeft >= 20 )
-            this.playerPoints[realPlayer.dbId] += 40;
-          else if(this.timeLeft >= 10 )
-            this.playerPoints[realPlayer.dbId] += 20;
-          else if(this.timeLeft > 0)
-            this.playerPoints[realPlayer.dbId] += 5;
-          this.server.to(this.roomId).emit('chat_message', `${realPlayer.dbId} a trouver le mot`);
-          this.server.to(this.roomId).emit('classement',this.playerPoints);
-          this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
+        if(this.timeLeft >= 50)
+          this.playerPoints[realPlayer.dbId] += 100;
+        else if(this.timeLeft >= 40 )
+          this.playerPoints[realPlayer.dbId] += 80;
+        else if(this.timeLeft >= 30)
+          this.playerPoints[realPlayer.dbId] += 60;
+        else if(this.timeLeft >= 20 )
+          this.playerPoints[realPlayer.dbId] += 40;
+        else if(this.timeLeft >= 10 )
+          this.playerPoints[realPlayer.dbId] += 20;
+        else if(this.timeLeft > 0)
+          this.playerPoints[realPlayer.dbId] += 5;
+        this.server.to(this.roomId).emit('chat_message', `${realPlayer.dbId} a trouver le mot`);
+        //this.server.to(this.roomId).emit('classement',this.playerPoints);
+        if(this.playersWhoGuessed.length === this.playerList.length - 1) {
+          
+            clearInterval(this.timer);
+            this.server.to(this.roomId).emit('classement',this.playerPoints);
+            this.timeOut = setTimeout(() => {
 
-          this.timeOut = setTimeout(() => {
-          this.handleNextTurn();
-          },5000);
-        }
+              this.handleNextTurn();
+            },5000);
+          }
       }
+      else {
+
+          this.server.to(this.roomId).emit('chat_message', `${realPlayer.dbId} : ${wordProposition}`);
+      }
+    }
 
       handleNextTurn() {
 
+        this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
         this.historicDraw = [];
+        this.playersWhoGuessed = [];
+        this.server.to(this.roomId).emit('clear_canvas');
         this.currentPlayerIndex += 1;
         //verification pour passer la manche suivante 
         if (!this.playerList[this.currentPlayerIndex]){
@@ -214,7 +247,7 @@ export class GameGateway implements OnGatewayDisconnect{
             this.gameService.saveMatchHistory(matchFinalData);
             return;
           }
-          this.currentRound +=1;
+          this.currentRound += 1;
           this.currentPlayerIndex = 0;
           this.server.to(this.roomId).emit('next_round', `Manche numero ${this.currentRound}`);
         }
@@ -240,7 +273,6 @@ export class GameGateway implements OnGatewayDisconnect{
           clearInterval(this.timer);
           this.server.to(this.roomId).emit('chat_message',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
           this.server.to(this.roomId).emit('classement',this.playerPoints);
-          this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
           this.timeOut = setTimeout(() =>{
             this.handleNextTurn();
           },5000)
