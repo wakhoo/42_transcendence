@@ -5,6 +5,8 @@ import { HealthController } from './health/health.controller';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { ChatModule } from './chat/chat.module';
+import { GameGateway } from './game/game.gateway';
+import { GameService } from './game/game.service';
 
 @Module({
     imports: [
@@ -27,6 +29,6 @@ import { ChatModule } from './chat/chat.module';
        ChatModule,
     ],
     controllers: [HealthController],
-    providers: [],
+    providers: [GameGateway, GameService],
 })
 export class AppModule {}
