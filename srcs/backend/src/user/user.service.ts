@@ -61,4 +61,13 @@ export class UserService {
         const user = this.repo.create({ email, username, oauthProvider: provider, oauthId, avatarUrl });
         return this.repo.save(user);
     }
+
+    async update(userId: number, data: { email?: string; username?: string }): Promise<User> {
+        await this.repo.update(userId, data);
+        return (await this.findById(userId))!;
+    }
+
+    async remove(userId: number): Promise<void> {
+        await this.repo.delete(userId);
+    }
 }
