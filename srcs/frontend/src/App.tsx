@@ -1,11 +1,4 @@
-<<<<<<< Updated upstream
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
 
-=======
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage.tsx';
 import LoginPage from './pages/LoginPage.tsx';
@@ -26,7 +19,7 @@ function App() {
 }
 
 //export default App;
->>>>>>> Stashed changes
+
 // function App() {
 //   const [count, setCount] = useState(0)
 
@@ -142,19 +135,17 @@ function App() {
 //   )
 // }
 
-// export default App
+export default App
 
 
-import React from 'react';
-// On importe notre brique Timer depuis le dossier components
-import Timer from './components/Timer';
+// // On importe notre  Timer depuis components
+// import Timer from './components/Timer';
 
-export default function App() {
-  return (
-    <div>
-      <h1>Mon Super Pictionary</h1>
-      {/* On pose la brique sur l'écran ici */}
-      <Timer />
-    </div>
-  );
-}
+// export default function App() {
+//   return (
+//     <div>
+//       <h1>ft_skribbl</h1>
+//       <Timer />
+//     </div>
+//   );
+// }

@@ -1,6 +1,5 @@
-<<<<<<< Updated upstream
-import React, { useState, useEffect } from 'react';
-=======
+
+
 // import { useState, useEffect } from 'react';
 // import { io, Socket } from 'socket.io-client';
 
@@ -50,7 +49,7 @@ import React, { useState, useEffect } from 'react';
 // }
 
 import { useState, useEffect } from 'react';
->>>>>>> Stashed changes
+
 import { io } from 'socket.io-client';
 
 
