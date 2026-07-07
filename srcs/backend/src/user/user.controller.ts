@@ -56,6 +56,7 @@ export class UserController {
         if (!user) throw new UnauthorizedException();
 
         return {
+            messages: await this.userService.getUserMessage(user.id),
             profile: this.toSafeProfile(user),
             exportedAt: new Date().toISOString(),
         };

@@ -71,10 +71,10 @@ DB_USER=
 DB_PASSWORD=
 DB_NAME=ft_transcendence
 
-# Backend — Next.js
+# Backend — Nest.js
 BACKEND_PORT=3000
-NEXTAUTH_URL=https://dancel.42.fr
-NEXTAUTH_SECRET=
+NESTAUTH_URL=https://dancel.42.fr
+NESTAUTH_SECRET=
 
 # JWT
 JWT_SECRET=
@@ -172,7 +172,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 |--------|------|-----------------|
 | dancel | Product Owner + Developer | Product vision, backlog, chat part |
 | chajeon | Project Manager + Developer | Team coordination, security, Docker infrastructure, WAF, 2FA |
-| asdiallo | Tech Lead + Developer | Architecture, backend (Next.js), database design |
+| asdiallo | Tech Lead + Developer | Architecture, backend (Nest.js), database design |
 | aboutale | Developer | game |
 
 ---
@@ -210,7 +210,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 ### Backend
 | Technology | Reason |
 |-----------|--------|
-| Next.js | Full-stack framework, API routes, SSR support |
+| Nest.js | Full-stack framework, API routes, SSR support |
 | [Prisma / TypeORM] | [Why this ORM] |
 
 ### Database
@@ -265,7 +265,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | Docker Infrastructure | 4-network isolation, single-command run | chajeon |
 | WAF / ModSecurity | OWASP CRS, SQLi/XSS protection | chajeon |
 | 2FA Authentication | TOTP-based with QR code registration | chajeon |
-| Backend API | Next.js API routes | asdiallo |
+| Backend API | Nest.js API routes | asdiallo |
 | Database Design | MariaDB schema and relations | asdiallo |
 | [Game Feature] | [Description] | dancel |
 | Privacy Policy Page | Accessible from footer | chajeon |
@@ -319,7 +319,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 ### asdiallo — Tech Lead + Developer
 - Overall architecture design
 - Technology stack decisions
-- Backend development (Next.js API routes)
+- Backend development (Nest.js API routes)
 - Database schema design (MariaDB)
 - [Feature or module implemented]
 - Challenges: [Any challenges faced and how resolved]
@@ -427,7 +427,6 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 ### Documentation
 - [Docker Documentation](https://docs.docker.com)
-- [Next.js Documentation](https://nextjs.org/docs)
 - [React Documentation](https://react.dev)
 - [MariaDB Documentation](https://mariadb.com/kb/en/documentation)
 - [ModSecurity Reference Manual](https://github.com/SpiderLabs/ModSecurity/wiki)

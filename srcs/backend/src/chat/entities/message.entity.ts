@@ -19,7 +19,7 @@ export class Message {
     @CreateDateColumn()
     createdAt!: Date;
 
-    @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true, eager: true })
+    @ManyToOne(() => User, { onDelete: 'CASCADE', nullable: true })
     sender!: User | null;
 
     @ManyToOne(() => Channel, (channel) => channel.messages, { onDelete: 'CASCADE' })

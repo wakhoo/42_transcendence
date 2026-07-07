@@ -26,7 +26,7 @@ import { GameService } from './game/game.service';
         }),
         AuthModule,
         UserModule,
-       ChatModule,
+        ChatModule,
     ],
     controllers: [HealthController],
     providers: [GameGateway, GameService],

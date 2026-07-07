@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
     libnginx-mod-http-modsecurity \
     && rm -rf /var/lib/apt/lists/*
 
-COPY conf/default.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 COPY tools/init.sh /init.sh
 
 RUN chmod +x /init.sh

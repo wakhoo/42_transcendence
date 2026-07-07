@@ -4,12 +4,13 @@ import { JwtModule } from "@nestjs/jwt";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { JwtGuard } from "../auth/guards/jwt.guard";
 import { User } from "./user.entity";
+import { Message } from "../chat/entities/message.entity";
 import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, Message]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

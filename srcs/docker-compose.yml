@@ -57,7 +57,7 @@ services:
       retries: 3
 
   # ----------------------------------------------------------
-  #  Backend — Next.js (API Routes)
+  #  Backend — Nest.js (API Routes)
   #  Connected to internal + db + vault networks
   #  No external port — accessed through WAF only
   # ----------------------------------------------------------
@@ -107,7 +107,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
   # ----------------------------------------------------------
   #  MariaDB — Database
   #  db network only — no external access
