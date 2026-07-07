@@ -1,6 +1,6 @@
-# doc-back.md — Backend skeleton files
+# doc-back.md — Backend architecture
 
-A short reference describing the role of each file in the NestJS backend skeleton.
+A reference describing how the NestJS backend is organized: the config files that set up the project, the source folders that hold the business logic, the dependencies each feature relies on, and why the whole thing runs inside a Docker container.
 
 ## Config files
 
@@ -13,6 +13,13 @@ This is the identity card of the Node project. It states two essential things: w
 ### `tsconfig.json`
 The `tsconfig` is the bridge between TypeScript and the JavaScript that Node executes. Node doesn't understand TypeScript directly, so this file tells the compiler how to translate the code and which typing rules to apply.
 
+### `Dockerfile`
+Builds the backend into a Docker image using a **multi-stage build**:
+1. **`builder` stage** — installs *all* dependencies (`npm ci`), copies the source, and runs `npm run build` to compile TypeScript into `dist/`.
+2. **Final stage** — starts from a clean `node:20-alpine` image, installs only production dependencies (`npm ci --omit=dev`), and copies just the compiled `dist/` folder from the builder stage.
+
+The point of splitting it in two stages: the final image never contains TypeScript source, dev dependencies, or build tools — only the compiled JS and what it needs to run. Smaller image, smaller attack surface. See [Why containerize the backend](#why-containerize-the-backend) below for the full reasoning.
+
 ## Source files
 
 ### `main.ts`
@@ -23,6 +30,77 @@ This is the root module, the assembly point. It wires together all the pieces of
 
 ### `health.controller.ts`
 The controller is the mapping table between incoming requests and the code. Without it, the server runs but doesn't know how to answer anything. It declares all the routes of the class, tells the method right below it to respond to GET requests on the given path, and runs it.
+
+## `src/` — where the actual logic lives
+
+`app.module.ts` wires together everything under `src/`, but it doesn't contain business logic itself — it just assembles the folders below. Each folder is a self-contained NestJS module: it owns its own database entities, its own routes, and its own rules. This doc stays at folder level; `AUTH.md` already goes file-by-file for auth if that level of detail is needed.
+
+| Folder | What it's responsible for |
+|---|---|
+| `auth/` | Everything about *proving who you are*: register, login, JWT issuance, Google OAuth, 2FA. Fully documented in `AUTH.md`. |
+| `user/` | Everything about *the user record itself*: reading and writing rows in the `users` table (email, username, avatar, TOTP flags…). `auth/` calls into this module, it doesn't touch the database directly. |
+| `chat/` | Where real-time messaging between players will live (entities, guards, decorators are already scaffolded). Not yet wired into `app.module.ts` — see the commented-out `ChatModule` import. |
+| `health/` | The `/api/health` endpoint used by Docker's healthcheck. No business value beyond "is the server alive". |
+
+Game logic isn't implemented yet — when it lands, it will follow the same pattern: its own folder, its own module, imported into `app.module.ts`.
+
+This is the layer the frontend actually talks to: every screen that shows game state, chat messages, or user profile info (username, avatar, 2FA status…) gets that data by calling a route exposed by one of these modules over `/api/*`.
+
+### Request flow (schema)
+
+Two separate paths exist, for two different needs. Use the **REST API** (`backend`) when the frontend asks a one-off question and expects one answer: log in, fetch a profile, enable 2FA. Use the **WebSocket** (`websocket`) when data needs to flow continuously without either side asking for it: chat messages, live paddle/ball coordinates, score updates.
+
+The browser only ever talks to `nginx` (port 443). `nginx` decides which container to forward to by looking at the URL path — nothing more:
+
+```nginx
+location /api/  { proxy_pass http://backend:3000; }
+location /ws    { proxy_pass http://websocket:9000; }
+location /      { proxy_pass http://frontend:3000; }  # everything else
+```
+
+**Path 1 — REST API (`/api/...`): request → one response, connection closes**
+
+```
+Browser  ──fetch('/api/...')──▶  nginx  ──▶  backend (NestJS)  ──▶  mariadb
+                                                   │
+                                    Controller → Guard → Service → Repository
+```
+
+What each box inside `backend` does, in order:
+- **Controller** — receives the request, checks the body shape against the DTO (`login.dto.ts`…).
+- **Guard** — reads the `Authorization` header and rejects the request early if the token is missing/invalid (skipped for public routes like login).
+- **Service** — the actual business logic: `bcrypt.compare()`, sign the JWT, check the TOTP code…
+- **Repository** — TypeORM's object for talking to the DB (`this.repo.findOne(...)`, `.save(...)`). It's the last step before the real SQL query hits `mariadb`.
+
+Example: `POST /api/auth/login` — the browser sends email+password, the backend checks the DB, replies once with a token, done.
+
+**Path 2 — WebSocket (`/ws`): one connection stays open, messages flow both ways**
+
+```
+Browser  ──WebSocket upgrade '/ws'──▶  nginx  ──▶  websocket (ws server)
+   ▲                                                       │
+   └───────────────── messages pushed anytime ─────────────┘
+```
+
+Example: during a match, paddle position updates and chat messages get pushed the instant they happen — no repeated `fetch()` calls, no waiting for a request.
+
+### `websocket/` — real-time server
+
+A separate, minimal Node process — **not** NestJS, no REST routes, no database access of its own. It uses the raw [`ws`](https://github.com/websockets/ws) library instead of Socket.IO. Its job is anything that can't wait for a request/response round trip:
+
+- **Chat** — messages typed by one player need to reach the other player(s) immediately.
+- **Live game state** — paddle position, ball coordinates, score updates: dozens of tiny updates per second, far too chatty for REST.
+
+How it works today (`srcs/websocket/server.js`): it opens a plain HTTP server on port 9000 with two things attached —
+1. a `GET /health` route (used only by Docker's healthcheck, see the table below),
+2. a `WebSocketServer` that accepts the upgrade, logs incoming messages, and logs disconnects.
+
+There's no chat or game logic wired in yet — right now it just proves the connection works. When that logic lands, it will live here: broadcasting each client's message to the other player(s) in the same room/match instead of just logging it.
+
+Why it's its own container instead of living inside the NestJS `backend`:
+- A WebSocket connection is **long-lived** (stays open for the whole match/chat session) while HTTP requests are short-lived — mixing the two workloads in one process makes the REST API's restart/scaling story messier.
+- nginx proxies `/ws` straight to it (`proxy_pass http://websocket:9000` with the `Upgrade`/`Connection` headers set for the protocol switch — see `nginx.conf`), completely separate from the `/api/*` routing to `backend`.
+- It sits on the `internal` network only, **not** on `db` — it cannot query MariaDB directly today. If chat history ever needs to be persisted, it will have to go through the `backend`'s API (or be added to the `db` network later) rather than talking to the database itself.
 
 ## Backend `package.json` scripts — explained
 
@@ -64,9 +142,35 @@ Runs Prettier on every `.ts` file inside `src/`. Prettier rewrites the files to 
 
 ---
 
+## Dependencies — what each one is for and why it's there
+
+`package.json` lists the packages the backend actually needs. Grouped by what they do:
+
+| Package | Role |
+|---|---|
+| `@nestjs/core`, `@nestjs/common`, `@nestjs/platform-express` | The NestJS framework itself — modules, controllers, decorators, the HTTP server underneath (Express). |
+| `@nestjs/config` | Loads `.env` variables and exposes them via `ConfigService` (used for `MARIADB_*`, `JWT_SECRET`, etc.). |
+| `@nestjs/typeorm`, `typeorm`, `mysql2` | Database layer. TypeORM is the ORM (maps TS classes like `User` to SQL tables); `mysql2` is the actual driver that talks to MariaDB over the wire. |
+| `@nestjs/jwt` | Signs and verifies the JWT access/partial tokens described in `AUTH.md`. |
+| `bcrypt` | One-way password hashing (cost factor 12) — never store plaintext passwords. |
+| `@nestjs/passport`, `passport`, `passport-google-oauth20` | Google OAuth 2.0 login flow (`GoogleStrategy`). |
+| `otplib`, `qrcode` | 2FA: `otplib` generates/verifies TOTP codes, `qrcode` turns the secret into a scannable QR code image. |
+| `class-validator`, `class-transformer` | Validate and shape incoming request bodies against the DTOs (e.g. reject a `register` request with a 3-character password before it ever reaches the service). |
+| `@nestjs/websockets`, `@nestjs/platform-socket.io`, `socket.io` | Real-time transport for chat/game features once `ChatModule` (and later game) is wired in. |
+| `reflect-metadata`, `rxjs` | Low-level dependencies NestJS itself needs (decorator metadata, reactive streams) — not called directly in app code. |
+
+Dev-only tools (`eslint`, `prettier`'s peers, `@nestjs/cli`, `typescript`, `@types/*`) never ship in the production image — see the Dockerfile's `builder` stage below.
+
 ---
 
 ## Docker — Containers and how to run them
+
+### Why containerize the backend
+
+- **Reproducibility** — "works on my machine" stops being a problem: the image bundles the exact Node version and exact dependency versions, so it behaves the same in dev, CI, and prod.
+- **Isolation** — the backend process can't see or touch the host filesystem beyond what's explicitly mounted, and it can't reach anything outside the Docker networks it's attached to.
+- **Network segmentation as a security boundary** — the backend is the *only* app container plugged into the `db` network. Nothing else, not even the frontend, can open a connection to MariaDB. If the frontend or nginx were compromised, the attacker still couldn't reach the database directly.
+- **Independent scaling/restarts** — `docker compose` can restart or rebuild the backend without touching the frontend, database, or nginx, and the healthcheck (`curl /api/health`) stops traffic from being routed to it before it's actually ready.
 
 ### How to start the full stack
 
@@ -115,7 +219,7 @@ Serves the React application. It is not exposed directly to the internet — ngi
 The business logic of the application. It exposes a REST API under `/api` on port 3000 **inside** the Docker network. Nginx forwards `/api/*` requests to it. It connects to `mariadb` for data and to `vault` (when enabled) for secrets.
 
 #### `websocket` — Real-time server
-Handles WebSocket connections for features that need live updates (game state, chat…). Runs on port 9000 inside the Docker network. Nginx proxies WebSocket upgrade requests to it.
+Handles WebSocket connections for features that need live updates (game state, chat…). Runs on port 9000 inside the Docker network. Nginx proxies WebSocket upgrade requests to it. See [`websocket/` — real-time server](#websocket--real-time-server) above for how it actually works.
 
 #### `mariadb` — Database
 Stores all persistent data. It is only reachable from the `backend` container via the `db` network — no other container can talk to it directly, and it has no port exposed to the host. The data is persisted in the `mariadb_data` Docker volume so it survives container restarts.

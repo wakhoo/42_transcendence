@@ -12,7 +12,11 @@ function HomePage() {
                     className="border border-white text-white px-6 py-2 rounded hover:bg-white hover:text-black">
                     Log in
                 </button>
-                <button className="border border-white text-white px-6 py-2 rounded hover:bg-white hover:text-black">sign up</button>
+                <button
+                onClick={() => navigate('/signUp')} 
+                className="border border-white text-white px-6 py-2 rounded hover:bg-white hover:text-black">
+                sign up
+                </button>
             </div>
         </div>
     );

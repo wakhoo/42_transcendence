@@ -1,7 +1,9 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage.tsx';
 import LoginPage from './pages/LoginPage.tsx';
+import SignUp from './pages/SignUpPage.tsx';
 import GamePage from './pages/GamePage.tsx';
+
 
 // function App() {
 //   const [count, setCount] = useState(0)
@@ -127,6 +129,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/game" element={<GamePage />} />
+        <Route path="/signUp" element={<SignUp />} /> 
       </Routes>
     </BrowserRouter>
   );
