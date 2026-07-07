@@ -9,7 +9,8 @@ export interface playerData {
   dbId: number;
 }
 
-@WebSocketGateway({ cors: true})
+@WebSocketGateway({ cors: true,
+  path: '/api/socket.io'})
 
 export class GameGateway implements OnGatewayDisconnect{
   

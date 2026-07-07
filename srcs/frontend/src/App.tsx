@@ -1,9 +1,32 @@
+<<<<<<< Updated upstream
 import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import heroImg from './assets/hero.png'
 import './App.css'
 
+=======
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import HomePage from './pages/HomePage.tsx';
+import LoginPage from './pages/LoginPage.tsx';
+import Timer from './components/Timer.tsx';
+
+function App() {
+  return (
+      <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route 
+          path="/game"
+          element={<Timer/>} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+//export default App;
+>>>>>>> Stashed changes
 // function App() {
 //   const [count, setCount] = useState(0)
 
