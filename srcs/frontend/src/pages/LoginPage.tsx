@@ -1,4 +1,4 @@
-import { useState, type SubmitEvent } from 'react'; //variables qui changes
+import { useState, type SubmitEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function LoginPage() {
@@ -12,19 +12,25 @@ function LoginPage() {
 
     async function handleSubmit(e: SubmitEvent) {
         e.preventDefault();
-        const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:JSON.stringify({ email, password })
-        });
+        try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:JSON.stringify({ email, password })
+                });
+        
+                const data = await res.json();
+                if (!res.ok) {
+                    setError('Login failed');
+                    return;
+                }
+                localStorage.setItem('token', data.accessToken);
+                navigate('/dashboard');
+            }
 
-        const data = await res.json();
-        if (!res.ok) {
-            setError('Login failed');
-            return;
+         catch {
+            setError('Unable to contact the server');
         }
-        localStorage.setItem('token', data.accessToken);
-        navigate('/dashboard');
     }
 
     return (
