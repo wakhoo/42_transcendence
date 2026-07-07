@@ -50,7 +50,7 @@ export class AuthController {
     @UseGuards(AuthGuard('google'))
     async googleCallback(@Req() req: { user: GoogleProfile }, @Res() res: Response) {
         const result = await this.authService.googleLogin(req.user);
-        const base = this.config.getOrThrow<string>('NEXTAUTH_URL');
+        const base = this.config.getOrThrow<string>('NESTAUTH_URL');
 
         if ('accessToken' in result) {
             const url = new URL(`${base}/auth/callback`);
