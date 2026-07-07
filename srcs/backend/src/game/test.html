@@ -112,8 +112,8 @@
         const monId = prompt("Entrez votre numéro de joueur (ex: 1, 2 ou 3) :");
         document.getElementById('nomJoueur').innerText = "Joueur " + monId;
 
-        // 2. Connexion au Backend (Vérifie que ton port est bien 3000)
-        const socket = io('http://localhost:3000');
+        // 2. Connexion au Backend (via le WAF Nginx, pas de port exposé en direct)
+        const socket = io('https://localhost:8443');
         const maRoom = "Room-Test";
 
         socket.on('connect', () => {

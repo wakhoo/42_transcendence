@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 
 // On prépare notre téléphone pour appeler le serveur
-const socket = io('http://localhost:3000');
+const socket = io();
 
 export default function Timer() {
   // 1. LE STATE : La variable magique qui met à jour l'écran

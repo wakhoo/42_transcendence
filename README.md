@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by asdiallo, chajeon, dancel, elxhafer.*
+*This project has been created as part of the 42 curriculum by aboutale, asdiallo, chajeon, dancel.*
 
 ---
 
@@ -72,7 +72,7 @@ DB_PASSWORD=
 DB_NAME=ft_transcendence
 
 # Backend — Next.js
-BACKEND_PORT=8080
+BACKEND_PORT=3000
 NEXTAUTH_URL=https://dancel.42.fr
 NEXTAUTH_SECRET=
 
@@ -113,14 +113,67 @@ TOTP_ISSUER=ft_transcendence
 
 ---
 
+## Docker Architecture
+
+### Container overview
+
+| Container | Built from | External port | Role |
+|-----------|-----------|---------------|------|
+| `nginx` | `srcs/nginx/` | 443 (HTTPS), 80 (HTTP) | Reverse proxy + WAF — only entry point |
+| `frontend` | `srcs/frontend/` | none | React/Vite UI |
+| `backend` | `srcs/backend/` | none | NestJS REST API |
+| `websocket` | `srcs/websocket/` | none | Real-time WebSocket server |
+| `mariadb` | `srcs/mariadb/` | none | Relational database |
+
+### What each container does
+
+**`nginx`** — The only container reachable from the internet. Every request passes through it. It routes `/api/*` to the backend, `/ws` to the websocket server, and everything else to the frontend. ModSecurity runs as a Web Application Firewall to block SQLi, XSS, and other OWASP Top 10 attacks before they reach the app.
+
+**`frontend`** — Serves the React application compiled by Vite. Not exposed directly — nginx proxies requests to it on the internal Docker network.
+
+**`backend`** — The NestJS API. Handles all business logic and exposes routes under `/api`. Talks to `mariadb` for data persistence. Not exposed externally — nginx forwards matching requests to it.
+
+**`websocket`** — Manages WebSocket connections for real-time features (game state, live updates). Listens on port 9000 inside the Docker network. Nginx handles the WebSocket upgrade and proxies connections to it.
+
+**`mariadb`** — Stores all persistent data. Accessible only from the `backend` container through the isolated `db` network. Data survives container restarts via the `mariadb_data` Docker volume.
+
+### Network isolation
+
+Four Docker networks enforce strict separation between layers:
+
+| Network | Members | Purpose |
+|---------|---------|---------|
+| `dmz` | nginx | Faces the internet |
+| `internal` | nginx, frontend, backend, websocket | Internal app traffic |
+| `db` | backend, mariadb | Database access only |
+| `vault_net` | backend, vault (planned) | Secrets management |
+
+A container can only reach another container if they share a network. `mariadb` is on `db` only — the frontend can never reach the database, even accidentally.
+
+### Healthchecks
+
+Each container declares a healthcheck so Docker knows when it is truly ready:
+
+| Container | Check | What it verifies |
+|-----------|-------|-----------------|
+| `nginx` | `nginx -t` | Config is valid and process is running |
+| `frontend` | `curl http://localhost:3000` | UI server responds |
+| `backend` | `curl http://localhost:3000/api/health` | NestJS API responds |
+| `websocket` | `curl http://localhost:9000/health` | WebSocket server responds |
+| `mariadb` | `mariadb-admin ping` | Database accepts connections |
+
+`backend` waits for `mariadb` to report healthy before starting, preventing startup crashes when the database is not yet ready.
+
+---
+
 ## Team Information
 
 | Member | Role | Responsibilities |
 |--------|------|-----------------|
-| dancel | Product Owner + Developer | Product vision, backlog, game part |
+| dancel | Product Owner + Developer | Product vision, backlog, chat part |
 | chajeon | Project Manager + Developer | Team coordination, security, Docker infrastructure, WAF, 2FA |
 | asdiallo | Tech Lead + Developer | Architecture, backend (Next.js), database design |
-| elxhafer | Developer | Frontend (React) |
+| aboutale | Developer | game |
 
 ---
 
@@ -214,7 +267,6 @@ TOTP_ISSUER=ft_transcendence
 | 2FA Authentication | TOTP-based with QR code registration | chajeon |
 | Backend API | Next.js API routes | asdiallo |
 | Database Design | MariaDB schema and relations | asdiallo |
-| Frontend UI | React components and pages | elxhafer |
 | [Game Feature] | [Description] | dancel |
 | Privacy Policy Page | Accessible from footer | chajeon |
 | Terms of Service Page | Accessible from footer | chajeon |
@@ -227,7 +279,6 @@ TOTP_ISSUER=ft_transcendence
 
 | Module | Category | Type | Points | Developer(s) |
 |--------|----------|------|--------|--------------|
-| Full-Stack Framework (Next.js + React) | Web | Major | 2 | asdiallo, elxhafer |
 | [WebSocket Real-Time] | Web | Major | 2 | [login] |
 | [User Interaction] | Web | Major | 2 | [login] |
 | Standard User Management | User Management | Major | 2 | chajeon, asdiallo |
@@ -273,9 +324,8 @@ TOTP_ISSUER=ft_transcendence
 - [Feature or module implemented]
 - Challenges: [Any challenges faced and how resolved]
 
-### elxhafer — Developer
-- Frontend development (React)
-- UI components and pages
+### aboutale — Developer
+- Game development
 - [Feature or module implemented]
 - Challenges: [Any challenges faced and how resolved]
 
