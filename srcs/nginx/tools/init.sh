@@ -7,7 +7,8 @@ if [ ! -f "/etc/nginx/certs/cert.pem" ]; then
     -newkey rsa:2048 \
     -keyout /etc/nginx/certs/key.pem \
     -out /etc/nginx/certs/cert.pem \
-    -subj "/C=FR/L=Mulhouse/O=42/OU=student/CN=localhost"
+    -subj "/C=FR/L=Mulhouse/O=42/OU=student/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"
 fi
 
 exec nginx -g "daemon off;"

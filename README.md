@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by asdiallo, chajeon, dancel, elxhafer.*
+*This project has been created as part of the 42 curriculum by aboutale, asdiallo, chajeon, dancel.*
 
 ---
 
@@ -170,10 +170,10 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 | Member | Role | Responsibilities |
 |--------|------|-----------------|
-| dancel | Product Owner + Developer | Product vision, backlog, game part |
+| dancel | Product Owner + Developer | Product vision, backlog, chat part |
 | chajeon | Project Manager + Developer | Team coordination, security, Docker infrastructure, WAF, 2FA |
 | asdiallo | Tech Lead + Developer | Architecture, backend (Next.js), database design |
-| elxhafer | Developer | Frontend (React) |
+| aboutale | Developer | game |
 
 ---
 
@@ -267,7 +267,6 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | 2FA Authentication | TOTP-based with QR code registration | chajeon |
 | Backend API | Next.js API routes | asdiallo |
 | Database Design | MariaDB schema and relations | asdiallo |
-| Frontend UI | React components and pages | elxhafer |
 | [Game Feature] | [Description] | dancel |
 | Privacy Policy Page | Accessible from footer | chajeon |
 | Terms of Service Page | Accessible from footer | chajeon |
@@ -280,7 +279,6 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 | Module | Category | Type | Points | Developer(s) |
 |--------|----------|------|--------|--------------|
-| Full-Stack Framework (Next.js + React) | Web | Major | 2 | asdiallo, elxhafer |
 | [WebSocket Real-Time] | Web | Major | 2 | [login] |
 | [User Interaction] | Web | Major | 2 | [login] |
 | Standard User Management | User Management | Major | 2 | chajeon, asdiallo |
@@ -326,9 +324,8 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 - [Feature or module implemented]
 - Challenges: [Any challenges faced and how resolved]
 
-### elxhafer — Developer
-- Frontend development (React)
-- UI components and pages
+### aboutale — Developer
+- Game development
 - [Feature or module implemented]
 - Challenges: [Any challenges faced and how resolved]
 
