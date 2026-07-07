@@ -2,12 +2,16 @@ import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { User } from "./user.entity";
+import { Message } from "../chat/entities/message.entity";
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly repo: Repository<User>,
+
+    @InjectRepository(Message)
+    private readonly messageRepo: Repository<Message>,
   ) {}
 
   create(
@@ -37,6 +41,11 @@ export class UserService {
 
     findByOAuthId(provider: string, oauthId: string): Promise<User | null> {
         return this.repo.findOne({ where: { oauthProvider: provider, oauthId } });
+    }
+
+    async getUserMessage(userId: number): Promise<Message[]> {
+        const messages = await this.messageRepo.find({ where: { sender: { id: userId } }, relations: { channel: true } });
+        return messages;
     }
 
     async setTotpSecret(userId: number, secret: string | null): Promise<void> {

@@ -14,7 +14,7 @@ import { ChatService } from './chat.service';
 
 const socketUserMap = new Map<string, number>();
 
-@WebSocketGateway({ cors: { origin: '*' } }) //a changer pour n'accepter que les connexions depuis le site
+@WebSocketGateway({ cors: { origin: '*' } })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer()
     server!: Server;
