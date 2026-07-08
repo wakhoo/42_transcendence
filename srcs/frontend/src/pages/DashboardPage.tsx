@@ -27,7 +27,7 @@ function DashboardPage() {
             return;
         }
 
-        const socket = io(window.location.origin, { auth: { token } });
+        const socket = io(`${window.location.origin}/chat`, { auth: { token } });
         socketRef.current = socket;
 
         socket.on('ready', ({ generalChannelId }: { generalChannelId: number }) => {

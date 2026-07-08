@@ -13,10 +13,11 @@
 **ft_transcendence** is a web project built as the final project of the 42 Common Core.
 
 ### Key Features
-- [Feature 1]
-- [Feature 2]
-- [Feature 3]
-- [Feature 4]
+- Real-time drawing & guessing game: one player gets a keyword and draws it, others guess in the chat
+- Multiplayer support with remote players (3+) and live reconnection
+- Secure authentication: email/password (bcrypt), OAuth 2.0, and 2FA (TOTP)
+- Social features: chat, profile, friends list, and online status
+- Hardened infrastructure: Docker network isolation, HTTPS/TLS 1.3, WAF/ModSecurity
 
 ---
 
@@ -53,9 +54,9 @@ docker compose -f ./srcs/docker-compose.yml up --build
 
 4. Open in browser
 ```
-https://dancel.42.fr
+https://dancel.42.fr:8443
 # or
-https://localhost
+https://localhost:8443
 ```
 
 ### Environment Variables
@@ -71,10 +72,10 @@ DB_USER=
 DB_PASSWORD=
 DB_NAME=ft_transcendence
 
-# Backend — Next.js
+# Backend — Nest.js
 BACKEND_PORT=3000
-NEXTAUTH_URL=https://dancel.42.fr
-NEXTAUTH_SECRET=
+NESTAUTH_URL=https://dancel.42.fr
+NESTAUTH_SECRET=
 
 # JWT
 JWT_SECRET=
@@ -119,7 +120,7 @@ TOTP_ISSUER=ft_transcendence
 
 | Container | Built from | External port | Role |
 |-----------|-----------|---------------|------|
-| `nginx` | `srcs/nginx/` | 443 (HTTPS), 80 (HTTP) | Reverse proxy + WAF — only entry point |
+| `nginx` | `srcs/nginx/` | 8443 (HTTPS), 8080 (HTTP → redirects to 8443) | Reverse proxy + WAF — only entry point |
 | `frontend` | `srcs/frontend/` | none | React/Vite UI |
 | `backend` | `srcs/backend/` | none | NestJS REST API |
 | `websocket` | `srcs/websocket/` | none | Real-time WebSocket server |
@@ -170,10 +171,10 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 | Member | Role | Responsibilities |
 |--------|------|-----------------|
-| dancel | Product Owner + Developer | Product vision, backlog, chat part |
-| chajeon | Project Manager + Developer | Team coordination, security, Docker infrastructure, WAF, 2FA |
-| asdiallo | Tech Lead + Developer | Architecture, backend (Next.js), database design |
-| aboutale | Developer | game |
+| dancel | Product Owner + Developer | Product vision, backlog; WebSocket real-time, chat/profile/friends, Public API, ORM, Content Moderation AI, Web-Based Game, Remote Players, Multiplayer (3+), Advanced Chat, Microservices Architecture |
+| chajeon | Project Manager + Developer | Team coordination; auth (bcrypt), HTTPS, Privacy Policy/ToS, README, OAuth 2.0, 2FA, WAF/ModSecurity + Vault, GDPR Compliance |
+| asdiallo | Tech Lead + Developer | Architecture; web app scaffold, Docker single-command deployment, responsive frontend, input validation, full-stack framework usage, frontend/backend framework, Standard User Management & Auth |
+| aboutale | Developer | Game Statistics & Match History, Tournament System, Game Customization, Gamification System, Spectator Mode |
 
 ---
 
@@ -181,7 +182,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 ### Work Organization
 - Tasks divided by module and role
-- Weekly sync meetings every [day] at [time]
+- Weekly sync meetings
 - Task tracking via Google Sheet
 
 ### Tools Used
@@ -191,10 +192,10 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 ### Branch Strategy
 - `main` — stable, production-ready
-- `feat/[feature-name(login)]` — feature branches
-  - ex. `feat/user-auth(chajeon)`
-- `fix/[issue(login)]` — bug fixes
-  - ex. `fix/cors-error(chajeon)`
+- `feat/[feature-name]` — feature branches
+  - ex. `feat/user-auth`
+- `fix/[issue]` — bug fixes
+  - ex. `fix/cors-error`
 - Pull requests require 1 approval before merging
 
 ---
@@ -210,7 +211,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 ### Backend
 | Technology | Reason |
 |-----------|--------|
-| Next.js | Full-stack framework, API routes, SSR support |
+| Nest.js | Full-stack framework, API routes, SSR support |
 | [Prisma / TypeORM] | [Why this ORM] |
 
 ### Database
@@ -265,9 +266,9 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | Docker Infrastructure | 4-network isolation, single-command run | chajeon |
 | WAF / ModSecurity | OWASP CRS, SQLi/XSS protection | chajeon |
 | 2FA Authentication | TOTP-based with QR code registration | chajeon |
-| Backend API | Next.js API routes | asdiallo |
+| Backend API | Nest.js API routes | asdiallo |
 | Database Design | MariaDB schema and relations | asdiallo |
-| [Game Feature] | [Description] | dancel |
+| Drawing & Guessing Game | One player gets a keyword and draws it live; others guess in real-time chat | dancel, aboutale |
 | Privacy Policy Page | Accessible from footer | chajeon |
 | Terms of Service Page | Accessible from footer | chajeon |
 
@@ -275,25 +276,53 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 ## Modules
 
+### Mandatory Requirements
+
+| Requirement | Assigned To | Description |
+|---|---|---|
+| Web Application (Frontend + Backend + DB) | asdiallo | Full web app with frontend, backend, and database |
+| Docker Single-Command Deployment | asdiallo | Run entire app with one command (`docker compose up`) |
+| Email + Password Authentication (bcrypt) | chajeon | Secure login with hashed and salted passwords |
+| HTTPS | chajeon | All external connections must use HTTPS |
+| Privacy Policy & Terms of Service Pages | chajeon | Accessible pages with real content, not placeholders |
+| Multi-User Simultaneous Support | dancel | Multiple users active at the same time without conflicts |
+| Responsive Frontend | asdiallo | Clear, accessible UI across all devices |
+| Input Validation (Frontend + Backend) | asdiallo | All forms validated on both client and server side |
+| README.md | chajeon | Detailed doc: roles, stack, schema, modules, contributions |
+
 ### Chosen Modules
 
-| Module | Category | Type | Points | Developer(s) |
-|--------|----------|------|--------|--------------|
-| [WebSocket Real-Time] | Web | Major | 2 | [login] |
-| [User Interaction] | Web | Major | 2 | [login] |
-| Standard User Management | User Management | Major | 2 | chajeon, asdiallo |
-| WAF/ModSecurity + HashiCorp Vault | Cybersecurity | Major | 2 | chajeon |
-| [Web-Based Game] | Gaming & UX | Major | 2 | dancel |
-| [Remote Players] | Gaming & UX | Major | 2 | dancel |
-| 2FA | User Management | Minor | 1 | chajeon |
-| OAuth 2.0 | User Management | Minor | 1 | chajeon |
-| [Tournament System] | Gaming & UX | Minor | 1 | dancel |
-| **Total** | | | **TBD** | |
+| Module | Category | Type | Points | Developer(s) | Dependencies |
+|--------|----------|------|--------|--------------|--------------|
+| Full-Stack Framework Usage | Web | Major | 2 | asdiallo | — |
+| WebSocket Real-Time Features | Web | Major | 2 | dancel | — |
+| User Interaction (Chat + Profile + Friends) | Web | Major | 2 | dancel | — |
+| Public API | Web | Major | 2 | dancel | — |
+| Standard User Management & Auth | User Management | Major | 2 | asdiallo | — |
+| WAF/ModSecurity + HashiCorp Vault | Cybersecurity | Major | 2 | chajeon | — |
+| Web-Based Game | Gaming & UX | Major | 2 | dancel | — |
+| Remote Players | Gaming & UX | Major | 2 | dancel | Requires a game module |
+| Multiplayer (3+ Players) | Gaming & UX | Major | 2 | dancel | Requires a game module |
+| Microservices Architecture | DevOps | Major | 2 | dancel | — |
+| Frontend Framework Only | Web | Minor | 1 | asdiallo | — |
+| Backend Framework Only | Web | Minor | 1 | asdiallo | — |
+| ORM | Web | Minor | 1 | dancel | — |
+| Game Statistics & Match History | User Management | Minor | 1 | aboutale | Requires a game module |
+| OAuth 2.0 Authentication | User Management | Minor | 1 | chajeon | — |
+| 2FA (Two-Factor Authentication) | User Management | Minor | 1 | chajeon | — |
+| Content Moderation AI | Artificial Intelligence | Minor | 1 | dancel | — |
+| Advanced Chat Features | Gaming & UX | Minor | 1 | dancel | Requires User Interaction module |
+| Tournament System | Gaming & UX | Minor | 1 | aboutale | Requires a game module |
+| Game Customization | Gaming & UX | Minor | 1 | aboutale | Requires a game module |
+| Gamification System | Gaming & UX | Minor | 1 | aboutale | — |
+| Spectator Mode | Gaming & UX | Minor | 1 | aboutale | Requires a game module |
+| GDPR Compliance | Data & Analytics | Minor | 1 | chajeon | — |
+| **Total** | | | **33** | | |
 
 ### Point Calculation
-- Major modules (2pt each): [N] × 2 = [N]pt
-- Minor modules (1pt each): [N] × 1 = [N]pt
-- **Total: [N]pt** (minimum required: 14pt)
+- Major modules (2pt each): 10 × 2 = 20pt
+- Minor modules (1pt each): 13 × 1 = 13pt
+- **Total: 33pt** (minimum required: 14pt)
 
 ---
 
@@ -301,32 +330,52 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 ### dancel — Product Owner + Developer
 - Product vision and backlog management
-- Game module implementation
-- [Feature or module implemented]
+- Multi-User Simultaneous Support (mandatory)
+- WebSocket Real-Time Features (Major)
+- User Interaction: Chat + Profile + Friends (Major)
+- Public API (Major)
+- ORM (Minor)
+- Content Moderation AI (Minor)
+- Web-Based Game (Major)
+- Remote Players (Major)
+- Multiplayer, 3+ Players (Major)
+- Advanced Chat Features (Minor)
+- Microservices Architecture (Major)
 - Challenges: [Any challenges faced and how resolved]
 
 ### chajeon — Project Manager + Developer
 - Team coordination, meeting facilitation, progress tracking
 - Docker infrastructure (4-network isolation, docker-compose, Makefile)
 - Nginx configuration and TLS 1.3 setup
-- WAF/ModSecurity + HashiCorp Vault module
-- HTTPS configuration and security headers
-- 2FA (TOTP) implementation
-- OAuth 2.0 authentication
-- Privacy Policy and Terms of Service pages
+- Email + Password Authentication with bcrypt (mandatory)
+- HTTPS configuration and security headers (mandatory)
+- Privacy Policy and Terms of Service pages (mandatory)
+- README.md (mandatory)
+- OAuth 2.0 Authentication (Minor)
+- 2FA / TOTP implementation (Minor)
+- WAF/ModSecurity + HashiCorp Vault module (Major)
+- GDPR Compliance (Minor)
 - Challenges: [Any challenges faced and how resolved]
 
 ### asdiallo — Tech Lead + Developer
 - Overall architecture design
 - Technology stack decisions
-- Backend development (Next.js API routes)
-- Database schema design (MariaDB)
-- [Feature or module implemented]
+- Web Application scaffold: frontend + backend + DB (mandatory)
+- Docker Single-Command Deployment (mandatory)
+- Responsive Frontend (mandatory)
+- Input Validation, frontend + backend (mandatory)
+- Full-Stack Framework Usage (Major)
+- Frontend Framework Only (Minor)
+- Backend Framework Only (Minor)
+- Standard User Management & Auth (Major)
 - Challenges: [Any challenges faced and how resolved]
 
 ### aboutale — Developer
-- Game development
-- [Feature or module implemented]
+- Game Statistics & Match History (Minor)
+- Tournament System (Minor)
+- Game Customization (Minor)
+- Gamification System (Minor)
+- Spectator Mode (Minor)
 - Challenges: [Any challenges faced and how resolved]
 
 ---
@@ -427,7 +476,6 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 ### Documentation
 - [Docker Documentation](https://docs.docker.com)
-- [Next.js Documentation](https://nextjs.org/docs)
 - [React Documentation](https://react.dev)
 - [MariaDB Documentation](https://mariadb.com/kb/en/documentation)
 - [ModSecurity Reference Manual](https://github.com/SpiderLabs/ModSecurity/wiki)
