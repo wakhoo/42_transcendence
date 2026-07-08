@@ -200,10 +200,7 @@ export class ChatService implements OnModuleInit {
     // ─────────────────────────────────────────────────────────────────────────
 
     async sendMessage(userId: number, channelId: number, content: string): Promise<Message> {
-        const membership = await this.memberRepo.findOne({
-            where: { user: { id: userId }, channel: { id: channelId } },
-            relations: { channel: true },
-        });
+        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, relations: { channel: true }});
         if (!membership) throw new ForbiddenException('You are not a member of this channel');
 
         if (membership.mutedUntil && membership.mutedUntil > new Date()) {
@@ -233,12 +230,9 @@ export class ChatService implements OnModuleInit {
             throw new ForbiddenException(`Your message was blocked: inappropriate content. Warning ${membership.warnings}/2.`);
         }
 
-        const message = this.messageRepo.create({
-            content,
-            sender: { id: userId },
-            channel: { id: channelId },
-        });
-        return this.messageRepo.save(message);
+        const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
+        const saved = await this.messageRepo.save(message);
+        return this.messageRepo.findOneOrFail({ where: { id: saved.id }, relations: { sender: true } });
     }
 
     async getMessages(channelId: number, limit = 50): Promise<Message[]> {

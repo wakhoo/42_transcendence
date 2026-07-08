@@ -40,13 +40,15 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             socketUserMap.set(client.id, payload.sub);
 
             const general = await this.chatService.ensureGeneralChannel();
-            void client.join(`channel_${general.id}`); //void sert a ne pas attendre une promise
+            await this.chatService.joinChannel(payload.sub, general.id).catch(() => {});
+            void client.join(`channel_${general.id}`);
 
             const myChannels = await this.chatService.getMyChannels(payload.sub);
             for (const ch of myChannels) {
                 void client.join(`channel_${ch.id}`);
             }
 
+            client.emit('ready', { generalChannelId: general.id });
             console.log(`User ${payload.sub} connected (socket ${client.id})`);
         } catch {
             client.disconnect();
@@ -61,22 +63,20 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     // ── Événements reçus depuis le frontend ──────────────────────────────────
 
-    // Elvelida envoie par exemple : socket.emit('joinChannel', { channelId: 3, password: 'secret'  }); , nestjs reconnait joinChannel et lance cette fonction grace a subscribemessage
     @SubscribeMessage('joinChannel')
-    async onJoinChannel(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number; password?: string }) { //ici je recupere tes arguments avec messageBody, c'est donc important que tu me les envoies exactement dans ce format
-        const userId = socketUserMap.get(client.id); //j'ai fait plus haut une map qui me permet de recup le userId depuis le Socket.id
+    async onJoinChannel(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number; password?: string }) {
+        const userId = socketUserMap.get(client.id);
         if (!userId)
             return;
         try {
-            await this.chatService.joinChannel(userId, data.channelId, data.password); //ici chat.service va verifier si userID peut rentrer dans channelID
+            await this.chatService.joinChannel(userId, data.channelId, data.password);
             void client.join(`channel_${data.channelId}`);
-            client.emit('joinedChannel', { channelId: data.channelId }); //si aucune exception n'est lancee je te renvoie ca pour te dire que ca a marche, il faut donc que dans ton code tu ais la fonction joinedChannel
+            client.emit('joinedChannel', { channelId: data.channelId });
         } catch (e) {
-            client.emit('error', { message: (e as Error).message }); //sinon je te renvoie directement le message d'erreur de l'exception
+            client.emit('error', { message: (e as Error).message });
         }
     }
 
-    // Meme principe pour les autres fonctions
     @SubscribeMessage('leaveChannel')
     async onLeaveChannel(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number } ) {
         const userId = socketUserMap.get(client.id);
@@ -98,14 +98,14 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             return;
         try {
             const message = await this.chatService.sendMessage(userId, data.channelId, data.content);
-            const role = await this.chatService.getMemberRole(userId, data.channelId); //je t'envoie egalement le role si jamais tu veux colorer les pseudos des admins pour les differencier et obtenir un outstanding de la part de David
-            this.server.to(`channel_${data.channelId}`).emit('newMessage', { ...message, role }); //message est un objet appartenant a la classe message contenant (id, content, sender, createdAt, channel), les ... c'est juste pour ajouter le role de l'emetteur dans le meme json
+            const role = await this.chatService.getMemberRole(userId, data.channelId); 
+            this.server.to(`channel_${data.channelId}`).emit('newMessage', { ...message, role });
         } catch (e) {
             client.emit('error', { message: (e as Error).message });
         }
     }
 
-    @SubscribeMessage('sendDm') //tu peux chopper normalement le targetUserId via sub dans le payload du token
+    @SubscribeMessage('sendDm')
     async onSendDm( @ConnectedSocket() client: Socket, @MessageBody() data: { targetUserId: number; content: string } ) {
         const userId = socketUserMap.get(client.id); 
         if (!userId) 
