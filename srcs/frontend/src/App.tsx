@@ -5,21 +5,8 @@ import SignUpPage from './pages/SignUpPage.tsx';
 import LoginPage from './pages/LoginPage.tsx';
 //import Timer from './components/Timer.tsx';
 import GamePage from './pages/GamePage.tsx';
+import DashboardPage from './pages/DashboardPage.tsx';
 
-function App() {
-  return (
-      <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signUp" element={<SignUpPage />} />
-        <Route
-          path="/game"
-          element={<GamePage/>} />
-      </Routes>
-    </BrowserRouter>
-  );
-}
 
 //export default App;
 
@@ -140,6 +127,19 @@ function App() {
 
 export default App
 
+function App() {
+  return (
+      <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/game" element={<GamePage />} />
+        <Route path="/signUp" element={<SignUpPage />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
 // // On importe notre  Timer depuis components
 // import Timer from './components/Timer';
