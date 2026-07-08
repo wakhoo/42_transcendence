@@ -43,7 +43,7 @@ export class GameGateway implements OnGatewayDisconnect{
     handleGame(client: any , data: any) {
 
 
-      if (this.playerList.length  < 2) {
+      if (this.playerList.length  < 1) {
 
         this.server.to(this.roomId).emit('message_channel','manque de joueurs');
         return;
@@ -89,7 +89,7 @@ export class GameGateway implements OnGatewayDisconnect{
 
         // debut de boucle de temps decrementation sur 60 s
           this.timeLeft -= 1;
-          this.server.to(this.roomId).emit('timer_update',`${this.timeLeft}s`);
+          this.server.to(this.roomId).emit('timer_update',this.timeLeft);
 
           if(this.timeLeft == 0){
 
@@ -114,6 +114,7 @@ export class GameGateway implements OnGatewayDisconnect{
       this.playerList.push({socketId: client.id, dbId: data.dbId});
       console.log(`le joueur ${data.dbId} a rejoint la room ${data.roomId}`);
       console.log(`jouers actuel ${this.playerList.length}`);
+      this.server.to(data.roomId).emit('update_players', this.playerList);
     }
 
 
@@ -267,7 +268,7 @@ export class GameGateway implements OnGatewayDisconnect{
 
         // debut de boucle de temps decrementation sur 60 s
         this.timeLeft -= 1;
-        console.log(`Temps restant : ${this.timeLeft}s`);
+        console.log("Temps restant :", this.timeLeft);
 
         if(this.timeLeft == 0){
 

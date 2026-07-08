@@ -1,8 +1,10 @@
 
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage.tsx';
+import SignUpPage from './pages/SignUpPage.tsx';
 import LoginPage from './pages/LoginPage.tsx';
-import Timer from './components/Timer.tsx';
+//import Timer from './components/Timer.tsx';
+import GamePage from './pages/GamePage.tsx';
 
 function App() {
   return (
@@ -10,9 +12,10 @@ function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route 
+        <Route path="/signUp" element={<SignUpPage />} />
+        <Route
           path="/game"
-          element={<Timer/>} />
+          element={<GamePage/>} />
       </Routes>
     </BrowserRouter>
   );
