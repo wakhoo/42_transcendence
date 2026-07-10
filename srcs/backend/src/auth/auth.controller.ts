@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nes
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
 import { Throttle } from '@nestjs/throttler';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -12,6 +13,7 @@ import { JwtGuard, JwtPayload } from './guards/jwt.guard';
 import { Pending2faGuard } from './guards/pending2fa.guard';
 import { GoogleProfile } from './strategies/google.strategy';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
     constructor(
@@ -38,6 +40,7 @@ export class AuthController {
     @Post('logout')
     @HttpCode(200)
     @UseGuards(JwtGuard)
+    @ApiBearerAuth()
     logout(@Body() dto: RefreshDto) {
         return this.authService.logout(dto.refreshToken);
     }
@@ -68,6 +71,7 @@ export class AuthController {
 
     @Post('2fa/setup')
     @UseGuards(JwtGuard)
+    @ApiBearerAuth()
     setup2fa(@Req() req: { user: JwtPayload }) {
         return this.authService.setupTotp(req.user.sub);
     }
@@ -75,6 +79,7 @@ export class AuthController {
     @Post('2fa/enable')
     @HttpCode(200)
     @UseGuards(JwtGuard)
+    @ApiBearerAuth()
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
     enable2fa(@Req() req: { user: JwtPayload }, @Body() dto: TotpDto) {
         return this.authService.enableTotp(req.user.sub, dto.code);
@@ -83,6 +88,7 @@ export class AuthController {
     @Post('2fa/disable')
     @HttpCode(200)
     @UseGuards(JwtGuard)
+    @ApiBearerAuth()
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
     disable2fa(@Req() req: { user: JwtPayload }, @Body() dto: TotpDto) {
         return this.authService.disableTotp(req.user.sub, dto.code);
@@ -90,6 +96,7 @@ export class AuthController {
 
     @Post('2fa/verify')
     @UseGuards(Pending2faGuard)
+    @ApiBearerAuth()
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
     verify2fa(@Req() req: { user: JwtPayload }, @Body() dto: TotpDto) {
         return this.authService.verifyTotp(req.user.sub, req.user.email, dto.code);
