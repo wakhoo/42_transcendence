@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage.tsx';
 import SignUp from './pages/SignUpPage.tsx';
 import GamePage from './pages/GamePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
+import AuthCallbackPage from './pages/AuthCallbackPage.tsx';
 
 
 // function App() {
@@ -132,6 +133,7 @@ function App() {
         <Route path="/game" element={<GamePage />} />
         <Route path="/signUp" element={<SignUp />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
       </Routes>
     </BrowserRouter>
   );

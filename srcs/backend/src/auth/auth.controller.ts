@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -24,6 +25,7 @@ export class AuthController {
     }
 
     @Post('login')
+    @Throttle({ default: { limit: 5, ttl: 60_000 } })
     login(@Body() dto: LoginDto) {
         return this.authService.login(dto.email, dto.password);
     }
@@ -73,6 +75,7 @@ export class AuthController {
     @Post('2fa/enable')
     @HttpCode(200)
     @UseGuards(JwtGuard)
+    @Throttle({ default: { limit: 5, ttl: 60_000 } })
     enable2fa(@Req() req: { user: JwtPayload }, @Body() dto: TotpDto) {
         return this.authService.enableTotp(req.user.sub, dto.code);
     }
@@ -80,12 +83,14 @@ export class AuthController {
     @Post('2fa/disable')
     @HttpCode(200)
     @UseGuards(JwtGuard)
+    @Throttle({ default: { limit: 5, ttl: 60_000 } })
     disable2fa(@Req() req: { user: JwtPayload }, @Body() dto: TotpDto) {
         return this.authService.disableTotp(req.user.sub, dto.code);
     }
 
     @Post('2fa/verify')
     @UseGuards(Pending2faGuard)
+    @Throttle({ default: { limit: 5, ttl: 60_000 } })
     verify2fa(@Req() req: { user: JwtPayload }, @Body() dto: TotpDto) {
         return this.authService.verifyTotp(req.user.sub, req.user.email, dto.code);
     }

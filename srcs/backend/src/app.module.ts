@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HealthController } from './health/health.controller';
 import { GameGateway } from './game/game.gateway';
@@ -11,6 +13,7 @@ import { ChatModule } from './chat/chat.module';
 @Module({
     imports: [
         ConfigModule.forRoot({ isGlobal: true }),
+        ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
         TypeOrmModule.forRootAsync({
             inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
@@ -29,6 +32,10 @@ import { ChatModule } from './chat/chat.module';
         ChatModule,
     ],
     controllers: [HealthController],
-    providers: [GameGateway, GameService],
+    providers: [
+        GameGateway,
+        GameService,
+        { provide: APP_GUARD, useClass: ThrottlerGuard },
+    ],
 })
 export class AppModule {}

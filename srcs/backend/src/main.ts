@@ -1,10 +1,12 @@
 import { NestFactory, Reflector } from "@nestjs/core";
 import { ClassSerializerInterceptor, ValidationPipe } from "@nestjs/common";
+import { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  app.set("trust proxy", 1);
   app.setGlobalPrefix("api");
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
