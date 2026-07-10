@@ -35,7 +35,7 @@ function DashboardPage() {
         fetch('/api/user', { headers: { Authorization: `Bearer ${token}` }})
             .then(r => r.json())
             .then((data: UserProfile[]) => setUsers(data));
-    })
+    }, [])
 
     useEffect(() => {
         const token = localStorage.getItem('token');
