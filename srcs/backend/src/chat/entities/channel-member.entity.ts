@@ -16,8 +16,8 @@ export class ChannelMember {
     @PrimaryGeneratedColumn()
     id!: number;
 
-    @Column({ type: 'enum', enum: ['admin', 'member'], default: 'member' })
-    role!: 'admin' | 'member';
+    @Column({ type: 'enum', enum: ['admin', 'member', 'spec'], default: 'member' })
+    role!: 'admin' | 'member' | 'spec';
 
     @Column({ type: 'datetime', nullable: true })
     mutedUntil: Date | null = null;

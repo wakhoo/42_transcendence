@@ -14,6 +14,7 @@ import { Message } from './entities/message.entity';
 import { Friendship } from './entities/friendship.entity';
 import { BadWord } from './entities/bad-word.entity';
 import { BAD_WORDS } from './bad-words.seed';
+import { GameService } from '../game/game.service';
 
 @Injectable()
 export class ChatService implements OnModuleInit {
@@ -32,6 +33,8 @@ export class ChatService implements OnModuleInit {
 
         @InjectRepository(BadWord)
         private readonly badWordRepo: Repository<BadWord>,
+
+        private readonly gameService: GameService,
     ) {}
 
 
@@ -100,6 +103,13 @@ export class ChatService implements OnModuleInit {
     // ─────────────────────────────────────────────────────────────────────────
     // CHANNELS — rejoindre et quitter
     // ─────────────────────────────────────────────────────────────────────────
+
+
+    async getChannelMember(channelId: number): Promise<ChannelMember[]>  {
+
+        return this.memberRepo.find({ where: { channel: { id: channelId } } });
+    }
+
 
     async joinChannel(userId: number, channelId: number, password?: string): Promise<ChannelMember> {
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
@@ -230,6 +240,15 @@ export class ChatService implements OnModuleInit {
             throw new ForbiddenException(`Your message was blocked: inappropriate content. Warning ${membership.warnings}/2.`);
         }
 
+        if (membership.channel.type === 'game'){
+
+            const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
+
+            if (isWord)
+                throw new ForbiddenException(`Your message was blocked.`);
+
+        }
+
         const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
         const saved = await this.messageRepo.save(message);
         return this.messageRepo.findOneOrFail({ where: { id: saved.id }, relations: { sender: true } });
@@ -321,7 +340,7 @@ export class ChatService implements OnModuleInit {
         return !!block;
     }
 
-    async getMemberRole(userId: number, channelId: number): Promise<'admin' | 'member' | null> {
+    async getMemberRole(userId: number, channelId: number): Promise<'admin' | 'member' | 'spec' | null> {
         const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } } });
         return membership?.role ?? null;
     }

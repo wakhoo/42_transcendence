@@ -1,4 +1,4 @@
-import { SubscribeMessage, WebSocketGateway, WebSocketServer, OnGatewayDisconnect, ConnectedSocket, MessageBody } from '@nestjs/websockets';
+import { SubscribeMessage, WebSocketGateway, WebSocketServer, OnGatewayInit, OnGatewayDisconnect, ConnectedSocket, MessageBody } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { GameService } from './game.service';
 import { socketUserMap } from '../chat/chat.gateway';
@@ -6,14 +6,20 @@ import { socketUserMap } from '../chat/chat.gateway';
 
 
 
-
 @WebSocketGateway({ cors: true,
   path: '/api/socket.io'})
 
-export class GameGateway{
+export class GameGateway implements OnGatewayInit {
+  
+  @WebSocketServer()
+    server!: Server;
   
     constructor(private readonly gameService: GameService) {}
-    server!: Server;
+
+    afterInit(server: Server) {
+
+      this.gameService.server = server;
+    }
 
     //wordList : string[] = ['pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica', 'guitare' ,'montagne', 'chat', 'biche'];
 
@@ -23,13 +29,44 @@ export class GameGateway{
       const userId = socketUserMap.get(client.id); 
       if(!userId) {
 
-        client.emit('error', {message: 'Utilisateur non identifie'});
+        client.emit('error', {message: 'User non identify'});
         return;
       }
-      await this.gameService.startGame(userId, data.channelId, this.server);
+      await this.gameService.startGame(userId, data.channelId);
     }
-}
 
+
+    @SubscribeMessage('draw')
+    async handleDrawing(@ConnectedSocket() client: Socket, 
+            @MessageBody() data: {channelId: number, drawData: any}){
+
+
+      const userId = socketUserMap.get(client.id);
+      if(!userId){
+
+        client.emit('error' , {message: "User non identify"});
+        return;
+      }
+      this.gameService.handleDraw(userId, data.channelId, data.drawData);
+    }
+
+
+    @SubscribeMessage('request_history')
+    async handleHistory(@ConnectedSocket() client: Socket, 
+            @MessageBody() data: {channelId: number}){
+
+
+      const userId = socketUserMap.get(client.id);
+      if(!userId){
+
+        client.emit('error' , {message: "User non identify"});
+        return;
+      }
+      this.gameService.sendHistory(client.id, data.channelId);
+    }
+
+
+}
 
 
 
