@@ -4,6 +4,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
 } from "typeorm";
+import { Exclude } from "class-transformer";
 
 @Entity("users")
 export class User {
@@ -16,6 +17,7 @@ export class User {
   @Column({ length: 20, unique: true })
   username!: string;
 
+  @Exclude()
   @Column({
     name: "password_hash",
     type: "varchar",
@@ -33,6 +35,7 @@ export class User {
     @Column({ name: 'oauth_id', type: 'varchar', length: 255, nullable: true })
     oauthId: string | null = null;
 
+    @Exclude()
     @Column({ name: 'totp_secret', type: 'varchar', length: 255, nullable: true })
     totpSecret: string | null = null;
 

@@ -3,6 +3,7 @@ import {
     ForbiddenException,
     Injectable,
     NotFoundException,
+    OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -12,9 +13,10 @@ import { ChannelMember } from './entities/channel-member.entity';
 import { Message } from './entities/message.entity';
 import { Friendship } from './entities/friendship.entity';
 import { BadWord } from './entities/bad-word.entity';
+import { BAD_WORDS } from './bad-words.seed';
 
 @Injectable()
-export class ChatService {
+export class ChatService implements OnModuleInit {
     constructor(
         @InjectRepository(Channel)
         private readonly channelRepo: Repository<Channel>,
@@ -32,10 +34,19 @@ export class ChatService {
         private readonly badWordRepo: Repository<BadWord>,
     ) {}
 
+
     // ─────────────────────────────────────────────────────────────────────────
-    // INITIALISATION : si salon general n'existe pas, le cree
+    // INITIALISATION : si salon general ou badwords n'existent pas, les cree
     // ─────────────────────────────────────────────────────────────────────────
 
+    async onModuleInit(): Promise<void> {
+        const count = await this.badWordRepo.count();
+        if (count === 0) {
+            const entities = BAD_WORDS.map((word) => this.badWordRepo.create({ word }));
+            await this.badWordRepo.save(entities);
+        }
+    }
+    
     async ensureGeneralChannel(): Promise<Channel> {
         let general = await this.channelRepo.findOne({ where: { name: 'general' } });
         if (!general) {
@@ -189,10 +200,7 @@ export class ChatService {
     // ─────────────────────────────────────────────────────────────────────────
 
     async sendMessage(userId: number, channelId: number, content: string): Promise<Message> {
-        const membership = await this.memberRepo.findOne({
-            where: { user: { id: userId }, channel: { id: channelId } },
-            relations: { channel: true },
-        });
+        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, relations: { channel: true }});
         if (!membership) throw new ForbiddenException('You are not a member of this channel');
 
         if (membership.mutedUntil && membership.mutedUntil > new Date()) {
@@ -222,16 +230,13 @@ export class ChatService {
             throw new ForbiddenException(`Your message was blocked: inappropriate content. Warning ${membership.warnings}/2.`);
         }
 
-        const message = this.messageRepo.create({
-            content,
-            sender: { id: userId },
-            channel: { id: channelId },
-        });
-        return this.messageRepo.save(message);
+        const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
+        const saved = await this.messageRepo.save(message);
+        return this.messageRepo.findOneOrFail({ where: { id: saved.id }, relations: { sender: true } });
     }
 
     async getMessages(channelId: number, limit = 50): Promise<Message[]> {
-        return this.messageRepo.find({ where: { channel: { id: channelId } }, order: { createdAt: 'DESC' }, take: limit});
+        return this.messageRepo.find({ where: { channel: { id: channelId } }, relations: { sender: true }, order: { createdAt: 'DESC' }, take: limit });
     }
 
     // ─────────────────────────────────────────────────────────────────────────

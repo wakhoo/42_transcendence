@@ -10,14 +10,14 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import { ChatService } from './chat.service';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { JwtGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser, JwtPayload } from './decorators/current-user.decorator';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { JoinChannelDto } from './dto/join-channel.dto';
 import { MuteMemberDto } from './dto/mute-member.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtGuard)
 @Controller('chat')
 export class ChatController {
     constructor(private readonly chatService: ChatService) {}

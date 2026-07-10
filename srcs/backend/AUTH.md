@@ -172,7 +172,7 @@ POST /api/auth/login
 GET /api/auth/google
   │
   └─ Passport redirects browser to Google consent screen
-        (clientID, scope: email + profile, callbackURL from NEXTAUTH_URL)
+        (clientID, scope: email + profile, callbackURL from NESTAUTH_URL)
 
       [User approves on Google]
 
@@ -198,10 +198,10 @@ GET /api/auth/callback/google  ← Google redirects here with auth code
               │
               ├─ user.totpEnabled?
               │     → YES: sign partial token
-              │           → 302 redirect to ${NEXTAUTH_URL}/auth/2fa?partialToken=...
+              │           → 302 redirect to ${NESTAUTH_URL}/auth/2fa?partialToken=...
               │
               └─ NO: issueTokens(userId, email)
-                    → 302 redirect to ${NEXTAUTH_URL}/auth/callback?accessToken=...&refreshToken=...
+                    → 302 redirect to ${NESTAUTH_URL}/auth/callback?accessToken=...&refreshToken=...
 ```
 
 **Frontend responsibility:**
@@ -505,12 +505,12 @@ Google redirects here after the user approves. Handled entirely by Passport — 
 
 On success (2FA disabled):
 ```
-302 → ${NEXTAUTH_URL}/auth/callback?accessToken=<jwt>&refreshToken=<token>
+302 → ${NESTAUTH_URL}/auth/callback?accessToken=<jwt>&refreshToken=<token>
 ```
 
 On success (2FA enabled):
 ```
-302 → ${NEXTAUTH_URL}/auth/2fa?partialToken=<jwt>
+302 → ${NESTAUTH_URL}/auth/2fa?partialToken=<jwt>
 ```
 
 **Responses**
@@ -655,7 +655,7 @@ curl -sk -X POST https://localhost/api/auth/2fa/disable \
 |---|---|---|
 | `JWT_SECRET` | Secret key for signing access tokens | `47d5bc8c...` |
 | `JWT_EXPIRES_IN` | Access token lifetime in seconds | `900` (15 min) |
-| `NEXTAUTH_URL` | Base URL of the app (used for OAuth callback and frontend redirect) | `https://localhost` |
+| `NESTAUTH_URL` | Base URL of the app (used for OAuth callback and frontend redirect) | `https://localhost` |
 | `OAUTH_GOOGLE_CLIENT_ID` | Google OAuth client ID | `1012791832136-...` |
 | `OAUTH_GOOGLE_CLIENT_SECRET` | Google OAuth client secret | `GOCSPX-...` |
 | `TOTP_ISSUER` | Issuer name shown in authenticator apps | `ft_transcendence` |
