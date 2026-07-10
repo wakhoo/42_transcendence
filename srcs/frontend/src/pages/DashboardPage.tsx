@@ -6,7 +6,7 @@ type Message = {
     id: number;
     content: string;
     createdAt: string;
-    sender: { id: number; username: string } | null;
+    sender: { id: number; username: string; profileColor: string } | null;
     role?: 'admin' | 'member';
 };
 
@@ -123,17 +123,20 @@ function DashboardPage() {
                     <span className="text-gray-400 text-sm"># general</span>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
-                    {messages.map(msg => (
-                        <div key={msg.id} className="flex gap-2 items-baseline">
-                            <span className={`text-sm font-semibold shrink-0 ${msg.role === 'admin' ? 'text-yellow-400' : 'text-blue-400'}`}>
-                                {msg.sender?.username ?? 'Anonyme'}
-                            </span>
-                            <span className="text-gray-300 text-sm break-all">{msg.content}</span>
-                            <span className="text-gray-600 text-xs ml-auto shrink-0">
-                                {new Date(msg.createdAt).toLocaleTimeString()}
-                            </span>
-                        </div>
-                    ))}
+                {messages.map(msg => (
+                    <div key={msg.id} className="flex gap-2 items-baseline">
+                        <span
+                            className="text-sm font-semibold shrink-0"
+                            style={{ color: msg.sender?.profileColor ?? '#9ca3af' }}
+                        >
+                            {msg.sender?.username ?? 'Anonyme'}
+                        </span>
+                        <span className="text-gray-300 text-sm break-all">{msg.content}</span>
+                        <span className="text-gray-600 text-xs ml-auto shrink-0">
+                            {new Date(msg.createdAt).toLocaleTimeString()}
+                        </span>
+                    </div>
+                ))}
                     <div ref={bottomRef} />
                 </div>
                 {error && (
