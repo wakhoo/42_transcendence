@@ -17,7 +17,7 @@ type UserProfile = {
 };
 
 
-function DashboardPage() {
+export default function DashboardPage() {
     const [users, setUsers]         = useState<UserProfile[]>([]);
     const [messages, setMessages]   = useState<Message[]>([]);
     const [input, setInput]         = useState('');
@@ -164,4 +164,3 @@ function DashboardPage() {
     );
 }
 
-export default DashboardPage;

@@ -9,25 +9,26 @@ export interface playerData {
   dbId: number;
 }
 
+///Un gateway sert juste a gerer la communication des socket, pas a implementer la logique du module, pour ca il y a game.service
 @WebSocketGateway({ cors: true})
 
 export class GameGateway implements OnGatewayDisconnect{
   
     constructor(private readonly gameService: GameService) {}
-  // debut de la boucle du jeu declaratio nde variable globale utilsiable dans toutes les fonctions 
-    @WebSocketServer()
-    server!: Server;
-    roomId: string = "";
+  // debut de la boucle du jeu declaratio nde variable globale utilsiable dans toutes les fonctions
+    @WebSocketServer() ///Utiliser au maximum la DB pour eviter les doublons et profiter de ce que les autres ont deja fait
+    server!: Server; ///utiliser serveur du chat
+    roomId: string = ""; ///faire entite dans BD ?
     secretWord: string = "";
     currentWord:  string ="";
-    spectatorId : string[] = [];
-    player: string[] = [];
-    timer: any;
-    timeOut: any;
+    spectatorId : string[] = []; ///ajout role spectator ?
+    player: string[] = []; ///idem
+    timer: any; ///pourquoi pas number ?
+    timeOut: any; ///idem
     timeLeft: number = 0;
-    wordList : string[] = ['pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica', 'guitare' ,'montagne', 'chat', 'biche'];
+    wordList : string[] = ['pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica', 'guitare' ,'montagne', 'chat', 'biche']; /// pourquoi le mettre en dur dans le code et pas dans un fichier a part ou dans la BD ?
     currentDrawer: string = "";
-    playerList: playerData[] = [];
+    playerList: playerData[] = []; ///on l'as deja dans la BD channel
     currentPlayerIndex: number = 0;
     playersWhoGuessed: string[] = [];
     historicDraw : string[] = [];
@@ -48,9 +49,9 @@ export class GameGateway implements OnGatewayDisconnect{
         return;
       }
 
-      for (let i = 0; i < this.playerList.length ; i++) {
+      for (let i = 0; i < this.playerList.length ; i++) { ///inutile avec la DB channel ?
 
-        const idPlayer = this.playerList[i].dbId;
+        const idPlayer = this.playerList[i].dbId; ///ajouter colonne points dans user
         this.playerPoints[idPlayer] = 0;
             
       }
@@ -61,7 +62,7 @@ export class GameGateway implements OnGatewayDisconnect{
 
       // random pour choix du mot secret a chaque tour stockage du joueur numero un qui dessine 
       
-      this.secretWord = this.wordList[Math.floor(Math.random() * this.wordList.length)];
+      this.secretWord = this.wordList[Math.floor(Math.random() * this.wordList.length)]; ///utiliser fonction random dans DB
       //this.playerList = data.players;
       this.currentDrawer = this.playerList[0].socketId;
       console.log(this.secretWord);
@@ -69,11 +70,7 @@ export class GameGateway implements OnGatewayDisconnect{
      
 
       //on donne un indice a tout les autres joueur la taille du mot
-      this.server.to(this.roomId).emit('word_hint' , {
-
-        drawer : this.currentDrawer,
-        wordLength: this.secretWord.length
-      });
+      this.server.to(this.roomId).emit('word_hint' , { drawer : this.currentDrawer, wordLength: this.secretWord.length });
 
       // on donne le mot secret au dessinateur
      
@@ -81,32 +78,29 @@ export class GameGateway implements OnGatewayDisconnect{
       // tableau d historique de dessin mis a null pour stocker chaque dessi nen temps reel a recueprer niveau front
        
         this.historicDraw = [];
-        this.timeOut = setTimeout(() =>{
+        this.timeOut = setTimeout(() => {
 
-          this.timeLeft = 60;
-          this.timer = setInterval(() => {
+            this.timeLeft = 60;
+            this.timer = setInterval(() => {
 
-        // debut de boucle de temps decrementation sur 60 s
-          this.timeLeft -= 1;
-          this.server.to(this.roomId).emit('timer_update',`${this.timeLeft}s`);
+                // debut de boucle de temps decrementation sur 60 s
+                this.timeLeft -= 1;
+                this.server.to(this.roomId).emit('timer_update',`${this.timeLeft}s`);
 
-          if(this.timeLeft == 0){
-
-            clearInterval(this.timer);
-            this.server.to(this.roomId).emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
-            this.server.to(this.roomId).emit('classement',this.playerPoints);
-            this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
-            this.timeOut = setTimeout(() =>{
-              this.handleNextTurn();
-            },5000);
-          
-          }
-        },1000);
-      },10000);
-    
+                if(this.timeLeft == 0){
+                    clearInterval(this.timer);
+                    this.server.to(this.roomId).emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${this.secretWord}`);
+                    this.server.to(this.roomId).emit('classement',this.playerPoints);
+                    this.wordList = this.wordList.filter(currentWord => currentWord !== this.secretWord);
+                    this.timeOut = setTimeout(() =>{
+                        this.handleNextTurn();
+                    },5000);
+                }
+            },1000);
+        },10000);
     }
 
-    @SubscribeMessage('join_room')
+    @SubscribeMessage('join_room') ///ca existe deja vu que la room est une channel
     handleJoinRoom(client: any, data: {roomId: string, dbId: number}) {
 
       client.join(data.roomId);

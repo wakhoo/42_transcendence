@@ -13,7 +13,7 @@ import { ChannelMember } from './entities/channel-member.entity';
 import { Message } from './entities/message.entity';
 import { Friendship } from './entities/friendship.entity';
 import { BadWord } from './entities/bad-word.entity';
-import { BAD_WORDS } from './bad-words.seed';
+import { BAD_WORDS } from './words.seed';
 
 @Injectable()
 export class ChatService implements OnModuleInit {
