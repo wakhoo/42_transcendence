@@ -11,6 +11,7 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import * as bcrypt from 'bcrypt';
 import { authenticator } from 'otplib';
@@ -22,6 +23,8 @@ import { DeleteAccountDto } from './dto/delete-account.dto';
 
 type AuthedRequest = Request & { user: JwtPayload };
 
+@ApiTags('user')
+@ApiBearerAuth()
 @Controller('user')
 @UseGuards(JwtGuard)
 export class UserController {
