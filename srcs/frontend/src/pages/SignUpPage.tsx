@@ -30,7 +30,7 @@ function SignUp() {
                 return;
             }
 
-            localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('token', data.accessToken);
             localStorage.setItem('refreshToken', data.refreshToken);
             navigate('/dashboard');
         } catch {

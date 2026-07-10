@@ -33,6 +33,12 @@ export class UserController {
         return this.toSafeProfile(user);
     }
 
+    @Get()
+    async getAll() {
+        const users = await this.userService.findAll();
+        return users.map(u => this.toSafeProfile(u));
+    }
+
     @Patch('me')
     async updateMe(@Req() req: AuthedRequest, @Body() dto: UpdateUserDto) {
         const userId = req.user.sub;
