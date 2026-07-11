@@ -4,6 +4,10 @@ import { Repository } from "typeorm";
 import { User } from "./user.entity";
 import { Message } from "../chat/entities/message.entity";
 
+function randomColor(): string {
+  return '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
+}
+
 @Injectable()
 export class UserService {
   constructor(
@@ -23,8 +27,13 @@ export class UserService {
       email,
       username,
       passwordHash: hashedPassword,
+      profileColor: randomColor(),
     });
     return this.repo.save(user);
+  }
+
+  findAll(): Promise<User[]> {
+    return this.repo.find(); //SELECT * FROM users;
   }
 
   findByEmail(email: string): Promise<User | null> {
@@ -67,7 +76,7 @@ export class UserService {
         username: string,
         avatarUrl: string | null,
     ): Promise<User> {
-        const user = this.repo.create({ email, username, oauthProvider: provider, oauthId, avatarUrl });
+        const user = this.repo.create({ email, username, oauthProvider: provider, oauthId, avatarUrl, profileColor: randomColor() });
         return this.repo.save(user);
     }
 

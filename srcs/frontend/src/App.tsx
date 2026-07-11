@@ -6,6 +6,8 @@ import LoginPage from './pages/LoginPage.tsx';
 //import Timer from './components/Timer.tsx';
 import GamePage from './pages/GamePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
+import ProfilePage from './pages/ProfilePage.tsx';
+import AuthCallbackPage from './pages/AuthCallbackPage.tsx';
 
 
 //export default App;
@@ -136,6 +138,8 @@ function App() {
         <Route path="/game" element={<GamePage />} />
         <Route path="/signUp" element={<SignUpPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
       </Routes>
     </BrowserRouter>
   );

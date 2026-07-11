@@ -66,7 +66,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
     }
 
 
-    async handleDiscconect(client: Socket) {
+    async handleDisconnect(client: Socket) {
 
       const userId = socketUserMap.get(client.id);
       if(!userId){
@@ -77,8 +77,3 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
     }
 
 }
-
-
-
-
-

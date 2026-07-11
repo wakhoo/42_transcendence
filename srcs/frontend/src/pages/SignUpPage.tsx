@@ -30,7 +30,7 @@ function SignUp() {
                 return;
             }
 
-            localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('token', data.accessToken);
             localStorage.setItem('refreshToken', data.refreshToken);
             navigate('/dashboard');
         } catch {
@@ -45,6 +45,7 @@ function SignUp() {
     const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
     const formValide = emailValide && usernameValide && passwordValide && passwordsMatch;
 
+    console.log({ emailValide, usernameValide, passwordValide, passwordsMatch });
     return (
         <div className="min-h-screen bg-black flex items-center justify-center">
             <div className="bg-gray-900 p-10 rounded-xl flex flex-col gap-4">

@@ -1,6 +1,8 @@
 import {
     BadRequestException,
     ForbiddenException,
+    forwardRef,
+    Inject,
     Injectable,
     NotFoundException,
     OnModuleInit,
@@ -13,8 +15,9 @@ import { ChannelMember } from './entities/channel-member.entity';
 import { Message } from './entities/message.entity';
 import { Friendship } from './entities/friendship.entity';
 import { BadWord } from './entities/bad-word.entity';
-import { BAD_WORDS } from './bad-words.seed';
+import { BAD_WORDS } from './words.seed';
 import { GameService } from '../game/game.service';
+//import { WORD } from './../word.seed';
 
 @Injectable()
 export class ChatService implements OnModuleInit {
@@ -34,6 +37,7 @@ export class ChatService implements OnModuleInit {
         @InjectRepository(BadWord)
         private readonly badWordRepo: Repository<BadWord>,
 
+        @Inject(forwardRef(() => GameService))
         private readonly gameService: GameService,
     ) {}
 
@@ -240,14 +244,14 @@ export class ChatService implements OnModuleInit {
             throw new ForbiddenException(`Your message was blocked: inappropriate content. Warning ${membership.warnings}/2.`);
         }
 
-        if (membership.channel.type === 'game'){
+        // if (membership.channel.type === 'game'){
 
-            const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
+        //     const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
 
-            if (isWord)
-                throw new ForbiddenException(`Your message was blocked.`);
+        //     if (isWord)
+        //         throw new ForbiddenException(`Your message was blocked.`);
 
-        }
+        // }
 
         const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
         const saved = await this.messageRepo.save(message);

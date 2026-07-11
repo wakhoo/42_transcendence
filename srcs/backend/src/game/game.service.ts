@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Server } from 'socket.io';
@@ -41,7 +41,8 @@ export class GameService {
       @InjectRepository(Match)
       private readonly match: Repository<Match>,
 
-			private readonly ChatService: ChatService) {}
+			@Inject(forwardRef(() => ChatService))
+      private readonly chatService: ChatService) {}
 
 	async getRandomWord(useWords: string[] = []): Promise<string> {
 
@@ -58,7 +59,7 @@ export class GameService {
 
 	async startGame(userId: number, channelId: number) {
 
-		const members = await this.ChatService.getChannelMember(channelId);
+		const members = await this.chatService.getChannelMember(channelId);
 		if (members.length < 2) {
 
 			this.server.to(`channel_${channelId}`).emit('message_channel', 'Pas assez de joueurs');

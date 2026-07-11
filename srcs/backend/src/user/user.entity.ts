@@ -29,6 +29,9 @@ export class User {
     @Column({ name: 'avatar_url', type: 'varchar', length: 500, nullable: true })
     avatarUrl: string | null = null;
 
+    @Column({ name: 'profile_color', type: 'varchar', length: 7, default: '#6366f1' })
+    profileColor: string = '#6366f1';
+
     @Column({ name: 'oauth_provider', type: 'varchar', length: 20, nullable: true })
     oauthProvider: string | null = null;
 
