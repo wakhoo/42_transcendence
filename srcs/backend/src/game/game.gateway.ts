@@ -9,7 +9,7 @@ import { socketUserMap } from '../chat/chat.gateway';
 @WebSocketGateway({ cors: true,
   path: '/api/socket.io'})
 
-export class GameGateway implements OnGatewayInit {
+export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
   
   @WebSocketServer()
     server!: Server;
@@ -65,6 +65,16 @@ export class GameGateway implements OnGatewayInit {
       this.gameService.sendHistory(client.id, data.channelId);
     }
 
+
+    async handleDiscconect(client: Socket) {
+
+      const userId = socketUserMap.get(client.id);
+      if(!userId){
+        return;
+      }
+      socketUserMap.delete(client.id);
+      await this.gameService.handleDisconnection(userId);
+    }
 
 }
 

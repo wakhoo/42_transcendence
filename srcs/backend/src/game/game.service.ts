@@ -5,9 +5,11 @@ import { Server } from 'socket.io';
 import { ChatService } from '../chat/chat.service';
 import { UserService } from "../user/user.service";
 import { Word } from './word.entity';
+import { Match } from './match.entity';
 import { socketUserMap } from '../chat/chat.gateway';
 import { CurrentUser } from '../chat/decorators/current-user.decorator';
 import { Socket } from 'dgram';
+import { channel } from 'diagnostics_channel';
 
 export interface GameSession {
 
@@ -36,6 +38,8 @@ export class GameService {
 	constructor(	
 			@InjectRepository(Word)
 			private wordRepo: Repository<Word>,
+      @InjectRepository(Match)
+      private readonly match: Repository<Match>,
 
 			private readonly ChatService: ChatService) {}
 
@@ -163,6 +167,11 @@ export class GameService {
     if (currentGame.currentRound > currentGame.maxRound)
     {
       this.server.to(`channel_${channelId}`).emit('game_over',currentGame.scores);
+      const matchHistory = this.match.create({
+        channelId: currentGame.channelId,
+        scores: currentGame.scores,
+      });
+      await this.match.save(matchHistory);
       this.activeGames.delete(channelId);
       return;
     }
@@ -228,22 +237,47 @@ export class GameService {
       }
 
 
+    handleDisconnection(userId: number) {
+
+      for (const[channelID, currentGame] of this.activeGames.entries()) {
+
+			    if(currentGame.playersIds.includes(userId)){
+
+				    currentGame.playersIds = currentGame.playersIds.filter(id => id != userId);
+            currentGame.totalPlayers -= 1;
+            if(currentGame.totalPlayers <= 1){
+
+              clearInterval(currentGame.timerInterval);
+              this.server.to(`channel_${channelID}`).emit('game_cancelled', {reason : 'not_enough_players'});
+              this.activeGames.delete(channelID);
+              return;
+            }
+            if(userId === currentGame.currentDrawerId){
+
+              clearInterval(currentGame.timerInterval);
+              this.server.to(`channel_${channelID}`).emit('drawer_left', {drawerLeftId: userId});
+              setTimeout(() =>{
+                this.handleNextTurn(channelID);
+                },5000);
+              }
+				      break;
+          }
+        }
+      }
+
+  }
+
+
+
+
+
+
   //     // recuperation du dessin push dans tab si le dessinateur dessine
   //     if(client.id === this.currentDrawer){
   //         this.server.to(this.roomId).emit('draw', drawData);
   //         this.historicDraw.push(drawData);
   //         console.log(this.historicDraw.length);
   //     }
-
-
-
-
-
-
-
-
-
-    }
 
 
   //     for (let i = 0; i < this.playerList.length ; i++) {
@@ -255,42 +289,4 @@ export class GameService {
   //     this.roomId = data.roomId;
   //     console.log('Game started in room ', this.roomId);
   //     console.log('la manche numero 1 va demaree');
-
-
-
-  //   handleDisconnect(client: any) {
-
-      
-  //     const leftPlayer = this.playerList.find(player => player.socketId == client.id);
-  //     if(!leftPlayer)
-  //         return;
-        
-  //     this.playerList = this.playerList.filter(player => player.socketId !== client.id)
-  //     if (this.playerList.length < 2){
-
-  //         console.log("Pas assez de joueur connecter");
-  //         clearInterval(this.timer);
-  //         clearTimeout(this.timeOut);
-  //         this.server.to(this.roomId).emit('chat_message', "Partie terminée : il n'y a plus assez de joueurs.");
-  //         return;
-  //     }
-  //     if(leftPlayer.socketId === this.currentDrawer)
-  //     {
-
-  //       clearInterval(this.timer);
-  //       clearTimeout(this.timeOut);
-  //       console.log('Le dessinateur est partie');
-  //       this.server.to(this.roomId).emit('chat_message',  `${client.id} c'est deconnecte`);
-
-  //       this.currentPlayerIndex -= 1;
-  //       this.handleNextTurn();
-  //     }
-  //   }
-
-  //   // sauvegarde  le dessin au cas ou o ndois le reafficher (f5 par exemple)
-  //   @SubscribeMessage('request_history')
-  //   handleRequest(client: any, drawData: any) {
-
-  //       client.emit('request_history', this.historicDraw);
-  //   }
 
