@@ -224,10 +224,8 @@ export class ChatService implements OnModuleInit {
         const badWords = await this.badWordRepo.find();
         const lower = content.toLowerCase();
         const found = badWords.find((bw) => lower.includes(bw.word));
-
         if (found) {
             membership.warnings += 1;
-
             if (membership.warnings >= 2) {
                 if (membership.channel.type === 'game') {
                     await this.memberRepo.remove(membership);
@@ -239,7 +237,6 @@ export class ChatService implements OnModuleInit {
                     throw new ForbiddenException('You have been muted for 5 minutes for repeated inappropriate messages.');
                 }
             }
-
             await this.memberRepo.save(membership);
             throw new ForbiddenException(`Your message was blocked: inappropriate content. Warning ${membership.warnings}/2.`);
         }
