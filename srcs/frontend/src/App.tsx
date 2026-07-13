@@ -1,10 +1,16 @@
+
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage.tsx';
+import SignUpPage from './pages/SignUpPage.tsx';
 import LoginPage from './pages/LoginPage.tsx';
-import SignUp from './pages/SignUpPage.tsx';
+//import Timer from './components/Timer.tsx';
 import GamePage from './pages/GamePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
-import AuthCallback  from './pages/AuthCallBack.tsx';
+import ProfilePage from './pages/ProfilePage.tsx';
+import AuthCallbackPage from './pages/AuthCallbackPage.tsx';
+
+
+//export default App;
 
 // function App() {
 //   const [count, setCount] = useState(0)
@@ -121,7 +127,7 @@ import AuthCallback  from './pages/AuthCallBack.tsx';
 //   )
 // }
 
-// export default App
+export default App
 
 function App() {
   return (
@@ -130,12 +136,23 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/game" element={<GamePage />} />
-        <Route path="/signUp" element={<SignUp />} />
+        <Route path="/signUp" element={<SignUpPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
-export default App;
+// // On importe notre  Timer depuis components
+// import Timer from './components/Timer';
+
+// export default function App() {
+//   return (
+//     <div>
+//       <h1>ft_skribbl</h1>
+//       <Timer />
+//     </div>
+//   );
+// }

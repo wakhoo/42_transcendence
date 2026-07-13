@@ -83,6 +83,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    ports:
+      - "3000:3000"
 
   # ----------------------------------------------------------
   #  WebSocket — Real-time server
@@ -105,7 +107,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-  
   # ----------------------------------------------------------
   #  MariaDB — Database
   #  db network only — no external access

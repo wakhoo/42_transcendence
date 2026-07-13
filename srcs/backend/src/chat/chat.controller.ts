@@ -9,6 +9,7 @@ import {
     Post,
     UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
 import { JwtGuard } from '../auth/guards/jwt.guard';
 import { CurrentUser, JwtPayload } from './decorators/current-user.decorator';
@@ -17,6 +18,8 @@ import { JoinChannelDto } from './dto/join-channel.dto';
 import { MuteMemberDto } from './dto/mute-member.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 
+@ApiTags('chat')
+@ApiBearerAuth()
 @UseGuards(JwtGuard)
 @Controller('chat')
 export class ChatController {

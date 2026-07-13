@@ -8,25 +8,27 @@ import {
     WebSocketGateway,
     WebSocketServer,
 } from '@nestjs/websockets';
+import { Inject,forwardRef } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 
-const socketUserMap = new Map<string, number>();
+export const socketUserMap = new Map<string, number>();
 
-@WebSocketGateway({ namespace: '/chat', cors: { origin: '*' } }) //a changer pour n'accepter que les connexions depuis le site
+@WebSocketGateway({ namespace: '/chat', cors: { origin: '*' } })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer()
     server!: Server;
 
     constructor(
-        private readonly chatService: ChatService,
+        @Inject(forwardRef(() => ChatService)) private readonly chatService: ChatService,
         private readonly jwtService: JwtService,
     ) {}
 
     afterInit() {
         console.log('ChatGateway initialized');
     }
+
 
     async handleConnection(client: Socket) {
         try {
@@ -54,6 +56,41 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             client.disconnect();
         }
     }
+
+
+
+    // async handleConnection(client: Socket) {
+    //     try {
+    //         // 🛑 MODE DEV : On commente la vérification stricte
+    //         /*
+    //         const token = (client.handshake.auth as { token?: string })?.token?.replace('Bearer ', '');
+    //         if (!token) { 
+    //             client.disconnect(); 
+    //             return; 
+    //         }
+    //         const payload = this.jwtService.verify<{ sub: number }>(token);
+    //         */
+
+    //         // 🟢 MODE DEV : On simule un utilisateur (ID 999 par exemple)
+    //         const payload = { sub: 999 }; // Faux utilisateur
+
+    //         socketUserMap.set(client.id, payload.sub);
+
+    //         const general = await this.chatService.ensureGeneralChannel();
+    //         await this.chatService.joinChannel(payload.sub, general.id).catch(() => {});
+    //         void client.join(`channel_${general.id}`);
+
+    //         const myChannels = await this.chatService.getMyChannels(payload.sub);
+    //         for (const ch of myChannels) {
+    //             void client.join(`channel_${ch.id}`);
+    //         }
+
+    //         client.emit('ready', { generalChannelId: general.id });
+    //         console.log(`User ${payload.sub} connected (socket ${client.id})`);
+    //     } catch {
+    //         client.disconnect();
+    //     }
+    // }
 
     handleDisconnect(client: Socket) {
         const userId = socketUserMap.get(client.id);

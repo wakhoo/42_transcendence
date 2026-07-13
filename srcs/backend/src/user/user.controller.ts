@@ -10,6 +10,8 @@ import {
     UnauthorizedException,
     UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import * as bcrypt from 'bcrypt';
 import { authenticator } from 'otplib';
@@ -21,6 +23,8 @@ import { DeleteAccountDto } from './dto/delete-account.dto';
 
 type AuthedRequest = Request & { user: JwtPayload };
 
+@ApiTags('user')
+@ApiBearerAuth()
 @Controller('user')
 @UseGuards(JwtGuard)
 export class UserController {
@@ -36,7 +40,7 @@ export class UserController {
     @Get()
     async getAll() {
         const users = await this.userService.findAll();
-        return users.map(u => this.toSafeProfile(u));
+        return users.map(u => this.toPublicProfile(u));
     }
 
     @Patch('me')
@@ -69,6 +73,7 @@ export class UserController {
     }
 
     @Delete('me')
+    @Throttle({ default: { limit: 5, ttl: 60_000 } })
     async deleteMe(@Req() req: AuthedRequest, @Body() dto: DeleteAccountDto) {
         const userId = req.user.sub;
         const user = await this.userService.findById(userId);
@@ -92,5 +97,10 @@ export class UserController {
     private toSafeProfile(user: User) {
         const { passwordHash, totpSecret, ...safe } = user;
         return safe;
+    }
+
+    private toPublicProfile(user: User) {
+        const { id, username, avatarUrl, profileColor } = user;
+        return { id, username, avatarUrl, profileColor };
     }
 }

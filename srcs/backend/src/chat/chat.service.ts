@@ -1,6 +1,8 @@
 import {
     BadRequestException,
     ForbiddenException,
+    forwardRef,
+    Inject,
     Injectable,
     NotFoundException,
     OnModuleInit,
@@ -13,7 +15,9 @@ import { ChannelMember } from './entities/channel-member.entity';
 import { Message } from './entities/message.entity';
 import { Friendship } from './entities/friendship.entity';
 import { BadWord } from './entities/bad-word.entity';
-import { BAD_WORDS } from './bad-words.seed';
+import { BAD_WORDS } from './words.seed';
+import { GameService } from '../game/game.service';
+//import { WORD } from './../word.seed';
 
 @Injectable()
 export class ChatService implements OnModuleInit {
@@ -32,6 +36,9 @@ export class ChatService implements OnModuleInit {
 
         @InjectRepository(BadWord)
         private readonly badWordRepo: Repository<BadWord>,
+
+        @Inject(forwardRef(() => GameService))
+        private readonly gameService: GameService,
     ) {}
 
 
@@ -100,6 +107,13 @@ export class ChatService implements OnModuleInit {
     // ─────────────────────────────────────────────────────────────────────────
     // CHANNELS — rejoindre et quitter
     // ─────────────────────────────────────────────────────────────────────────
+
+
+    async getChannelMember(channelId: number): Promise<ChannelMember[]>  {
+
+        return this.memberRepo.find({ where: { channel: { id: channelId } } });
+    }
+
 
     async joinChannel(userId: number, channelId: number, password?: string): Promise<ChannelMember> {
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
@@ -210,10 +224,8 @@ export class ChatService implements OnModuleInit {
         const badWords = await this.badWordRepo.find();
         const lower = content.toLowerCase();
         const found = badWords.find((bw) => lower.includes(bw.word));
-
         if (found) {
             membership.warnings += 1;
-
             if (membership.warnings >= 2) {
                 if (membership.channel.type === 'game') {
                     await this.memberRepo.remove(membership);
@@ -225,10 +237,18 @@ export class ChatService implements OnModuleInit {
                     throw new ForbiddenException('You have been muted for 5 minutes for repeated inappropriate messages.');
                 }
             }
-
             await this.memberRepo.save(membership);
             throw new ForbiddenException(`Your message was blocked: inappropriate content. Warning ${membership.warnings}/2.`);
         }
+
+        // if (membership.channel.type === 'game'){
+
+        //     const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
+
+        //     if (isWord)
+        //         throw new ForbiddenException(`Your message was blocked.`);
+
+        // }
 
         const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
         const saved = await this.messageRepo.save(message);
@@ -321,7 +341,7 @@ export class ChatService implements OnModuleInit {
         return !!block;
     }
 
-    async getMemberRole(userId: number, channelId: number): Promise<'admin' | 'member' | null> {
+    async getMemberRole(userId: number, channelId: number): Promise<'admin' | 'member' | 'spec' | null> {
         const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } } });
         return membership?.role ?? null;
     }
