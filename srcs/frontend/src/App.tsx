@@ -4,7 +4,7 @@ import LoginPage from './pages/LoginPage.tsx';
 import SignUp from './pages/SignUpPage.tsx';
 import GamePage from './pages/GamePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
-
+import AuthCallback  from './pages/AuthCallBack.tsx';
 
 // function App() {
 //   const [count, setCount] = useState(0)
@@ -132,6 +132,7 @@ function App() {
         <Route path="/game" element={<GamePage />} />
         <Route path="/signUp" element={<SignUp />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
       </Routes>
     </BrowserRouter>
   );
