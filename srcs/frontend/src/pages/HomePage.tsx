@@ -17,6 +17,11 @@ function HomePage() {
                 className="border border-white text-white px-6 py-2 rounded hover:bg-white hover:text-black">
                 sign up
                 </button>
+                <button
+                    onClick={() => { window.location.href = '/api/auth/google'; }}
+                    className="border border-white text-white px-6 py-2 rounded hover:bg-white hover:text-black">
+                    Continue with Google
+                </button>
             </div>
         </div>
     );
