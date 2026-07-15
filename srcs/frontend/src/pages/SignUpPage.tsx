@@ -30,8 +30,8 @@ function SignUp() {
                 return;
             }
 
-            localStorage.setItem('token', data.accessToken);
-            localStorage.setItem('refreshToken', data.refreshToken);
+            sessionStorage.setItem('token', data.accessToken);
+            sessionStorage.setItem('refreshToken', data.refreshToken);
             navigate('/dashboard');
         } catch {
             setError('Unable to contact the server');

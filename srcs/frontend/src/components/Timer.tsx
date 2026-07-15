@@ -94,7 +94,7 @@ export default function GamePage() {
   const [listeJoueurs, setListeJoueurs] = useState<any[]>([]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token'); 
+    const token = sessionStorage.getItem('token');
     const monIdUnique = Math.floor(Math.random() * 1000); // Faux ID pour nos tests
 
     // Connexion

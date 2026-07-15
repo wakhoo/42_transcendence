@@ -31,7 +31,7 @@ type Friendship = {
 };
 
 function authHeaders() {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }; //vu qu'on envoie une requette avec un body faut mettre dans le header que c'est un json
 }
 
@@ -46,7 +46,7 @@ export default function ProfilePage() {
     const navigate                = useNavigate();
 
     async function loadAll() {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (!token) {
             navigate('/login');
             return; 

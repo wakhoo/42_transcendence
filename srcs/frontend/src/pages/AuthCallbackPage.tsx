@@ -13,7 +13,7 @@ function AuthCallbackPage() {
             return;
         }
 
-        localStorage.setItem('token', accessToken);
+        sessionStorage.setItem('token', accessToken);
         navigate('/dashboard');
     }, [navigate]);
 

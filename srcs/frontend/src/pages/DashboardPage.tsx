@@ -31,7 +31,7 @@ export default function DashboardPage() {
     const navigate                  = useNavigate();
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (!token) {
             navigate('/login');
             return;
@@ -43,7 +43,7 @@ export default function DashboardPage() {
     }, [])
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (!token) {
             navigate('/login');
             return;
@@ -100,7 +100,7 @@ export default function DashboardPage() {
         const parts   = raw.slice(1).trim().split(' '); //slice c'est pour retourner la variable apres n elements
         const cmd     = parts[0].toLowerCase();
         const args    = parts.slice(1);
-        const token   = localStorage.getItem('token');
+        const token   = sessionStorage.getItem('token');
         if (!token || channelId === null) 
             return;
         const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
