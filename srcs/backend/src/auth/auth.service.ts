@@ -77,12 +77,13 @@ export class AuthService {
             if (existing) throw new ConflictException('Email already registered with a password account');
 
             const username = await this.generateUsername(profile.email);
+            const avatarUrl = (profile.avatarUrl?.length ?? 0) <= 500 ? profile.avatarUrl : null;
             user = await this.userService.createOAuthUser(
                 'google',
                 profile.oauthId,
                 profile.email,
                 username,
-                profile.avatarUrl,
+                avatarUrl,
             );
         }
 
