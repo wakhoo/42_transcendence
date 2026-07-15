@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import HomePage from './pages/HomePage.tsx';
 import SignUpPage from './pages/SignUpPage.tsx';
 import LoginPage from './pages/LoginPage.tsx';
+import PublicLayout from './components/PublicLayout.tsx';
 //import Timer from './components/Timer.tsx';
 import GamePage from './pages/GamePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
@@ -133,10 +134,12 @@ function App() {
   return (
       <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route element={<PublicLayout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signUp" element={<SignUpPage />} />
+        </Route>
         <Route path="/game" element={<GamePage />} />
-        <Route path="/signUp" element={<SignUpPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
