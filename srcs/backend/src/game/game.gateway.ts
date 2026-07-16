@@ -21,7 +21,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       this.gameService.server = server;
     }
 
-    //wordList : string[] = ['pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica', 'guitare' ,'montagne', 'chat', 'biche'];
+    
 
     @SubscribeMessage('start_game')
     async handleGame(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number}) {

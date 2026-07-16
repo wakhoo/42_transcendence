@@ -85,7 +85,7 @@ export class GameService {
 		};
 
 		this.activeGames.set(channelId, newGame);
-		this.server.to(`channel_${channelId}`).emit('start_game', {message : `La partie commence ! C'est au tour de ${drawer.user.username} de dessiner`, 
+		this.server.to(`channel_${channelId}`).emit('round_start', {message : `La partie commence ! C'est au tour de ${drawer.user.username} de dessiner`, 
 			drawerId: drawer.user.id });
 
 		const hintLetter = "-".repeat(secretWord.length);
