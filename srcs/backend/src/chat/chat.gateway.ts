@@ -51,6 +51,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             }
 
             client.emit('ready', { generalChannelId: general.id });
+            this.server.emit('presenceChanged');
             console.log(`User ${payload.sub} connected (socket ${client.id})`);
         } catch {
             client.disconnect();
@@ -95,6 +96,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     handleDisconnect(client: Socket) {
         const userId = socketUserMap.get(client.id);
         socketUserMap.delete(client.id);
+        this.server.emit('presenceChanged');
         console.log(`User ${userId ?? '?'} disconnected (socket ${client.id})`);
     }
 

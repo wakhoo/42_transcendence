@@ -83,6 +83,12 @@ export default function DashboardPage() {
             typingTimer.current = setTimeout(() => setTyping(''), 3000);
         });
 
+        socket.on('presenceChanged', () => {
+            fetch('/api/user', { headers: { Authorization: `Bearer ${token}` } })
+                .then(r => r.json())
+                .then((data: UserProfile[]) => setUsers(data));
+         });
+
         return (() => { socketRef.current?.disconnect(); });
     }, [navigate]);
 
