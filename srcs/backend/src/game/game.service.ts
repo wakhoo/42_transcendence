@@ -44,6 +44,53 @@ export class GameService {
 			@Inject(forwardRef(() => ChatService))
       private readonly chatService: ChatService) {}
 
+
+
+
+
+
+   async createGameSession(channelId: number, creatorId: number): Promise<GameSession> {
+
+      const newGameSession : GameSession = {
+
+        channelId: channelId,
+        totalPlayers: 1,
+        playersIds: [creatorId],
+        secretWord: '',
+        currentDrawerId: 0,
+        timeLeft: 60,
+        scores: { [creatorId]: 0},
+        guessedUsers: [],
+        useWords: [],
+        currentRound: 0,
+        maxRound: 3,
+        historicDraw: [],
+      }   
+      this.activeGames.set(channelId, newGameSession);
+      console.log(`🟢 Salle #${channelId} créée par le joueur #${creatorId}`);
+      return newGameSession;
+  }  
+
+  async joinGameSession(channelId: number, userId: number): Promise<GameSession | null> {
+
+    const session = this.activeGames.get(channelId);
+    if(!session){
+
+      console.log(`Error : #${channelId} doesn't exist #`);
+      return null;
+    }
+    if(!session.playersIds.includes(userId)){
+
+      session.playersIds.push(userId);
+      session.totalPlayers = session.playersIds.length;
+      session.scores[userId] = 0;
+    }
+    this.server.to(`channel_${channelId}`).emit('message_channel', {channel: channelId, totalPlayer: session.totalPlayers, userId: userId });
+    return session;
+  }
+
+      
+      
 	async getRandomWord(useWords: string[] = []): Promise<string> {
 
 
@@ -68,7 +115,7 @@ export class GameService {
 		const secretWord = await this.getRandomWord();
 		const index = Math.floor(Math.random() * members.length);
 		const drawer = members[index];
-		const newGame : GameSession ={
+		const newGame : GameSession = {
 
 			channelId: channelId,
       totalPlayers: members.length,

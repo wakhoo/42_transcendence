@@ -26,6 +26,15 @@ export default function GamePage() {
 
     socketInstance.on('connect', () => {
       console.log("🟢 Connecté au GameGateway !");
+
+      const action = queryParam.get('action');
+      if (action === 'create') {
+        console.log(`🛠️ Ordre reçu : Création de la room #${reelChannelId}...`);
+        socketInstance.emit('create_room', { channelId: reelChannelId });
+      } else {
+        console.log(`👥 Ordre reçu : Rejoindre la room #${reelChannelId}...`);
+        socketInstance.emit('join_room', { channelId: reelChannelId });
+      }
       
       socketInstance.emit('join_room', { channelId: reelChannelId });
     });
@@ -62,7 +71,7 @@ export default function GamePage() {
       socketInstance.disconnect();
       
     };
-  }, []);
+  }, [reelChannelId]);
 
   const handleStartGame = () => {
     if (socket) {
@@ -180,56 +189,5 @@ export default function GamePage() {
     </div>
   );
   
-  // return (
-  //   <div> 
-      
-  //     {/* 1. Le Timer */}
-  //     <div className={`absolute top-5 left-1/2 -translate-x-1/2 text-5xl font-bold bg-white px-8 py-3 rounded-2xl border-[3px] border-gray-300 ${tempsRestant <= 10 ? 'text-red-600' : 'text-black'}`}>
-  //       ⏱️ {tempsRestant}
-  //     </div>
 
-  //     {/* 2. LE TABLEAU DES JOUEURS (S'affiche tout seul !) */}
-  //     <div className="absolute left-2 top-50 bg-white p-6 rounded-xl shadow-lg border border-gray-200 w-64">
-  //       <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2">👥 Joueurs Connectés</h3>
-  //       <ul className="space-y-2">
-  //         {listeJoueurs.map((joueur, index) => (
-  //           <li key={index} className="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
-  //             <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-  //             <span className="font-semibold text-slate-700">Joueur #{joueur.dbId}</span>
-  //             {/* Optionnel : afficher si c'est le dessinateur actuel */}
-  //           </li>
-  //         ))}
-  //       </ul>
-  //     </div>
-
-  //     {/* 3. Le Bouton Start */}
-  //     <div className="mt-48 text-center">
-  //       <button
-  //         onClick={handleStartGame}
-  //         className="bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-4 px-10 rounded-lg shadow-md transition-colors duration-200"
-  //       >
-  //         Start Game
-  //       </button>
-  //     </div>
-  //     { /*4. ZONE D'ANNONCE DE LA MANCHE */}
-  //     {drawerInfo && (
-  //       <div className="mt-8 p-4 bg-blue-50 border-2 border-blue-400 rounded-xl text-center shadow-md">
-  //         <p className="text-lg font-bold text-blue-900">
-  //           🎨 {drawerInfo.message}
-  //         </p>
-  //       </div>
-  //     )}
-
-  //     {/* 5. L'INDICE DU MOT (Le secret à deviner) */}
-  //     {wordHint && (
-  //       <div className="mt-4 p-6 bg-slate-900 text-white rounded-xl text-center shadow-xl border border-slate-700">
-  //         <p className="text-xs uppercase tracking-widest text-slate-400 mb-1">Mot secret ({wordHint.length} lettres)</p>
-  //         <p className="text-4xl font-mono tracking-[0.5em] font-extrabold text-yellow-400">
-  //           {wordHint.hint}
-  //         </p>
-  //       </div>
-  //     )}
-  //   </div>
-    
-  // );
 }

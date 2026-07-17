@@ -276,7 +276,9 @@ export default function DashboardPage() {
                         Join public room
                     </button>
                     <button
-                        onClick={() => navigate('/game')} 
+                        onClick={() => { const randomRoomId = Math.floor(Math.random() * 9000) + 1000;
+                            navigate(`/game?channelId=${randomRoomId}&action=create`);}
+                        } 
                         className="px-32 py-8 rounded-2xl text-white text-xl font-semibold bg-emerald-950 hover:bg-emerald-900 transition-colors duration-200">
                         Create new public room
                     </button>
