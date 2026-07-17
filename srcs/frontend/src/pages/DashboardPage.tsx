@@ -83,6 +83,12 @@ export default function DashboardPage() {
             typingTimer.current = setTimeout(() => setTyping(''), 3000);
         });
 
+        socket.on('presenceChanged', () => {
+            fetch('/api/user', { headers: { Authorization: `Bearer ${token}` } })
+                .then(r => r.json())
+                .then((data: UserProfile[]) => setUsers(data));
+         });
+
         return (() => { socketRef.current?.disconnect(); });
     }, [navigate]);
 
@@ -264,13 +270,19 @@ export default function DashboardPage() {
 
             <div className="flex-1 flex items-center justify-center">
                 <div className="flex flex-col gap-6">
-                    <button className="px-32 py-8 rounded-2xl text-white text-xl font-semibold bg-blue-950 hover:bg-blue-900 transition-colors duration-200">
+                    <button
+                        onClick={() => navigate('/game')} 
+                        className="px-32 py-8 rounded-2xl text-white text-xl font-semibold bg-blue-950 hover:bg-blue-900 transition-colors duration-200">
                         Join public room
                     </button>
-                    <button className="px-32 py-8 rounded-2xl text-white text-xl font-semibold bg-emerald-950 hover:bg-emerald-900 transition-colors duration-200">
+                    <button
+                        onClick={() => navigate('/game')} 
+                        className="px-32 py-8 rounded-2xl text-white text-xl font-semibold bg-emerald-950 hover:bg-emerald-900 transition-colors duration-200">
                         Create new public room
                     </button>
-                    <button className="px-32 py-8 rounded-2xl text-white text-xl font-semibold bg-violet-950 hover:bg-violet-900 transition-colors duration-200">
+                    <button
+                        onClick={() => navigate('/game')} 
+                        className="px-32 py-8 rounded-2xl text-white text-xl font-semibold bg-violet-950 hover:bg-violet-900 transition-colors duration-200">
                         Create new private room
                     </button>
                 </div>
