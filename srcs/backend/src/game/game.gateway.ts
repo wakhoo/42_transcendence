@@ -6,8 +6,7 @@ import { JwtService } from '@nestjs/jwt';
 
 
 
-@WebSocketGateway({ cors: true,
-  path: '/api/socket.io'})
+@WebSocketGateway({ cors: true, namespace: '/game'})
 
 export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
   
@@ -22,46 +21,69 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
     }
 
 
+
     async handleConnection(client: Socket) {
-
-      try {
-
-        const token = client.handshake.auth.token;
-        if(!token){
-
-          client.disconnect();
-          return;
-        }
-        const payload = await this.jwtService.verifyAsync<{ id: number }>(token);
-        const userId = payload.id;
-
-        socketUserMap.set(client.id, userId);
-      }
-      catch (error) {
+    try {
+      // 1. Récupération du token
+      const authHeader = client.handshake.auth?.token || client.handshake.headers?.authorization;
+      if (!authHeader) {
+        console.log(`[GAME] Rejet : Aucun token fourni par la socket ${client.id}`);
         client.disconnect();
-
-      }
-
-    }
-
-
-
-
-
-    @SubscribeMessage('create_room')
-    async handleRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelId: number}) {
-
-      const userId = socketUserMap.get(client.id); 
-      if(!userId) {
-
-        client.emit('error', {message: 'User non identify'});
         return;
       }
-      const session = await this.gameService.createGameSession(data.channelId,userId);
-      client.join(data.channelId.toString());
-      this.server.to(data.channelId.toString()).emit('update_players', session.playersIds);
 
+      // 2. Nettoyage du mot "Bearer " s'il y est
+      const token = authHeader.replace(/^Bearer\s+/i, '');
+      
+      // 3. Décodage du token pour choper le VRAI userId (et pas l'id socket !)
+      const payload = await this.jwtService.verifyAsync(token, {
+        secret: process.env.JWT_SECRET || 'secret_par_defaut', // Adapte selon votre config
+      });
+
+      const userId = payload.sub || payload.id; // En NestJS, l'ID est souvent dans "sub" ou "id"
+
+      if (!userId) {
+        console.log(`[GAME] Rejet : ID utilisateur introuvable dans le token pour socket ${client.id}`);
+        client.disconnect();
+        return;
+      }
+
+      // 4. On stocke le VRAI userId (numéro) dans la Map !
+      socketUserMap.set(client.id, userId);
+
+      console.log(` [GAME] Joueur VIP #${userId} (Socket ID: ${client.id}) s'est connecté au salon /game !`);
+    } catch (e) {
+      console.log(`[GAME] Token invalide ou expiré pour la socket ${client.id} :`, (e as any )?.message);
+      client.disconnect();
     }
+  }
+
+  
+@SubscribeMessage('create_room')
+  async handleRoom(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number }) {
+    const userId = socketUserMap.get(client.id); 
+
+    console.log(`[GAME] Demande de création de la room #${data?.channelId} par le client ${client.id} (UserID de la map : ${userId})`);
+
+    // 🚀 SÉCURITÉ : Si userId est indéfini, on prévient dans le terminal au lieu de couper en silence !
+    if (!userId) {
+      console.log(` [GAME] ERREUR : Impossible de créer la room car userId est indéfini pour la socket ${client.id} !`);
+      client.emit('error', { message: 'Utilisateur non identifié dans la map.' });
+      return;
+    }
+
+    await this.gameService.createGameSession(data.channelId, userId);
+    client.join(data.channelId.toString());
+    const reelPlayer = await this.gameService.getUserName(data.channelId);
+
+    console.log(`📦 [GAME] Room #${data.channelId} créée ! Envoi de la liste update_players :`,reelPlayer);
+
+    // Envoi à la room ET envoi direct au client pour forcer l'affichage sur son écran
+    this.server.to(data.channelId.toString()).emit('update_players', reelPlayer);
+    client.emit('update_players', reelPlayer);
+  }
+
+
 
 
     @SubscribeMessage('join_room')
@@ -75,8 +97,11 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       }
       client.join(data.channelId.toString());
       const session = await this.gameService.joinGameSession(data.channelId, userId);
-      if(session)
-        this.server.to(data.channelId.toString()).emit('update_players', session.playersIds);
+      const reelPlayer = await this.gameService.getUserName(data.channelId);
+      if(session){
+        this.server.to(data.channelId.toString()).emit('update_players', reelPlayer);
+        client.emit('update_players', reelPlayer);}
+
 
 
     }

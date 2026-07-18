@@ -40,12 +40,10 @@ export class GameService {
 			private wordRepo: Repository<Word>,
       @InjectRepository(Match)
       private readonly match: Repository<Match>,
+      private readonly userService: UserService,
 
 			@Inject(forwardRef(() => ChatService))
       private readonly chatService: ChatService) {}
-
-
-
 
 
 
@@ -102,6 +100,33 @@ export class GameService {
 				return 'erreur'
 		return randomWord.content;
 	}
+
+
+  async getUserName(channelId: number): Promise<Array<{id: number; username: string}>> {
+
+
+    const session = this.activeGames.get(channelId);
+    if(!session)
+        return [];
+    const playerName = await Promise.all(
+      session.playersIds.map(async (id) => {
+
+        try {
+
+            const user = await this.userService.findById(id);
+            return {
+
+              id: Number(user?.id || id), username: String(user?.username || `Player #${id}`)
+            };
+          } catch(e) {
+            
+            return { id: id, username: `Player #${id}`}
+          }
+      })
+    );
+
+    return playerName;
+  }
 
 
 	async startGame(userId: number, channelId: number) {
@@ -270,8 +295,6 @@ export class GameService {
         currentGame.historicDraw.push(drawData);
         this.server.to(`channel_${channelId}`).emit('draw', {drawerId: currentGame.currentDrawerId , data: drawData } );
       }
-
-
     }
 
 
@@ -285,7 +308,7 @@ export class GameService {
       }
 
 
-    handleDisconnection(userId: number) {
+    async handleDisconnection(userId: number): Promise <number | null> {
 
       for (const[channelID, currentGame] of this.activeGames.entries()) {
 
@@ -293,26 +316,30 @@ export class GameService {
 
 				    currentGame.playersIds = currentGame.playersIds.filter(id => id != userId);
             currentGame.totalPlayers -= 1;
+
+            const newPlayerList = await this.getUserName(channelID);
+            this.server.to(channelID.toString()).emit('update_players', newPlayerList);
             if(currentGame.totalPlayers <= 1){
 
               clearInterval(currentGame.timerInterval);
-              this.server.to(`channel_${channelID}`).emit('game_cancelled', {reason : 'not_enough_players'});
+              this.server.to(channelID.toString()).emit('game_cancelled', {reason : 'not_enough_players'});
               this.activeGames.delete(channelID);
-              return;
+              return null;
             }
+          
             if(userId === currentGame.currentDrawerId){
 
               clearInterval(currentGame.timerInterval);
-              this.server.to(`channel_${channelID}`).emit('drawer_left', {drawerLeftId: userId});
+              this.server.to(channelID.toString()).emit('drawer_left', {drawerLeftId: userId});
               setTimeout(() =>{
                 this.handleNextTurn(channelID);
                 },5000);
               }
-				      break;
+				      return channelID;
           }
         }
+        return null;
       }
-
   }
 
 

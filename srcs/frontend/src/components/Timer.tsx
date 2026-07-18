@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import GameChat from './GameChat';
+import { useNavigate } from 'react-router-dom';
 
 export default function GamePage() {
   const [tempsRestant, setTempsRestant] = useState(60);
@@ -12,34 +13,38 @@ export default function GamePage() {
 
   const queryParam = new URLSearchParams(window.location.search);
   const reelChannelId = Number(queryParam.get('channelId')) || 1;
+  const navigate                  = useNavigate();
 
   useEffect(() => {
     const token = sessionStorage.getItem('token');
+    if(!token){
+      navigate('/login');
+      return;
+    }
 
-    const socketInstance = io('http://localhost:3000', {
-      path: '/api/socket.io',
-      transports: ['websocket'],
-      auth: { token: token }
+    const socketInstance = io(`${window.location.origin}/game`, {
+      auth: { token: token }, transports: ['websocket']
     });
 
     setSocket(socketInstance);
 
     socketInstance.on('connect', () => {
-      console.log("🟢 Connecté au GameGateway !");
+      console.log("Connecté au GameGateway !");
 
       const action = queryParam.get('action');
       if (action === 'create') {
-        console.log(`🛠️ Ordre reçu : Création de la room #${reelChannelId}...`);
+        console.log(`Ordre reçu : Création de la room #${reelChannelId}...`);
         socketInstance.emit('create_room', { channelId: reelChannelId });
       } else {
         console.log(`👥 Ordre reçu : Rejoindre la room #${reelChannelId}...`);
         socketInstance.emit('join_room', { channelId: reelChannelId });
       }
       
-      socketInstance.emit('join_room', { channelId: reelChannelId });
     });
 
     socketInstance.on('update_players', (listeVenantDuBack) => {
+
+      console.log("📦 Liste des joueurs reçue du serveur :", listeVenantDuBack);
       setListeJoueurs(listeVenantDuBack);
     });
 
@@ -68,10 +73,11 @@ export default function GamePage() {
       socketInstance.off('word_hint');
       socketInstance.off('error');
       socketInstance.off('exception');
+      socketInstance.removeAllListeners();
       socketInstance.disconnect();
       
     };
-  }, [reelChannelId]);
+  }, []);
 
   const handleStartGame = () => {
     if (socket) {
