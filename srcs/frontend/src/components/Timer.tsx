@@ -36,7 +36,7 @@ export default function GamePage() {
         console.log(`Ordre reçu : Création de la room #${reelChannelId}...`);
         socketInstance.emit('create_room', { channelId: reelChannelId });
       } else {
-        console.log(`👥 Ordre reçu : Rejoindre la room #${reelChannelId}...`);
+        console.log(` Ordre reçu : Rejoindre la room #${reelChannelId}...`);
         socketInstance.emit('join_room', { channelId: reelChannelId });
       }
       
@@ -44,7 +44,7 @@ export default function GamePage() {
 
     socketInstance.on('update_players', (listeVenantDuBack) => {
 
-      console.log("📦 Liste des joueurs reçue du serveur :", listeVenantDuBack);
+      console.log(" Liste des joueurs reçue du serveur :", listeVenantDuBack);
       setListeJoueurs(listeVenantDuBack);
     });
 
@@ -126,7 +126,7 @@ export default function GamePage() {
           onClick={handleStartGame}
           className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold px-6 py-2.5 rounded-lg shadow transition-all whitespace-nowrap"
         >
-          🚀 Start Game
+          Start Game
         </button>
       </header>
 
@@ -152,7 +152,7 @@ export default function GamePage() {
                 </div>
                 {/* Icône crayon si c'est le dessinateur (à adapter avec ton code) */}
                 {drawerInfo && drawerInfo.drawerId === joueur.dbId && (
-                  <span title="Dessinateur" className="text-lg">🎨</span>
+                  <span title="Dessinateur" className="text-lg"></span>
                 )}
               </li>
             ))}
@@ -182,7 +182,7 @@ export default function GamePage() {
         {/* --- COLONNE DROITE : LE CHAT DE TON COLLÈGUE (1 fraction sur 4) --- */}
         <aside className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3">
-            💬 Chat du Jeu
+            Chat du Jeu
           </h3>
 
           {/* 👉 Le vrai chat prend maintenant tout l'espace disponible ! */}

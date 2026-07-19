@@ -6,11 +6,13 @@ import { ChatService } from '../chat/chat.service';
 import { UserService } from "../user/user.service";
 import { Word } from './word.entity';
 import { Match } from './match.entity';
-import { socketUserMap } from '../chat/chat.gateway';
+import { gameSocketUserMap } from './game.gateway';
 import { CurrentUser } from '../chat/decorators/current-user.decorator';
 import { Socket } from 'dgram';
 import { channel } from 'diagnostics_channel';
 
+
+//represente une partie 
 export interface GameSession {
 
   channelId: number;
@@ -65,10 +67,12 @@ export class GameService {
         historicDraw: [],
       }   
       this.activeGames.set(channelId, newGameSession);
-      console.log(`🟢 Salle #${channelId} créée par le joueur #${creatorId}`);
+      console.log(`Room #${channelId} created by player #${creatorId}`);
       return newGameSession;
   }  
 
+
+  // ajoute un joueur dans un salon de jeu et alerte les membres
   async joinGameSession(channelId: number, userId: number): Promise<GameSession | null> {
 
     const session = this.activeGames.get(channelId);
@@ -89,6 +93,7 @@ export class GameService {
 
       
       
+  // recupere un mot aleatoire dans la base de doneee
 	async getRandomWord(useWords: string[] = []): Promise<string> {
 
 
@@ -102,89 +107,91 @@ export class GameService {
 	}
 
 
-  async getUserName(channelId: number): Promise<Array<{id: number; username: string}>> {
 
+  // recupere les noms des users dans mariadb grace a l id
+  async getUserName(channelId: number): Promise<Array<{id: number; username: string}>> {
 
     const session = this.activeGames.get(channelId);
     if(!session)
         return [];
+    // lancement de la recherche pseudode chaque joeur dans la map jusque a ce que tout le monde a repondu plus filet de securite creatio nde faux joueur
     const playerName = await Promise.all(
       session.playersIds.map(async (id) => {
 
         try {
-
             const user = await this.userService.findById(id);
             return {
 
               id: Number(user?.id || id), username: String(user?.username || `Player #${id}`)
             };
-          } catch(e) {
-            
+          } catch {
             return { id: id, username: `Player #${id}`}
           }
       })
     );
-
     return playerName;
   }
 
 
+  // debut de game choix du dessinateur plus chrono
 	async startGame(userId: number, channelId: number) {
 
-		const members = await this.chatService.getChannelMember(channelId);
-		if (members.length < 2) {
 
-			this.server.to(`channel_${channelId}`).emit('message_channel', 'Pas assez de joueurs');
+    // recuperatio ndes membres via chatservice
+		//const members = await this.chatService.getChannelMember(channelId);
+    const session = this.activeGames.get(channelId);
+		if (!session || session.playersIds.length < 2) {
+
+			this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
 			return;
 		}
 		const secretWord = await this.getRandomWord();
-		const index = Math.floor(Math.random() * members.length);
-		const drawer = members[index];
-		const newGame : GameSession = {
+		const index = Math.floor(Math.random() * session.playersIds.length);
+		const drawerId = session.playersIds[index];
+	
+    
+    session.secretWord = secretWord;
+    session.currentDrawerId = drawerId;
+    session.timeLeft = 60;
+    session.scores = {};
+    session.guessedUsers = [];
+    session.useWords = [secretWord];
+    session.currentRound = 1;
 
-			channelId: channelId,
-      totalPlayers: members.length,
-      playersIds: members.map(member => member.user.id),
-			secretWord: secretWord,
-			currentDrawerId: drawer.user.id,
-			timeLeft: 60,
-			scores: {},
-			guessedUsers: [],
-			useWords: [secretWord],
-      currentRound: 1,
-      maxRound: 3,
-      historicDraw: [],
-		};
 
-		this.activeGames.set(channelId, newGame);
-		this.server.to(`channel_${channelId}`).emit('round_start', {message : `La partie commence ! C'est au tour de ${drawer.user.username} de dessiner`, 
-			drawerId: drawer.user.id });
+    session.playersIds.forEach((id) => {
+        session.scores[id] = 0;
+    });
+
+
+		//this.activeGames.set(channelId, newGame);
+    const playerList = await this.getUserName(channelId);
+  const drawerProfile = playerList.find((p) => p.id === drawerId) || { username: `Joueur #${drawerId}` };
+		this.server.to(channelId.toString()).emit('round_start', {message : `Game started! It's  ${drawerProfile.username} turn to draw`, 
+			drawerId: drawerId });
 
 		const hintLetter = "-".repeat(secretWord.length);
-		this.server.to(`channel_${channelId}`).emit('word_hint', {hint: hintLetter , length: secretWord.length} );	
+		this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: secretWord.length} );	
 
-		let drawerSocketId: string = "";
-		for (const[socketId, id] of socketUserMap.entries()) {
+		for (const[socketId, id] of gameSocketUserMap.entries()) {
 
-			if(id === drawer.user.id){
-				drawerSocketId = socketId;
+			if(id === drawerId){
+				this.server.to(socketId).emit('secret_word', secretWord);
 				break;
 			}
 
 		}
-		if(drawerSocketId !== "")
-			this.server.to(drawerSocketId).emit('secret_word', secretWord);
 
 		setTimeout(() =>{
 
-          newGame.timerInterval = setInterval(() => {
-          newGame.timeLeft -= 1;
-          this.server.to(`channel_${channelId}`).emit('timer_update',newGame.timeLeft);
-          if(newGame.timeLeft <= 0){
+          session.timerInterval = setInterval(() => {
+         session.timeLeft -= 1;
+          this.server.to(channelId.toString()).emit('timer_update',session.timeLeft);
+          if(session.timeLeft <= 0){
 
-            clearInterval(newGame.timerInterval);
-            this.server.to(`channel_${channelId}`).emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${newGame.secretWord}`);
-            this.server.to(`channel_${channelId}`).emit('classement',newGame.scores);
+            clearInterval(session.timerInterval);
+            this.server.to(channelId.toString()).emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${session.secretWord}`);
+            this.server.to(channelId.toString()).emit('classement',session.scores);
             setTimeout(() =>{
               this.handleNextTurn(channelId);
             },5000);
@@ -195,6 +202,8 @@ export class GameService {
     }
 
 
+
+    // verification du mot taper dans le chat plus attribution des points
 	async checkGuess(userId: number, channelId: number, content: string, role: string) {
 
     const currentGame = this.activeGames.get(channelId);
@@ -216,7 +225,7 @@ export class GameService {
         currentGame.scores[userId] += currentGame.timeLeft *5;
         currentGame.guessedUsers.push(userId);
 
-        this.server.to(`channel_${channelId}`).emit('word_found', {userId});
+        this.server.to(channelId.toString()).emit('word_found', {userId});
 
         
         if(currentGame.guessedUsers.length === currentGame.totalPlayers - 1)
@@ -231,15 +240,19 @@ export class GameService {
 	}
 
 
+  // passer a la manche suivante 
 	async handleNextTurn(channelId: number) {
 
     const currentGame = this.activeGames.get(channelId);
     if (!currentGame)
         return false;
+    if(currentGame.timerInterval)
+      clearInterval(currentGame.timerInterval);
 		currentGame.currentRound += 1;
+    //fin de partie sauvgarde dans mariadb
     if (currentGame.currentRound > currentGame.maxRound)
     {
-      this.server.to(`channel_${channelId}`).emit('game_over',currentGame.scores);
+      this.server.to(channelId.toString()).emit('game_over',currentGame.scores);
       const matchHistory = this.match.create({
         channelId: currentGame.channelId,
         scores: currentGame.scores,
@@ -248,6 +261,7 @@ export class GameService {
       this.activeGames.delete(channelId);
       return;
     }
+    //changement de dessinateur
     else{
 
      let position = currentGame.playersIds.indexOf(currentGame.currentDrawerId);
@@ -260,21 +274,30 @@ export class GameService {
 		currentGame.useWords.push(currentGame.secretWord);
     currentGame.guessedUsers =[];
     currentGame.timeLeft = 60;
-    this.server.to(`channel_${channelId}`).emit('start_game', {drawerId: currentGame.currentDrawerId });
+    this.server.to(channelId.toString()).emit('start_game', {drawerId: currentGame.currentDrawerId });
 
 		const hintLetter = "-".repeat(currentGame.secretWord.length);
-		this.server.to(`channel_${channelId}`).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );	
-    clearInterval(currentGame.timerInterval);
+		this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
+    for(const[socketId, id] of gameSocketUserMap.entries()) {
+
+      if(id === currentGame.currentDrawerId)
+      {
+        this.server.to(socketId).emit('secret_word', currentGame.secretWord);
+        break;
+      }
+
+    }
+   
 		setTimeout(() =>{
 
           currentGame.timerInterval = setInterval(() => {
           currentGame.timeLeft -= 1;
-          this.server.to(`channel_${channelId}`).emit('timer_update',currentGame.timeLeft);
+          this.server.to(channelId.toString()).emit('timer_update',currentGame.timeLeft);
           if(currentGame.timeLeft <= 0){
 
             clearInterval(currentGame.timerInterval);
-            this.server.to(`channel_${channelId}`).emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${currentGame.secretWord}`);
-            this.server.to(`channel_${channelId}`).emit('classement',currentGame.scores);
+            this.server.to(channelId.toString()).emit('secret_word',`End of time the word was ${currentGame.secretWord}`);
+            this.server.to(channelId.toString()).emit('classement',currentGame.scores);
             setTimeout(() =>{
               this.handleNextTurn(channelId);
             },5000);
@@ -284,6 +307,7 @@ export class GameService {
     
     }
 
+    //enregistre en temps reel le dessin et le diffuse au channel 
     handleDraw(userId: number, channelId: number, drawData: any) {
 
       const currentGame = this.activeGames.get(channelId);
@@ -291,13 +315,14 @@ export class GameService {
           return;
       if(userId === currentGame.currentDrawerId){
 
-
         currentGame.historicDraw.push(drawData);
-        this.server.to(`channel_${channelId}`).emit('draw', {drawerId: currentGame.currentDrawerId , data: drawData } );
+        this.server.to(channelId.toString()).emit('draw', {drawerId: currentGame.currentDrawerId , data: drawData } );
       }
     }
 
 
+
+//historiaue au cas ou actualisation
     sendHistory(clientId: string, channelId: number) {
 
       const currentGame = this.activeGames.get(channelId);
@@ -308,6 +333,8 @@ export class GameService {
       }
 
 
+
+      // gere les departs netoie la ram annule la partie etc
     async handleDisconnection(userId: number): Promise <number | null> {
 
       for (const[channelID, currentGame] of this.activeGames.entries()) {
@@ -341,27 +368,4 @@ export class GameService {
         return null;
       }
   }
-
-
-
-
-
-
-  //     // recuperation du dessin push dans tab si le dessinateur dessine
-  //     if(client.id === this.currentDrawer){
-  //         this.server.to(this.roomId).emit('draw', drawData);
-  //         this.historicDraw.push(drawData);
-  //         console.log(this.historicDraw.length);
-  //     }
-
-
-  //     for (let i = 0; i < this.playerList.length ; i++) {
-
-  //       const idPlayer = this.playerList[i].dbId;
-  //       this.playerPoints[idPlayer] = 0;
-            
-  //     }
-  //     this.roomId = data.roomId;
-  //     console.log('Game started in room ', this.roomId);
-  //     console.log('la manche numero 1 va demaree');
 
