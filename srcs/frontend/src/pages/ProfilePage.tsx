@@ -84,22 +84,22 @@ export function ProfileContent({ userId }: { userId?: number }) {
         const data = await res.json();
         if (res.ok) {  //res.ok veut dire que le code http est compris entre 200 et 299 donc que tout s'est bien passe
             setMe(data); 
-            setMsg('Profil mis a jour'); 
+            setMsg('Profile updated'); 
         }
-        else setMsg(data.message ?? 'Erreur'); //dans le json de la requete retour message contient le code http et le message d'erreur lance par mes exceptions 
+        else setMsg(data.message ?? 'Error'); //dans le json de la requete retour message contient le code http et le message d'erreur lance par mes exceptions 
     }
 
     async function addFriend(userId: number) {
         const res = await fetch(`/api/chat/friends/${userId}`, { method: 'POST', headers: authHeaders() });
         const data = await res.json();
-        setMsg(res.ok ? 'Invitation sent' : (data.message ?? 'Erreur'));
+        setMsg(res.ok ? 'Invitation sent' : (data.message ?? 'Error'));
         if (res.ok) 
             loadAll();
     }
 
     async function acceptFriend(friendshipId: number) {
         const res = await fetch(`/api/chat/friends/${friendshipId}/accept`, { method: 'PATCH', headers: authHeaders() });
-        setMsg(res.ok ? 'Friend accepted' : 'Erreur');
+        setMsg(res.ok ? 'Friend accepted' : 'Error');
         if (res.ok) 
             loadAll();
     }
@@ -116,7 +116,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
     }
 
     if (!me)
-        return <p>Chargement...</p>;
+        return <p>Loading...</p>;
 
     const isMe = userId == null || userId === me.id;
     const targetUser = isMe ? me : allUsers.find(u => u.id === userId);
@@ -153,7 +153,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
 
                     <div className="bg-black rounded-xl border border-gray-800 p-4 mb-4 flex flex-col gap-3">
                         <label className="text-gray-400 text-xs">
-                            Pseudo
+                            Username
                             <input
                                 value={username}
                                 onChange={e => setUsername(e.target.value)}
@@ -172,46 +172,46 @@ export function ProfileContent({ userId }: { userId?: number }) {
                             onClick={saveProfile}
                             className="self-start px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors"
                         >
-                            Sauvegarder
+                            Save
                         </button>
                     </div>
 
-                    <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Demandes reçues ({pending.length})</h3>
+                    <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Friend request ({pending.length})</h3>
                     <div className="flex flex-col gap-2 mb-4">
-                        {pending.length === 0 && <p className="text-gray-600 text-sm">Aucune</p>}
+                        {pending.length === 0 && <p className="text-gray-600 text-sm">None</p>}
                         {pending.map(f => (
                             <div key={f.id} className="flex items-center gap-3 bg-black rounded-lg border border-gray-800 px-3 py-2">
                                 <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: f.requester.profileColor }} />
                                 <span className="text-sm flex-1 truncate">{f.requester.username}</span>
-                                <button onClick={() => acceptFriend(f.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors">Accepter</button>
-                                <button onClick={() => removeFriend(f.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors">Refuser</button>
+                                <button onClick={() => acceptFriend(f.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors">Accept</button>
+                                <button onClick={() => removeFriend(f.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors">Decline</button>
                             </div>
                         ))}
                     </div>
 
-                    <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Amis ({friends.length})</h3>
+                    <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Friends ({friends.length})</h3>
                     <div className="flex flex-col gap-2 mb-4">
-                        {friends.length === 0 && <p className="text-gray-600 text-sm">Aucun</p>}
+                        {friends.length === 0 && <p className="text-gray-600 text-sm">None</p>}
                         {friends.map(f => {
                             const friend = friendOf(f);
                             return (
                                 <div key={f.id} className="flex items-center gap-3 bg-black rounded-lg border border-gray-800 px-3 py-2">
                                     <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: friend.profileColor }} />
                                     <span className="text-sm flex-1 truncate">{friend.username}</span>
-                                    <button onClick={() => removeFriend(f.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors">Retirer</button>
+                                    <button onClick={() => removeFriend(f.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors">Remove</button>
                                 </div>
                             );
                         })}
                     </div>
 
-                    <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Ajouter un ami ({strangers.length})</h3>
+                    <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Add a friend ({strangers.length})</h3>
                     <div className="flex flex-col gap-2">
-                        {strangers.length === 0 && <p className="text-gray-600 text-sm">Aucun joueur disponible</p>}
+                        {strangers.length === 0 && <p className="text-gray-600 text-sm">No players availabled</p>}
                         {strangers.map(u => (
                             <div key={u.id} className="flex items-center gap-3 bg-black rounded-lg border border-gray-800 px-3 py-2">
                                 <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: u.profileColor }} />
                                 <span className="text-sm flex-1 truncate">{u.username}</span>
-                                <button onClick={() => addFriend(u.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors">+ Ajouter</button>
+                                <button onClick={() => addFriend(u.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors">+ Add</button>
                             </div>
                         ))}
                     </div>
@@ -229,13 +229,13 @@ export function ProfileContent({ userId }: { userId?: number }) {
                             onClick={() => removeFriend(myFriendship.id)}
                             className="px-6 py-2 rounded-lg text-sm font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors"
                         >
-                            Retirer des amis
+                            Unfriend
                         </button>
                     )}
                     {!myFriendship && incomingRequest && (
                         <div className="flex gap-2">
-                            <button onClick={() => acceptFriend(incomingRequest.id)} className="px-6 py-2 rounded-lg text-sm font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors">Accepter</button>
-                            <button onClick={() => removeFriend(incomingRequest.id)} className="px-6 py-2 rounded-lg text-sm font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors">Refuser</button>
+                            <button onClick={() => acceptFriend(incomingRequest.id)} className="px-6 py-2 rounded-lg text-sm font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors">Accept</button>
+                            <button onClick={() => removeFriend(incomingRequest.id)} className="px-6 py-2 rounded-lg text-sm font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors">Decline</button>
                         </div>
                     )}
                     {!myFriendship && !incomingRequest && (
@@ -243,7 +243,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                             onClick={() => addFriend(targetUser!.id)}
                             className="px-6 py-2 rounded-lg text-sm font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors"
                         >
-                            + Ajouter en ami
+                            + Add friend
                         </button>
                     )}
                 </div>
@@ -257,7 +257,7 @@ export default function ProfilePage() {
     return (
         <div style={{ padding: 20, fontFamily: 'monospace' }}>
             <button onClick={() => navigate('/dashboard')}>← Dashboard</button>
-            <h1>Profil</h1>
+            <h1>Profile</h1>
             <ProfileContent />
         </div>
     );
