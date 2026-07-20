@@ -35,7 +35,7 @@ function authHeaders() {
     return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }; //vu qu'on envoie une requette avec un body faut mettre dans le header que c'est un json
 }
 
-export default function ProfilePage() {
+export function ProfileContent({ userId }: { userId?: number }) {
     const [me, setMe]             = useState<Me | null>(null);
     const [allUsers, setAllUsers] = useState<PublicUser[]>([]);
     const [friends, setFriends]   = useState<Friendship[]>([]);
@@ -115,6 +115,18 @@ export default function ProfilePage() {
         return f.requester;
     }
 
+    if (!me)
+        return <p>Chargement...</p>;
+
+    const isMe = userId == null || userId === me.id;
+    const targetUser = isMe ? me : allUsers.find(u => u.id === userId);
+
+    if (!isMe && !targetUser) 
+        return <p>User not found</p>;
+
+    const myFriendship = !isMe ? friends.find(f => friendOf(f).id === targetUser!.id) : undefined;
+    const incomingRequest = !isMe ? pending.find(f => f.requester.id === targetUser!.id) : undefined;
+
     const acceptedIds = friends.map(f => friendOf(f).id); //on choppe ici un tableau d'ID de frienduser deja amis
     const pendingIds  = pending.map(f => f.requester.id); //idem avec les demandes en cours
     const friendIds   = new Set([...acceptedIds, ...pendingIds]); //on fusionne les deux tableaux d'ID dans un set
@@ -122,48 +134,131 @@ export default function ProfilePage() {
     const strangers = allUsers.filter(u => u.id !== me?.id && !friendIds.has(u.id)); //dans strangers on exclus de AllUsers nous meme nos amis et les demandes en cours
 
     return (
+        <div className="text-white">
+            {msg && (
+                <div className="mb-4 bg-emerald-950 border border-emerald-800 text-emerald-300 text-sm px-4 py-2 rounded-lg">
+                    {msg}
+                </div>
+            )}
+
+            {isMe ? (
+                <>
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="w-10 h-10 rounded-lg shrink-0" style={{ backgroundColor: me.profileColor }} />
+                        <div>
+                            <h2 className="text-lg font-bold">{me.username}</h2>
+                            <p className="text-gray-500 text-xs">ID #{me.id}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-black rounded-xl border border-gray-800 p-4 mb-4 flex flex-col gap-3">
+                        <label className="text-gray-400 text-xs">
+                            Pseudo
+                            <input
+                                value={username}
+                                onChange={e => setUsername(e.target.value)}
+                                className="mt-1 w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm"
+                            />
+                        </label>
+                        <label className="text-gray-400 text-xs">
+                            Email
+                            <input
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                className="mt-1 w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm"
+                            />
+                        </label>
+                        <button
+                            onClick={saveProfile}
+                            className="self-start px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors"
+                        >
+                            Sauvegarder
+                        </button>
+                    </div>
+
+                    <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Demandes reçues ({pending.length})</h3>
+                    <div className="flex flex-col gap-2 mb-4">
+                        {pending.length === 0 && <p className="text-gray-600 text-sm">Aucune</p>}
+                        {pending.map(f => (
+                            <div key={f.id} className="flex items-center gap-3 bg-black rounded-lg border border-gray-800 px-3 py-2">
+                                <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: f.requester.profileColor }} />
+                                <span className="text-sm flex-1 truncate">{f.requester.username}</span>
+                                <button onClick={() => acceptFriend(f.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors">Accepter</button>
+                                <button onClick={() => removeFriend(f.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors">Refuser</button>
+                            </div>
+                        ))}
+                    </div>
+
+                    <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Amis ({friends.length})</h3>
+                    <div className="flex flex-col gap-2 mb-4">
+                        {friends.length === 0 && <p className="text-gray-600 text-sm">Aucun</p>}
+                        {friends.map(f => {
+                            const friend = friendOf(f);
+                            return (
+                                <div key={f.id} className="flex items-center gap-3 bg-black rounded-lg border border-gray-800 px-3 py-2">
+                                    <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: friend.profileColor }} />
+                                    <span className="text-sm flex-1 truncate">{friend.username}</span>
+                                    <button onClick={() => removeFriend(f.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors">Retirer</button>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Ajouter un ami ({strangers.length})</h3>
+                    <div className="flex flex-col gap-2">
+                        {strangers.length === 0 && <p className="text-gray-600 text-sm">Aucun joueur disponible</p>}
+                        {strangers.map(u => (
+                            <div key={u.id} className="flex items-center gap-3 bg-black rounded-lg border border-gray-800 px-3 py-2">
+                                <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: u.profileColor }} />
+                                <span className="text-sm flex-1 truncate">{u.username}</span>
+                                <button onClick={() => addFriend(u.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors">+ Ajouter</button>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            ) : (
+                <div className="flex flex-col items-center text-center gap-4 py-4">
+                    <div
+                        className="w-20 h-20 rounded-2xl border-4"
+                        style={{ backgroundColor: targetUser!.profileColor, borderColor: targetUser!.profileColor + '55' }}
+                    />
+                    <h2 className="text-xl font-bold">{targetUser!.username}</h2>
+
+                    {myFriendship && (
+                        <button
+                            onClick={() => removeFriend(myFriendship.id)}
+                            className="px-6 py-2 rounded-lg text-sm font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors"
+                        >
+                            Retirer des amis
+                        </button>
+                    )}
+                    {!myFriendship && incomingRequest && (
+                        <div className="flex gap-2">
+                            <button onClick={() => acceptFriend(incomingRequest.id)} className="px-6 py-2 rounded-lg text-sm font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors">Accepter</button>
+                            <button onClick={() => removeFriend(incomingRequest.id)} className="px-6 py-2 rounded-lg text-sm font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors">Refuser</button>
+                        </div>
+                    )}
+                    {!myFriendship && !incomingRequest && (
+                        <button
+                            onClick={() => addFriend(targetUser!.id)}
+                            className="px-6 py-2 rounded-lg text-sm font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors"
+                        >
+                            + Ajouter en ami
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default function ProfilePage() {
+    const navigate = useNavigate();
+    return (
         <div style={{ padding: 20, fontFamily: 'monospace' }}>
             <button onClick={() => navigate('/dashboard')}>← Dashboard</button>
             <h1>Profil</h1>
-
-            {msg && <p><b>{msg}</b></p>}
-
-            <h2>Mon compte</h2>
-            <p>ID : {me?.id} | Couleur : {me?.profileColor}</p>
-            <label>Pseudo : <input value={username} onChange={e => setUsername(e.target.value)} /></label><br />
-            <label>Email  : <input value={email}    onChange={e => setEmail(e.target.value)} /></label><br />
-            <button onClick={saveProfile}>Sauvegarder</button>
-
-            <h2>Demandes reçues ({pending.length})</h2>
-            {pending.length === 0 && <p>Aucune</p>}
-            {pending.map(f => (
-                <p key={f.id}>
-                    {f.requester.username}
-                    {' '}<button onClick={() => acceptFriend(f.id)}>Accepter</button>
-                    {' '}<button onClick={() => removeFriend(f.id)}>Refuser</button>
-                </p>
-            ))}
-
-            <h2>Amis ({friends.length})</h2>
-            {friends.length === 0 && <p>Aucun</p>}
-            {friends.map(f => {
-                const friend = friendOf(f);
-                return (
-                    <p key={f.id}>
-                        {friend.username}
-                        {' '}<button onClick={() => removeFriend(f.id)}>Retirer</button>
-                    </p>
-                );
-            })}
-
-            <h2>Ajouter un ami ({strangers.length} joueurs)</h2>
-            {strangers.length === 0 && <p>Aucun joueur disponible</p>}
-            {strangers.map(u => (
-                <p key={u.id}>
-                    {u.username}
-                    {' '}<button onClick={() => addFriend(u.id)}>+ Ajouter</button>
-                </p>
-            ))}
+            <ProfileContent />
         </div>
     );
 }
