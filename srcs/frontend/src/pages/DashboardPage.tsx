@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
+import { ProfileContent } from './ProfilePage';
 
 type Message = {
     id: number;
@@ -16,7 +17,6 @@ type UserProfile = {
     profileColor: string;
 };
 
-
 export default function DashboardPage() {
     const [users, setUsers]         = useState<UserProfile[]>([]);
     const [messages, setMessages]   = useState<Message[]>([]);
@@ -29,6 +29,7 @@ export default function DashboardPage() {
     const bottomRef                 = useRef<HTMLDivElement>(null);
     const typingTimer               = useRef<ReturnType<typeof setTimeout> | null>(null);
     const navigate                  = useNavigate();
+    const [openProfileId, setOpenProfileId] = useState<number | null>(null);
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -260,7 +261,11 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
                     {users.map(user => (
-                        <div key={user.id} className="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer">
+                        <div
+                            key={user.id} 
+                            onClick={() => setOpenProfileId(user.id)}
+                            className="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+                        >
                             <div className="w-4 h-4 rounded-sm shrink-0" style={{ backgroundColor: user.profileColor }} />
                             <span className="text-gray-300 text-sm truncate">{user.username}</span>
                         </div>
@@ -340,6 +345,27 @@ export default function DashboardPage() {
                     </button>
                 </div>
             </div>
+        {openProfileId !== null && (
+                <div
+                    className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center"
+                    onClick={() => setOpenProfileId(null)}
+                >
+                    <div
+                        className="bg-gray-900 rounded-xl border border-gray-800 max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto relative"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <button
+                            onClick={() => setOpenProfileId(null)}
+                            className="absolute top-3 right-3 text-gray-400 hover:text-white text-lg"
+                        >
+                            ✕
+                        </button>
+                        <div className="p-6">
+                            <ProfileContent userId={openProfileId} key={openProfileId} />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
