@@ -4,12 +4,14 @@ import GameChat from './GameChat';
 import { useNavigate } from 'react-router-dom';
 
 export default function GamePage() {
+
   const [tempsRestant, setTempsRestant] = useState(60);
   const [socket, setSocket] = useState<any>(null);
   const [drawerInfo, setDrawerInfo] = useState<any>(null);
-  
   const [listeJoueurs, setListeJoueurs] = useState<any[]>([]);
   const [wordHint, setWordHint] = useState<any>(null);
+  const [secretWord, setSecretWord] = useState<any>(null);
+  const [roundEndMsg, setRoundEndMsg] = useState<string | null>(null);
 
   const queryParam = new URLSearchParams(window.location.search);
   const reelChannelId = Number(queryParam.get('channelId')) || 1;
@@ -54,10 +56,24 @@ export default function GamePage() {
 
     socketInstance.on('round_start', (data) => {
       setDrawerInfo(data);
+      setSecretWord(null);
+
     });
 
     socketInstance.on('word_hint', (data) => {
       setWordHint(data);
+    });
+
+    socketInstance.on('secret_word', (data) => {
+      setSecretWord(data);
+    });
+
+    socketInstance.on('round_end', (data) => {
+      setRoundEndMsg(data);
+      setSecretWord(null);
+         setTimeout(() =>{
+                setRoundEndMsg(null);
+            },5000);
     });
 
     socketInstance.on('error', (err: any) => {
@@ -73,9 +89,10 @@ export default function GamePage() {
       socketInstance.off('word_hint');
       socketInstance.off('error');
       socketInstance.off('exception');
+      socketInstance.off('secret_word');
+      socketInstance.off('round_end');
       socketInstance.removeAllListeners();
       socketInstance.disconnect();
-      
     };
   }, []);
 
@@ -84,6 +101,54 @@ export default function GamePage() {
       console.log(` Demande de démarrage du jeu pour le salon officiel #${reelChannelId}...`);
       socket.emit('start_game', { channelId: reelChannelId });
     }
+  };
+
+  const wordDisplay = () => {
+
+    if (roundEndMsg){
+
+      return (
+        <div className="bg-amber-100 border border-amber-400 px-4 py-2 rounded-lg animate-bounce">
+          <p className="text-xs font-bold uppercase tracking-widest text-amber-700">
+            ⏳ Fin du tour !
+          </p>
+          <p className="text-lg font-bold text-amber-900">
+            {roundEndMsg}
+          </p>
+        </div>
+      );
+    }
+    if(secretWord) {
+
+      return (
+        <div className="animate-pulse">
+          <p className="text-xs font-bold uppercase tracking-widest text-emerald-500">
+            🎨 À TOI DE DESSINER !
+          </p>
+          <p className="text-3xl font-mono tracking-[0.2em] font-black text-emerald-600 uppercase">
+            {secretWord}
+          </p>
+        </div>
+      );
+    }
+    if(wordHint) {
+
+      return (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+            Mot à deviner
+          </p>
+          <p className="text-3xl font-mono tracking-[0.4em] font-black text-indigo-600">
+            {wordHint.hint}
+          </p>
+        </div>
+      );
+    }
+    return (
+      <p className="text-sm font-medium text-slate-400 italic">
+        En attente du début de manche...
+      </p>
+    );
   };
 
   return (
@@ -111,17 +176,8 @@ export default function GamePage() {
 
         {/* 👉 SECTION CENTRALE : Le Mot Secret / Indice */}
         <div className="text-center flex-1">
-          {wordHint ? (
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Mot à deviner</p>
-              <p className="text-3xl font-mono tracking-[0.4em] font-black text-indigo-600">{wordHint.hint}</p>
-            </div>
-          ) : (
-            <p className="text-sm font-medium text-slate-400 italic">En attente du début de manche...</p>
-          )}
+          {wordDisplay()}
         </div>
-
-        {/* 👉 SECTION DROITE : Le Bouton Start */}
         <button
           onClick={handleStartGame}
           className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold px-6 py-2.5 rounded-lg shadow transition-all whitespace-nowrap"
@@ -166,9 +222,9 @@ export default function GamePage() {
           {/* Annonce au début de la manche (Overlay) */}
           {drawerInfo && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium z-10 animate-bounce">
-              🎨 {drawerInfo.message}
+              🎨 It's <span className="font-bold underline">{drawerInfo.drawerName}</span> turn to draw !
             </div>
-          )}
+            )}
 
           {/* C'est ICI qu'on placera ton composant <Canvas /> plus tard ! */}
           <div className="w-full h-full border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center bg-slate-50 text-slate-400">

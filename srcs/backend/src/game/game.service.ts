@@ -1,10 +1,11 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, OnModuleInit} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Server } from 'socket.io';
 import { ChatService } from '../chat/chat.service';
 import { UserService } from "../user/user.service";
 import { Word } from './word.entity';
+import { word as wordTab} from './word.seed';
 import { Match } from './match.entity';
 import { gameSocketUserMap } from './game.gateway';
 import { CurrentUser } from '../chat/decorators/current-user.decorator';
@@ -32,7 +33,7 @@ export interface GameSession {
 
 
 @Injectable()
-export class GameService {
+export class GameService implements OnModuleInit {
 
   public server!: Server; 
 	private activeGames = new Map<number, GameSession> ();
@@ -48,6 +49,18 @@ export class GameService {
       private readonly chatService: ChatService) {}
 
 
+  async onModuleInit() {
+
+    const count = await this.wordRepo.count();
+    if (count === 0){
+
+      for (const word of wordTab) {
+
+          const newWord = this.wordRepo.create({content: word});
+          await this.wordRepo.save(newWord);
+      }
+    }
+  }
 
    async createGameSession(channelId: number, creatorId: number): Promise<GameSession> {
 
@@ -166,8 +179,8 @@ export class GameService {
 
 		//this.activeGames.set(channelId, newGame);
     const playerList = await this.getUserName(channelId);
-  const drawerProfile = playerList.find((p) => p.id === drawerId) || { username: `Joueur #${drawerId}` };
-		this.server.to(channelId.toString()).emit('round_start', {message : `Game started! It's  ${drawerProfile.username} turn to draw`, 
+    const drawerProfile = playerList.find((p) => p.id === drawerId) || { username: `Joueur #${drawerId}` };
+		this.server.to(channelId.toString()).emit('round_start', {drawerName: drawerProfile.username, 
 			drawerId: drawerId });
 
 		const hintLetter = "-".repeat(secretWord.length);
@@ -190,7 +203,7 @@ export class GameService {
           if(session.timeLeft <= 0){
 
             clearInterval(session.timerInterval);
-            this.server.to(channelId.toString()).emit('secret_word',`Fin du temps reglementaire le mot a deviner etait ${session.secretWord}`);
+            this.server.to(channelId.toString()).emit('round_end',`Fin du temps reglementaire le mot a deviner etait ${session.secretWord}`);
             this.server.to(channelId.toString()).emit('classement',session.scores);
             setTimeout(() =>{
               this.handleNextTurn(channelId);
@@ -274,7 +287,9 @@ export class GameService {
 		currentGame.useWords.push(currentGame.secretWord);
     currentGame.guessedUsers =[];
     currentGame.timeLeft = 60;
-    this.server.to(channelId.toString()).emit('start_game', {drawerId: currentGame.currentDrawerId });
+    const user = await this.userService.findById(currentGame.currentDrawerId);
+    const pseudo = user ? user.username : `Player #${currentGame.currentDrawerId}`;
+    this.server.to(channelId.toString()).emit('round_start', {drawerName: pseudo, drawerId: currentGame.currentDrawerId });
 
 		const hintLetter = "-".repeat(currentGame.secretWord.length);
 		this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
@@ -285,18 +300,15 @@ export class GameService {
         this.server.to(socketId).emit('secret_word', currentGame.secretWord);
         break;
       }
-
     }
-   
 		setTimeout(() =>{
-
           currentGame.timerInterval = setInterval(() => {
           currentGame.timeLeft -= 1;
           this.server.to(channelId.toString()).emit('timer_update',currentGame.timeLeft);
           if(currentGame.timeLeft <= 0){
 
             clearInterval(currentGame.timerInterval);
-            this.server.to(channelId.toString()).emit('secret_word',`End of time the word was ${currentGame.secretWord}`);
+            this.server.to(channelId.toString()).emit('round_end',`End of time the word was ${currentGame.secretWord}`);
             this.server.to(channelId.toString()).emit('classement',currentGame.scores);
             setTimeout(() =>{
               this.handleNextTurn(channelId);
@@ -304,7 +316,6 @@ export class GameService {
           }
         },1000);
       },10000);
-    
     }
 
     //enregistre en temps reel le dessin et le diffuse au channel 
