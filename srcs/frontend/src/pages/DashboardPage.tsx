@@ -296,31 +296,27 @@ export default function DashboardPage() {
                             active:before:[transform:translate3d(0,0,-1em)]">
                         Join public room
                     </button>
-                    <button
-<<<<<<< HEAD
-                        onClick={() => navigate('/game')}
-                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-emerald-900 text-xl font-semibold
-                            border-2 border-emerald-400 bg-emerald-100
-=======
-                        onClick={() => { const randomRoomId = Math.floor(Math.random() * 9000) + 1000;
-                            navigate(`/game?channelId=${randomRoomId}&action=create`);}
-                        } 
-                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-white text-xl font-semibold
-                            border-2 border-emerald-500 bg-emerald-950
->>>>>>> main
-                            transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:bg-emerald-200 hover:[transform:translate(0,0.25em)]
-                            active:bg-emerald-200 active:[transform:translate(0,0.75em)]
-                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-emerald-200
-                            before:shadow-[0_0_0_2px_#34d399,0_0.625em_0_0_#d1fae5]
-                            before:[transform:translate3d(0,0.75em,-1em)]
-                            before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:before:shadow-[0_0_0_2px_#34d399,0_0.5em_0_0_#d1fae5]
-                            hover:before:[transform:translate3d(0,0.5em,-1em)]
-                            active:before:shadow-[0_0_0_2px_#34d399,0_0_#d1fae5]
-                            active:before:[transform:translate3d(0,0,-1em)]">
-                        Create new public room
-                    </button>
+                        <button
+                            onClick={() => {
+                                const randomRoomId = Math.floor(Math.random() * 9000) + 1000;
+                                navigate(`/game?channelId=${randomRoomId}&action=create`);
+                            }}
+                            className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-emerald-900 text-xl font-semibold
+                                border-2 border-emerald-400 bg-emerald-100
+                                transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                                hover:bg-emerald-200 hover:[transform:translate(0,0.25em)]
+                                active:bg-emerald-200 active:[transform:translate(0,0.75em)]
+                                before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-emerald-200
+                                before:shadow-[0_0_0_2px_#34d399,0_0.625em_0_0_#d1fae5]
+                                before:[transform:translate3d(0,0.75em,-1em)]
+                                before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                                hover:before:shadow-[0_0_0_2px_#34d399,0_0.5em_0_0_#d1fae5]
+                                hover:before:[transform:translate3d(0,0.5em,-1em)]
+                                active:before:shadow-[0_0_0_2px_#34d399,0_0_#d1fae5]
+                                active:before:[transform:translate3d(0,0,-1em)]">
+                            Create new public room
+                        </button>
+
                     <button
                         onClick={() => navigate('/game')}
                         className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-violet-900 text-xl font-semibold
