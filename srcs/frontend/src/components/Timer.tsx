@@ -1,120 +1,52 @@
-
-// import { useState, useEffect } from 'react';
-// import { io } from 'socket.io-client';
-
-
-
-// export default function Timer() {
-//   const [tempsRestant, setTempsRestant] = useState(60);
-//   // 1. On crée un state pour stocker le socket et l'avoir dispo partout
-//   const [socket, setSocket] = useState<any>(null);
-
-    
-// useEffect(() => {
-//     const token = localStorage.getItem('token'); 
-//     console.log("Tentative de connexion en cours...");
-
-//     const socketInstance = io('http://localhost:3000', {
-//       path: '/api/socket.io',
-//       transports: ['websocket'],
-//       auth: { token: token }
-//     });
-
-//     setSocket(socketInstance);
-
-//     // 📡 LES 3 RADARS DE DIAGNOSTIC
-//     socketInstance.on('connect', () => {
-//       console.log("🟢 CONNECTÉ AU BACKEND ! ID:", socketInstance.id);
-//       // On rejoint la room QUE quand on est sûr d'être connecté
-//       socketInstance.emit('join_room', { roomId: 'Room-Test', dbId: 999 });
-//     });
-
-//     socketInstance.on('connect_error', (err) => {
-//       console.error("🔴 ERREUR DE CONNEXION :", err.message);
-//     });
-
-//     socketInstance.on('disconnect', (reason) => {
-//       console.warn("⚠️ DÉCONNECTÉ DU BACKEND. Raison :", reason);
-//     });
-
-//     socketInstance.on('timer_update', (nouveauTemps) => {
-//       setTempsRestant(nouveauTemps);
-//     });
-
-//     return () => {
-//       socketInstance.off('connect');
-//       socketInstance.off('connect_error');
-//       socketInstance.off('disconnect');
-//       socketInstance.off('timer_update');
-//       socketInstance.disconnect();
-//     };
-    
-
-//   }, []); // S'exécute une seule fois
-
-//   const handleStartGame = () => {
-
-//     if(socket) {
-//       socket.emit('start_game', {roomId: 'Room-Test'});
-//     }
-//   };
-
-//   return (
-//     <> 
-//       <div 
-//         className={`absolute top-5 left-1/2 -translate-x-1/2 text-5xl font-bold bg-gray-100 px-8 py-3 rounded-2xl border-[3px] border-gray-300 ${tempsRestant <= 10 ? 'text-red-600' : 'text-black'}`}
-//       >
-//         ⏱️ {tempsRestant}
-//       </div>
-
-//       <div className="mt-36 text-center">
-//         <button
-//           onClick={handleStartGame}
-//           className="bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-4 px-10 rounded-lg shadow-md transition-colors duration-200"
-//         >
-//           Start Game
-//         </button>
-//         onClick={handleJoinRoom}
-//         className="bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-4 px-10 rounded-lg shadow-md transition-colors duration-200"
-        
-//       </div>
-//     </>
-//   );
-// }
-
-
 import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
+import GameChat from './GameChat';
+import { useNavigate } from 'react-router-dom';
 
 export default function GamePage() {
+
   const [tempsRestant, setTempsRestant] = useState(60);
   const [socket, setSocket] = useState<any>(null);
-  
-  // 🚨 NOUVEAU STATE : Pour stocker et afficher la liste des joueurs !
+  const [drawerInfo, setDrawerInfo] = useState<any>(null);
   const [listeJoueurs, setListeJoueurs] = useState<any[]>([]);
+  const [wordHint, setWordHint] = useState<any>(null);
+  const [secretWord, setSecretWord] = useState<any>(null);
+  const [roundEndMsg, setRoundEndMsg] = useState<string | null>(null);
+
+  const queryParam = new URLSearchParams(window.location.search);
+  const reelChannelId = Number(queryParam.get('channelId')) || 1;
+  const navigate                  = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem('token'); 
-    const monIdUnique = Math.floor(Math.random() * 1000); // Faux ID pour nos tests
+    const token = sessionStorage.getItem('token');
+    if(!token){
+      navigate('/login');
+      return;
+    }
 
-    // Connexion
-    const socketInstance = io('http://localhost:3000', {
-      path: '/api/socket.io',
-      transports: ['websocket'],
-      auth: { token: token }
+    const socketInstance = io(`${window.location.origin}/game`, {
+      auth: { token: token }, transports: ['websocket']
     });
 
     setSocket(socketInstance);
 
     socketInstance.on('connect', () => {
-      console.log("🟢 Connecté au GameGateway !");
+      console.log("Connecté au GameGateway !");
+
+      const action = queryParam.get('action');
+      if (action === 'create') {
+        console.log(`Ordre reçu : Création de la room #${reelChannelId}...`);
+        socketInstance.emit('create_room', { channelId: reelChannelId });
+      } else {
+        console.log(` Ordre reçu : Rejoindre la room #${reelChannelId}...`);
+        socketInstance.emit('join_room', { channelId: reelChannelId });
+      }
       
-      // 🚀 ACTION AUTOMATIQUE : Dès qu'on est connecté, on rejoint la room TOUT SEUL !
-      socketInstance.emit('join_room', { roomId: 'Room-Test', dbId: monIdUnique });
     });
 
-    // 📡 ÉCOUTEUR : Dès que le serveur dit que la liste a changé, on met à jour notre écran
     socketInstance.on('update_players', (listeVenantDuBack) => {
+
+      console.log(" Liste des joueurs reçue du serveur :", listeVenantDuBack);
       setListeJoueurs(listeVenantDuBack);
     });
 
@@ -122,51 +54,202 @@ export default function GamePage() {
       setTempsRestant(nouveauTemps);
     });
 
+    socketInstance.on('round_start', (data) => {
+      setDrawerInfo(data);
+      setSecretWord(null);
+
+    });
+
+    socketInstance.on('word_hint', (data) => {
+      setWordHint(data);
+    });
+
+    socketInstance.on('secret_word', (data) => {
+      setSecretWord(data);
+    });
+
+    socketInstance.on('round_end', (data) => {
+      setRoundEndMsg(data);
+      setSecretWord(null);
+         setTimeout(() =>{
+                setRoundEndMsg(null);
+            },5000);
+    });
+
+    socketInstance.on('error', (err: any) => {
+      console.error("LE SERVEUR REJETTE L'ACTION :", err);
+      alert("Erreur renvoyée par le serveur : " + (err.message || JSON.stringify(err)));
+    });
+
     return () => {
       socketInstance.off('connect');
       socketInstance.off('update_players');
       socketInstance.off('timer_update');
+      socketInstance.off('round_start');
+      socketInstance.off('word_hint');
+      socketInstance.off('error');
+      socketInstance.off('exception');
+      socketInstance.off('secret_word');
+      socketInstance.off('round_end');
+      socketInstance.removeAllListeners();
       socketInstance.disconnect();
     };
   }, []);
 
   const handleStartGame = () => {
     if (socket) {
-      socket.emit('start_game', { roomId: 'Room-Test' });
+      console.log(` Demande de démarrage du jeu pour le salon officiel #${reelChannelId}...`);
+      socket.emit('start_game', { channelId: reelChannelId });
     }
   };
-  
+
+  const wordDisplay = () => {
+
+    if (roundEndMsg){
+
+      return (
+        <div className="bg-amber-100 border border-amber-400 px-4 py-2 rounded-lg animate-bounce">
+          <p className="text-xs font-bold uppercase tracking-widest text-amber-700">
+            ⏳ Fin du tour !
+          </p>
+          <p className="text-lg font-bold text-amber-900">
+            {roundEndMsg}
+          </p>
+        </div>
+      );
+    }
+    if(secretWord) {
+
+      return (
+        <div className="animate-pulse">
+          <p className="text-xs font-bold uppercase tracking-widest text-emerald-500">
+            🎨 À TOI DE DESSINER !
+          </p>
+          <p className="text-3xl font-mono tracking-[0.2em] font-black text-emerald-600 uppercase">
+            {secretWord}
+          </p>
+        </div>
+      );
+    }
+    if(wordHint) {
+
+      return (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+            Mot à deviner
+          </p>
+          <p className="text-3xl font-mono tracking-[0.4em] font-black text-indigo-600">
+            {wordHint.hint}
+          </p>
+        </div>
+      );
+    }
+    return (
+      <p className="text-sm font-medium text-slate-400 italic">
+        En attente du début de manche...
+      </p>
+    );
+  };
+
   return (
-    <div> 
-      
-      {/* 1. Le Timer */}
-      <div className={`absolute top-5 left-1/2 -translate-x-1/2 text-5xl font-bold bg-white px-8 py-3 rounded-2xl border-[3px] border-gray-300 ${tempsRestant <= 10 ? 'text-red-600' : 'text-black'}`}>
-        ⏱️ {tempsRestant}
-      </div>
+    // 1. CONTENEUR PRINCIPAL : Prend tout l'écran avec un fond gris doux
+    <div className="min-h-screen bg-slate-100 p-4 flex flex-col gap-4 font-sans text-slate-800">
 
-      {/* 2. LE TABLEAU DES JOUEURS (S'affiche tout seul !) */}
-      <div className="absolute left-2 top-50 bg-white p-6 rounded-xl shadow-lg border border-gray-200 w-64">
-        <h3 className="text-xl font-bold text-slate-800 mb-4 border-b pb-2">👥 Joueurs Connectés</h3>
-        <ul className="space-y-2">
-          {listeJoueurs.map((joueur, index) => (
-            <li key={index} className="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-200">
-              <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-              <span className="font-semibold text-slate-700">Joueur #{joueur.dbId}</span>
-              {/* Optionnel : afficher si c'est le dessinateur actuel */}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* 2. BARRE SUPÉRIEURE : Logo, Timer, Mot Secret et Bouton */}
+      <header className="bg-white px-6 py-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
+        
+        {/* 👉 SECTION GAUCHE : Le Logo ET le Timer bien alignés côte à côte */}
+        <div className="flex items-center gap-6">
+          <h1 className="text-2xl font-black tracking-wider text-indigo-600 flex items-center gap-2">
+            <span>🎨</span>
+            <span>FT_SKRIBBL</span>
+          </h1>
 
-      {/* 3. Le Bouton Start */}
-      <div className="mt-48 text-center">
+          {/* Le Timer (Fini la position absolute !) */}
+          <div className={`flex items-center gap-2 text-xl font-bold px-4 py-1.5 rounded-lg border-2 shadow-sm ${
+            tempsRestant <= 10 ? 'bg-red-50 border-red-500 text-red-600 animate-pulse' : 'bg-slate-50 border-slate-300 text-slate-700'
+          }`}>
+            <span>⏱️</span>
+            <span>{tempsRestant}s</span>
+          </div>
+        </div>
+
+        {/* 👉 SECTION CENTRALE : Le Mot Secret / Indice */}
+        <div className="text-center flex-1">
+          {wordDisplay()}
+        </div>
         <button
           onClick={handleStartGame}
-          className="bg-green-500 hover:bg-green-600 text-white text-xl font-bold py-4 px-10 rounded-lg shadow-md transition-colors duration-200"
+          className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold px-6 py-2.5 rounded-lg shadow transition-all whitespace-nowrap"
         >
           Start Game
         </button>
-      </div>
+      </header>
+
+
+      {/* 3. GRILLE CENTRALE EN 3 COLONNES (4 fractions : 1 + 2 + 1) */}
+      <main className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 min-h-[500px]">
+
+        {/* --- COLONNE GAUCHE : JOUEURS (1 fraction sur 4) --- */}
+        <aside className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+          <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 flex items-center justify-between">
+            <span>👥 Joueurs</span>
+            <span className="bg-slate-100 text-slate-600 text-xs py-1 px-2 rounded-full">{listeJoueurs.length}</span>
+          </h3>
+
+          <ul className="space-y-2 overflow-y-auto flex-1">
+            {listeJoueurs.map((joueur: any, index: number) => (
+              <li key={index} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
+                  <span className="font-semibold text-sm text-slate-700">
+                    {joueur.username || `Joueur #${joueur.dbId || index + 1}`}
+                  </span>
+                </div>
+                {/* Icône crayon si c'est le dessinateur (à adapter avec ton code) */}
+                {drawerInfo && drawerInfo.drawerId === joueur.dbId && (
+                  <span title="Dessinateur" className="text-lg"></span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </aside>
+
+
+        {/* --- COLONNE CENTRALE : ZONE DE DESSIN (2 fractions sur 4) --- */}
+        <section className="col-span-1 lg:col-span-2 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
+          
+          {/* Annonce au début de la manche (Overlay) */}
+          {drawerInfo && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium z-10 animate-bounce">
+              🎨 It's <span className="font-bold underline">{drawerInfo.drawerName}</span> turn to draw !
+            </div>
+            )}
+
+          {/* C'est ICI qu'on placera ton composant <Canvas /> plus tard ! */}
+          <div className="w-full h-full border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center bg-slate-50 text-slate-400">
+            <span className="text-4xl mb-2">🖌️</span>
+            <p className="font-medium">Zone de dessin </p>
+          </div>
+
+        </section>
+
+
+        {/* --- COLONNE DROITE : LE CHAT DE TON COLLÈGUE (1 fraction sur 4) --- */}
+        <aside className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+          <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3">
+            Chat du Jeu
+          </h3>
+
+          {/* 👉 Le vrai chat prend maintenant tout l'espace disponible ! */}
+          <div className="flex-1 overflow-hidden">
+            <GameChat socket={socket} channelId={reelChannelId} />
+          </div>
+        </aside>
+      </main>
+
     </div>
   );
+  
+
 }

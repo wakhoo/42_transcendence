@@ -19,6 +19,6 @@ export const BAD_WORDS = [
     'trap', 'budalla',
 ];
 
-export const WORDS = [
-    'pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica', 'guitare' ,'montagne', 'chat', 'biche'
-];
+//export const WORDS = [
+ //   'pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica', 'guitare' ,'montagne', 'chat', 'biche'
+//];

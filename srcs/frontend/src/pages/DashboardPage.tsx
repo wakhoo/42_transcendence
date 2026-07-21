@@ -33,7 +33,7 @@ export default function DashboardPage() {
     const [openProfileId, setOpenProfileId] = useState<number | null>(null);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (!token) {
             navigate('/login');
             return;
@@ -45,7 +45,7 @@ export default function DashboardPage() {
     }, [])
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (!token) {
             navigate('/login');
             return;
@@ -108,7 +108,7 @@ export default function DashboardPage() {
         const parts   = raw.slice(1).trim().split(' '); //slice c'est pour retourner la variable apres n elements
         const cmd     = parts[0].toLowerCase();
         const args    = parts.slice(1);
-        const token   = localStorage.getItem('token');
+        const token   = sessionStorage.getItem('token');
         if (!token || channelId === null) 
             return;
         const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -297,9 +297,17 @@ export default function DashboardPage() {
                         Join public room
                     </button>
                     <button
+<<<<<<< HEAD
                         onClick={() => navigate('/game')}
                         className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-emerald-900 text-xl font-semibold
                             border-2 border-emerald-400 bg-emerald-100
+=======
+                        onClick={() => { const randomRoomId = Math.floor(Math.random() * 9000) + 1000;
+                            navigate(`/game?channelId=${randomRoomId}&action=create`);}
+                        } 
+                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-white text-xl font-semibold
+                            border-2 border-emerald-500 bg-emerald-950
+>>>>>>> main
                             transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
                             hover:bg-emerald-200 hover:[transform:translate(0,0.25em)]
                             active:bg-emerald-200 active:[transform:translate(0,0.75em)]
