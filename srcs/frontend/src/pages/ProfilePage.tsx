@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AvatarPicker } from '../components/AvatarPicker';
 
 type Me = { 
     id: number; 
@@ -109,6 +110,15 @@ export function ProfileContent({ userId }: { userId?: number }) {
         loadAll();
     }
 
+    async function handleAvatarSelect(avatarUrl: string) {
+        const res = await fetch('/api/user/me', { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ avatarUrl }) });
+        const data = await res.json();
+        if (res.ok) {
+            setMe(data);
+            setMsg('Avatar updated');
+        }
+    }
+
     function friendOf(f: Friendship) { //fonction qui permet de savoir si la personne a envoye la demande ou l'a recu
         if (f.requester.id === me?.id)
             return f.addressee;
@@ -144,7 +154,11 @@ export function ProfileContent({ userId }: { userId?: number }) {
             {isMe ? (
                 <>
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-lg shrink-0" style={{ backgroundColor: me.profileColor }} />
+                        <AvatarPicker
+                            currentAvatar={me.avatarUrl}
+                            profileColor={me.profileColor}
+                            onSelect={handleAvatarSelect}
+                        />
                         <div>
                             <h2 className="text-lg font-bold">{me.username}</h2>
                             <p className="text-gray-500 text-xs">ID #{me.id}</p>

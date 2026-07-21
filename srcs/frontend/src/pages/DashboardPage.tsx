@@ -15,6 +15,7 @@ type UserProfile = {
     id: number;
     username: string;
     profileColor: string;
+    avatarUrl: string | null;
 };
 
 export default function DashboardPage() {
@@ -249,7 +250,7 @@ export default function DashboardPage() {
 
 
     return (
-        <div className="min-h-screen bg-black flex relative">
+        <div className="min-h-screen bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)] flex relative">
 
             <div className="absolute top-6 left-8">
                 <h1 className="text-white text-2xl font-bold">Transcendence</h1>
@@ -266,7 +267,10 @@ export default function DashboardPage() {
                             onClick={() => setOpenProfileId(user.id)}
                             className="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
                         >
-                            <div className="w-4 h-4 rounded-sm shrink-0" style={{ backgroundColor: user.profileColor }} />
+                        {user.avatarUrl
+                            ? <img src={user.avatarUrl} className="w-8 h-8 rounded-md shrink-0 object-cover" />
+                            : <div className="w-8 h-8 rounded-md shrink-0" style={{ backgroundColor: user.profileColor }} />
+                        }
                             <span className="text-gray-300 text-sm truncate">{user.username}</span>
                         </div>
                     ))}
@@ -274,55 +278,55 @@ export default function DashboardPage() {
             </div>
 
             <div className="flex-1 flex items-center justify-center">
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-12">
                     <button
                         onClick={() => navigate('/game')}
-                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-white text-xl font-semibold
-                            border-2 border-blue-500 bg-blue-950
+                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-blue-900 text-xl font-semibold
+                            border-2 border-blue-400 bg-blue-100
                             transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:bg-blue-900 hover:[transform:translate(0,0.25em)]
-                            active:bg-blue-900 active:[transform:translate(0,0.75em)]
-                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-blue-900
-                            before:shadow-[0_0_0_2px_#3b82f6,0_0.625em_0_0_#030712]
+                            hover:bg-blue-200 hover:[transform:translate(0,0.25em)]
+                            active:bg-blue-200 active:[transform:translate(0,0.75em)]
+                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-blue-200
+                            before:shadow-[0_0_0_2px_#60a5fa,0_0.625em_0_0_#dbeafe]
                             before:[transform:translate3d(0,0.75em,-1em)]
                             before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:before:shadow-[0_0_0_2px_#3b82f6,0_0.5em_0_0_#030712]
+                            hover:before:shadow-[0_0_0_2px_#60a5fa,0_0.5em_0_0_#dbeafe]
                             hover:before:[transform:translate3d(0,0.5em,-1em)]
-                            active:before:shadow-[0_0_0_2px_#3b82f6,0_0_#030712]
+                            active:before:shadow-[0_0_0_2px_#60a5fa,0_0_#dbeafe]
                             active:before:[transform:translate3d(0,0,-1em)]">
                         Join public room
                     </button>
                     <button
                         onClick={() => navigate('/game')}
-                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-white text-xl font-semibold
-                            border-2 border-emerald-500 bg-emerald-950
+                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-emerald-900 text-xl font-semibold
+                            border-2 border-emerald-400 bg-emerald-100
                             transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:bg-emerald-900 hover:[transform:translate(0,0.25em)]
-                            active:bg-emerald-900 active:[transform:translate(0,0.75em)]
-                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-emerald-900
-                            before:shadow-[0_0_0_2px_#10b981,0_0.625em_0_0_#030712]
+                            hover:bg-emerald-200 hover:[transform:translate(0,0.25em)]
+                            active:bg-emerald-200 active:[transform:translate(0,0.75em)]
+                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-emerald-200
+                            before:shadow-[0_0_0_2px_#34d399,0_0.625em_0_0_#d1fae5]
                             before:[transform:translate3d(0,0.75em,-1em)]
                             before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:before:shadow-[0_0_0_2px_#10b981,0_0.5em_0_0_#030712]
+                            hover:before:shadow-[0_0_0_2px_#34d399,0_0.5em_0_0_#d1fae5]
                             hover:before:[transform:translate3d(0,0.5em,-1em)]
-                            active:before:shadow-[0_0_0_2px_#10b981,0_0_#030712]
+                            active:before:shadow-[0_0_0_2px_#34d399,0_0_#d1fae5]
                             active:before:[transform:translate3d(0,0,-1em)]">
                         Create new public room
                     </button>
                     <button
                         onClick={() => navigate('/game')}
-                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-white text-xl font-semibold
-                            border-2 border-violet-500 bg-violet-950
+                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-violet-900 text-xl font-semibold
+                            border-2 border-violet-400 bg-violet-100
                             transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:bg-violet-900 hover:[transform:translate(0,0.25em)]
-                            active:bg-violet-900 active:[transform:translate(0,0.75em)]
-                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-violet-900
-                            before:shadow-[0_0_0_2px_#8b5cf6,0_0.625em_0_0_#030712]
+                            hover:bg-violet-200 hover:[transform:translate(0,0.25em)]
+                            active:bg-violet-200 active:[transform:translate(0,0.75em)]
+                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-violet-200
+                            before:shadow-[0_0_0_2px_#a78bfa,0_0.625em_0_0_#ede9fe]
                             before:[transform:translate3d(0,0.75em,-1em)]
                             before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:before:shadow-[0_0_0_2px_#8b5cf6,0_0.5em_0_0_#030712]
+                            hover:before:shadow-[0_0_0_2px_#a78bfa,0_0.5em_0_0_#ede9fe]
                             hover:before:[transform:translate3d(0,0.5em,-1em)]
-                            active:before:shadow-[0_0_0_2px_#8b5cf6,0_0_#030712]
+                            active:before:shadow-[0_0_0_2px_#a78bfa,0_0_#ede9fe]
                             active:before:[transform:translate3d(0,0,-1em)]">
                         Create new private room
                     </button>

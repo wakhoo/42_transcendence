@@ -82,7 +82,7 @@ export class AuthService {
                 profile.oauthId,
                 profile.email,
                 username,
-                profile.avatarUrl,
+                null,
             );
         }
 
