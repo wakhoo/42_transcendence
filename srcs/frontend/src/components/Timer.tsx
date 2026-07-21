@@ -36,7 +36,7 @@ export default function GamePage() {
       const action = queryParam.get('action');
       if (action === 'create') {
         console.log(`Ordre reçu : Création de la room #${reelChannelId}...`);
-        socketInstance.emit('create_room', { channelId: reelChannelId });
+        socketInstance.emit('create_room', { name: `Salon de ${sessionStorage.getItem('username') || 'Game'}` });
       } else {
         console.log(` Ordre reçu : Rejoindre la room #${reelChannelId}...`);
         socketInstance.emit('join_room', { channelId: reelChannelId });

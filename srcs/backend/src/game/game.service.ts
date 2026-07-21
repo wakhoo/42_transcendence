@@ -17,8 +17,9 @@ import { channel } from 'diagnostics_channel';
 export interface GameSession {
 
   channelId: number;
-  totalPlayers: number;
-  playersIds: number[];
+  creatorId: number;
+  //totalPlayers: number;
+  //playersIds: number[];
   secretWord: string;
   currentDrawerId: number;
   timeLeft: number;
@@ -62,13 +63,14 @@ export class GameService implements OnModuleInit {
     }
   }
 
-   async createGameSession(channelId: number, creatorId: number): Promise<GameSession> {
+   async createGameSession(creatorId: number, name: string): Promise<GameSession> {
 
-      const newGameSession : GameSession = {
 
-        channelId: channelId,
-        totalPlayers: 1,
-        playersIds: [creatorId],
+    const channel = await this.chatService.createChannel(creatorId, name, 'game', false);
+    const newGameSession : GameSession = {
+
+        channelId: channel.id,
+        creatorId: creatorId,
         secretWord: '',
         currentDrawerId: 0,
         timeLeft: 60,
@@ -79,8 +81,8 @@ export class GameService implements OnModuleInit {
         maxRound: 3,
         historicDraw: [],
       }   
-      this.activeGames.set(channelId, newGameSession);
-      console.log(`Room #${channelId} created by player #${creatorId}`);
+      this.activeGames.set(channel.id, newGameSession);
+      console.log(`Room #${channel.id} created by player #${creatorId}`);
       return newGameSession;
   }  
 
@@ -94,14 +96,16 @@ export class GameService implements OnModuleInit {
       console.log(`Error : #${channelId} doesn't exist #`);
       return null;
     }
-    if(!session.playersIds.includes(userId)){
+        // on utilise cette fois joinChannel pour ajouter un joueur
+    await this.chatService.joinChannel(userId, channelId);
+    session.scores[userId] = 0;
 
-      session.playersIds.push(userId);
-      session.totalPlayers = session.playersIds.length;
-      session.scores[userId] = 0;
-    }
-    this.server.to(`channel_${channelId}`).emit('message_channel', {channel: channelId, totalPlayer: session.totalPlayers, userId: userId });
+    // on peut chopper directement maintenant le nombre de joueurs depuis la DB
+    const members = await this.chatService.getChannelMember(channelId);
+    this.server.to(channelId.toString()).emit('message_channel', {channel: channelId, totalPlayer: members.length, userId: userId });
+    // bug corrige : t'envoyait a this.server.to(`channel_${channelId}`) dans le gateway donc c'etait pas coherent avec ici donc ca pouvait pas marcher
     return session;
+
   }
 
       
@@ -124,21 +128,21 @@ export class GameService implements OnModuleInit {
   // recupere les noms des users dans mariadb grace a l id
   async getUserName(channelId: number): Promise<Array<{id: number; username: string}>> {
 
-    const session = this.activeGames.get(channelId);
-    if(!session)
+    const members = await this.chatService.getChannelMember(channelId);
+    if(!members)
         return [];
     // lancement de la recherche pseudode chaque joeur dans la map jusque a ce que tout le monde a repondu plus filet de securite creatio nde faux joueur
     const playerName = await Promise.all(
-      session.playersIds.map(async (id) => {
+      members.map(async (m) => {
 
         try {
-            const user = await this.userService.findById(id);
+            const user = await this.userService.findById(m.user.id);
             return {
 
-              id: Number(user?.id || id), username: String(user?.username || `Player #${id}`)
+              id: Number(user?.id || m.user.id), username: String(user?.username || `Player #${m.user.id}`)
             };
           } catch {
-            return { id: id, username: `Player #${id}`}
+            return { id: m.user.id, username: `Player #${m.user.id}`}
           }
       })
     );
@@ -151,16 +155,17 @@ export class GameService implements OnModuleInit {
 
 
     // recuperatio ndes membres via chatservice
-		//const members = await this.chatService.getChannelMember(channelId);
+		const members = await this.chatService.getChannelMember(channelId);
+    const playerIds = members.map(m => m.user.id)
     const session = this.activeGames.get(channelId);
-		if (!session || session.playersIds.length < 2) {
+		if (!session || playerIds.length < 2) {
 
 			this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
 			return;
 		}
 		const secretWord = await this.getRandomWord();
-		const index = Math.floor(Math.random() * session.playersIds.length);
-		const drawerId = session.playersIds[index];
+		const index = Math.floor(Math.random() * playerIds.length);
+		const drawerId = playerIds[index];
 	
     
     session.secretWord = secretWord;
@@ -170,9 +175,10 @@ export class GameService implements OnModuleInit {
     session.guessedUsers = [];
     session.useWords = [secretWord];
     session.currentRound = 1;
+    session.historicDraw = [];
 
 
-    session.playersIds.forEach((id) => {
+    playerIds.forEach((id) => {
         session.scores[id] = 0;
     });
 
@@ -240,8 +246,8 @@ export class GameService implements OnModuleInit {
 
         this.server.to(channelId.toString()).emit('word_found', {userId});
 
-        
-        if(currentGame.guessedUsers.length === currentGame.totalPlayers - 1)
+        const members = await this.chatService.getChannelMember(channelId);
+        if(currentGame.guessedUsers.length === members.length - 1)
         {
           currentGame.timeLeft = 0;
           return true;
@@ -277,14 +283,17 @@ export class GameService implements OnModuleInit {
     //changement de dessinateur
     else{
 
-     let position = currentGame.playersIds.indexOf(currentGame.currentDrawerId);
+    const members = await this.chatService.getChannelMember(channelId);
+    const playerIds = members.map(m => m.user.id);
+     let position = playerIds.indexOf(currentGame.currentDrawerId);
      position++;
-      if (position >= currentGame.playersIds.length)
+      if (position >= playerIds.length)
           position = 0;
-      currentGame.currentDrawerId = currentGame.playersIds[position];
+      currentGame.currentDrawerId = playerIds[position];
     }
 		currentGame.secretWord = await this.getRandomWord(currentGame.useWords);
 		currentGame.useWords.push(currentGame.secretWord);
+    currentGame.historicDraw = [];
     currentGame.guessedUsers =[];
     currentGame.timeLeft = 60;
     const user = await this.userService.findById(currentGame.currentDrawerId);
@@ -339,7 +348,7 @@ export class GameService implements OnModuleInit {
       const currentGame = this.activeGames.get(channelId);
       if(!currentGame)
           return;
-      this.server.to(clientId).emit('request_history', currentGame.historicDraw);
+      this.server.to(clientId).emit('load_history', currentGame.historicDraw);
 
       }
 
@@ -350,17 +359,22 @@ export class GameService implements OnModuleInit {
 
       for (const[channelID, currentGame] of this.activeGames.entries()) {
 
-			    if(currentGame.playersIds.includes(userId)){
 
-				    currentGame.playersIds = currentGame.playersIds.filter(id => id != userId);
-            currentGame.totalPlayers -= 1;
+          const members = await this.chatService.getChannelMember(channelID);
+          const playerIds = members.map(m => m.user.id);
+			    if(playerIds.includes(userId)){
 
+				   await this.chatService.leaveChannel(userId, channelID);
+           
+
+            const remaining = await this.chatService.getChannelMember(channelID);
             const newPlayerList = await this.getUserName(channelID);
             this.server.to(channelID.toString()).emit('update_players', newPlayerList);
-            if(currentGame.totalPlayers <= 1){
+            if(remaining.length <= 1){
 
               clearInterval(currentGame.timerInterval);
               this.server.to(channelID.toString()).emit('game_cancelled', {reason : 'not_enough_players'});
+              await this.chatService.deleteChannel(currentGame.creatorId, channelID);
               this.activeGames.delete(channelID);
               return null;
             }

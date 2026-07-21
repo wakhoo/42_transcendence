@@ -21,7 +21,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
     constructor(@Inject(forwardRef(() => GameService)) private readonly gameService: GameService,private readonly jwtService: JwtService ) {}
 
 
-    // partage du serverur gateway avec service pour emettre les alertes
+    // partage du serveur gateway avec service pour emettre les alertes
     afterInit(server: Server) {
 
       this.gameService.server = server;
@@ -62,22 +62,45 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
   }
 
   
-  // cree une sessio n de jeu et ajoute le createur de la room 
+//   // cree une sessio n de jeu et ajoute le createur de la room 
+// @SubscribeMessage('create_room')
+//   async handleRoom(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number }) {
+//     const userId = gameSocketUserMap.get(client.id); 
+//     if (!userId) {
+//       return;
+//     }
+
+//     await this.gameService.createGameSession(data.channelId, userId);
+//     client.join(data.channelId.toString());
+//     const reelPlayer = await this.gameService.getUserName(data.channelId);
+
+//     console.log(`GAME] Room #${data.channelId} créée ! Envoi de la liste update_players :`,reelPlayer);
+
+//     // Envoi à la room ET envoi direct au client pour forcer l'affichage sur son écran
+//     this.server.to(data.channelId.toString()).emit('update_players', reelPlayer);
+//     client.emit('update_players', reelPlayer);
+//   }
+
+
+ // cree une sessio n de jeu et ajoute le createur de la room
+  // modifié : le front envoie maintenant un 'name' au lieu d'un 'channelId' aléatoire
+  // createGameSession crée un vrai Channel en base et retourne la session avec le vrai ID
 @SubscribeMessage('create_room')
-  async handleRoom(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number }) {
-    const userId = gameSocketUserMap.get(client.id); 
+  async handleRoom(@ConnectedSocket() client: Socket, @MessageBody() data: { name: string }) {
+    const userId = gameSocketUserMap.get(client.id);
     if (!userId) {
       return;
     }
 
-    await this.gameService.createGameSession(data.channelId, userId);
-    client.join(data.channelId.toString());
-    const reelPlayer = await this.gameService.getUserName(data.channelId);
+    const session = await this.gameService.createGameSession(userId, data.name);
+    client.join(session.channelId.toString());
+    const reelPlayer = await this.gameService.getUserName(session.channelId);
 
-    console.log(`GAME] Room #${data.channelId} créée ! Envoi de la liste update_players :`,reelPlayer);
+    console.log(`GAME] Room #${session.channelId} created! :`,reelPlayer);
 
-    // Envoi à la room ET envoi direct au client pour forcer l'affichage sur son écran
-    this.server.to(data.channelId.toString()).emit('update_players', reelPlayer);
+    // on renvoie le vrai channelId au créateur pour qu'il l'utilise dans les events suivants
+    client.emit('room_created', { channelId: session.channelId });
+    this.server.to(session.channelId.toString()).emit('update_players', reelPlayer);
     client.emit('update_players', reelPlayer);
   }
 
@@ -95,11 +118,14 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
       }
       client.join(data.channelId.toString());
       const session = await this.gameService.joinGameSession(data.channelId, userId);
-      const reelPlayer = await this.gameService.getUserName(data.channelId);
+      
       if(session){
-        this.server.to(data.channelId.toString()).emit('update_players', reelPlayer);
-        client.emit('update_players', reelPlayer);
+
+        const realPlayer = await this.gameService.joinGameSession(data.channelId, userId);
+        this.server.to(data.channelId.toString()).emit('update_players', realPlayer);
+        client.emit('update_players', realPlayer);
       }
+      client.emit('error', {message: 'No such room'});
 
     }
     

@@ -241,14 +241,14 @@ export class ChatService implements OnModuleInit {
             throw new ForbiddenException(`Your message was blocked: inappropriate content. Warning ${membership.warnings}/2.`);
         }
 
-        // if (membership.channel.type === 'game'){
+         if (membership.channel.type === 'game'){
 
-        //     const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
+            const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
 
-        //     if (isWord)
-        //         throw new ForbiddenException(`Your message was blocked.`);
+            if (isWord)
+                 throw new ForbiddenException(`Your message was blocked.`);
 
-        // }
+         }
 
         const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
         const saved = await this.messageRepo.save(message);
