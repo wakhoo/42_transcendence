@@ -276,20 +276,56 @@ export default function DashboardPage() {
             <div className="flex-1 flex items-center justify-center">
                 <div className="flex flex-col gap-6">
                     <button
-                        onClick={() => navigate('/game')} 
-                        className="px-32 py-8 rounded-2xl text-white text-xl font-semibold bg-blue-950 hover:bg-blue-900 transition-colors duration-200">
+                        onClick={() => navigate('/game')}
+                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-white text-xl font-semibold
+                            border-2 border-blue-500 bg-blue-950
+                            transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                            hover:bg-blue-900 hover:[transform:translate(0,0.25em)]
+                            active:bg-blue-900 active:[transform:translate(0,0.75em)]
+                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-blue-900
+                            before:shadow-[0_0_0_2px_#3b82f6,0_0.625em_0_0_#030712]
+                            before:[transform:translate3d(0,0.75em,-1em)]
+                            before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                            hover:before:shadow-[0_0_0_2px_#3b82f6,0_0.5em_0_0_#030712]
+                            hover:before:[transform:translate3d(0,0.5em,-1em)]
+                            active:before:shadow-[0_0_0_2px_#3b82f6,0_0_#030712]
+                            active:before:[transform:translate3d(0,0,-1em)]">
                         Join public room
                     </button>
                     <button
                         onClick={() => { const randomRoomId = Math.floor(Math.random() * 9000) + 1000;
                             navigate(`/game?channelId=${randomRoomId}&action=create`);}
                         } 
-                        className="px-32 py-8 rounded-2xl text-white text-xl font-semibold bg-emerald-950 hover:bg-emerald-900 transition-colors duration-200">
+                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-white text-xl font-semibold
+                            border-2 border-emerald-500 bg-emerald-950
+                            transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                            hover:bg-emerald-900 hover:[transform:translate(0,0.25em)]
+                            active:bg-emerald-900 active:[transform:translate(0,0.75em)]
+                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-emerald-900
+                            before:shadow-[0_0_0_2px_#10b981,0_0.625em_0_0_#030712]
+                            before:[transform:translate3d(0,0.75em,-1em)]
+                            before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                            hover:before:shadow-[0_0_0_2px_#10b981,0_0.5em_0_0_#030712]
+                            hover:before:[transform:translate3d(0,0.5em,-1em)]
+                            active:before:shadow-[0_0_0_2px_#10b981,0_0_#030712]
+                            active:before:[transform:translate3d(0,0,-1em)]">
                         Create new public room
                     </button>
                     <button
-                        onClick={() => navigate('/game')} 
-                        className="px-32 py-8 rounded-2xl text-white text-xl font-semibold bg-violet-950 hover:bg-violet-900 transition-colors duration-200">
+                        onClick={() => navigate('/game')}
+                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-white text-xl font-semibold
+                            border-2 border-violet-500 bg-violet-950
+                            transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                            hover:bg-violet-900 hover:[transform:translate(0,0.25em)]
+                            active:bg-violet-900 active:[transform:translate(0,0.75em)]
+                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-violet-900
+                            before:shadow-[0_0_0_2px_#8b5cf6,0_0.625em_0_0_#030712]
+                            before:[transform:translate3d(0,0.75em,-1em)]
+                            before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                            hover:before:shadow-[0_0_0_2px_#8b5cf6,0_0.5em_0_0_#030712]
+                            hover:before:[transform:translate3d(0,0.5em,-1em)]
+                            active:before:shadow-[0_0_0_2px_#8b5cf6,0_0_#030712]
+                            active:before:[transform:translate3d(0,0,-1em)]">
                         Create new private room
                     </button>
                 </div>
@@ -327,24 +363,33 @@ export default function DashboardPage() {
                         {error}
                     </div>
                 )}
-                <div className="px-4 py-3 border-t border-gray-800 flex gap-2">
-                    <input
-                        value={input}
-                        onChange={e => {
-                            setInput(e.target.value);
-                            if (channelId && socketRef.current)
-                                socketRef.current.emit('typing', { channelId });
-                        }}
-                        onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                        placeholder="Message..."
-                        className="flex-1 bg-black border border-gray-700 text-white px-3 py-2 rounded outline-none placeholder-gray-500 focus:border-white transition-colors text-sm"
-                    />
-                    <button
-                        onClick={sendMessage}
-                        disabled={!input.trim()}
-                        className="border border-white text-white px-3 py-2 rounded hover:bg-white hover:text-black disabled:border-gray-700 disabled:text-gray-700 disabled:cursor-not-allowed transition-colors text-sm">
-                        →
-                    </button>
+                <div className="px-4 py-3 border-t border-gray-800">
+                    <div className="flex items-center gap-1 bg-[#40414F] border border-[#2E2F3A] rounded-lg h-10 pl-3 pr-1">
+                        <input
+                            value={input}
+                            onChange={e => {
+                                setInput(e.target.value);
+                                if (channelId && socketRef.current)
+                                    socketRef.current.emit('typing', { channelId });
+                            }}
+                            onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                            placeholder="Send a message."
+                            className="flex-1 h-full bg-transparent outline-none border-none text-white placeholder-[#828E9E] text-sm text-ellipsis whitespace-nowrap overflow-hidden"
+                        />
+                        <button
+                            onClick={sendMessage}
+                            disabled={!input.trim()}
+                            className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md hover:bg-black/20 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <svg
+                                className="w-[17px] h-[17px]"
+                                viewBox="0 0 512 512"
+                                fill={input.trim() ? '#ffffff' : '#6B6C7B'}
+                            >
+                                <path d="M481.508,210.336L68.414,38.926c-17.403-7.222-37.064-4.045-51.309,8.287C2.86,59.547-3.098,78.551,1.558,96.808 L38.327,241h180.026c8.284,0,15.001,6.716,15.001,15.001c0,8.284-6.716,15.001-15.001,15.001H38.327L1.558,415.193 c-4.656,18.258,1.301,37.262,15.547,49.595c14.274,12.357,33.937,15.495,51.31,8.287l413.094-171.409 C500.317,293.862,512,276.364,512,256.001C512,235.638,500.317,218.139,481.508,210.336z" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
         {openProfileId !== null && (
