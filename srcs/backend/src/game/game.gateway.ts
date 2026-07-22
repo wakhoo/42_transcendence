@@ -28,6 +28,12 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
     }
 
 
+    @SubscribeMessage('get_my_id')
+    getId(client: Socket){
+
+      const userId = gameSocketUserMap.get(client.id);
+      return {userId};
+    }
 
     async handleConnection(client: Socket) {
     try {
@@ -116,16 +122,18 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
         client.emit('error', {message: 'User non identify'});
         return;
       }
-      client.join(data.channelId.toString());
+     
       const session = await this.gameService.joinGameSession(data.channelId, userId);
       
       if(session){
 
-        const realPlayer = await this.gameService.joinGameSession(data.channelId, userId);
+        client.join(data.channelId.toString());
+        const realPlayer = await this.gameService.getUserName(data.channelId);
         this.server.to(data.channelId.toString()).emit('update_players', realPlayer);
         client.emit('update_players', realPlayer);
       }
-      client.emit('error', {message: 'No such room'});
+      else
+        client.emit('error', {message: 'No such room'});
 
     }
     
@@ -157,6 +165,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
         return;
       }
       this.gameService.handleDraw(userId, data.channelId, data.drawData);
+      client.to(`channel_${data.channelId}`).emit('draw', data.drawData);
     }
 
 

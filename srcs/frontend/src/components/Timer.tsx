@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { io } from 'socket.io-client';
 import GameChat from './GameChat';
 import { useNavigate } from 'react-router-dom';
-
+import GameCanvas from './GameCanvas';
 export default function GamePage() {
 
+  const [myId, setMyId] = useState<number | null>(null);
   const [tempsRestant, setTempsRestant] = useState(60);
   const [socket, setSocket] = useState<any>(null);
   const [drawerInfo, setDrawerInfo] = useState<any>(null);
@@ -12,10 +13,29 @@ export default function GamePage() {
   const [wordHint, setWordHint] = useState<any>(null);
   const [secretWord, setSecretWord] = useState<any>(null);
   const [roundEndMsg, setRoundEndMsg] = useState<string | null>(null);
+  const [scores, setScores] = useState<Record< number, number>>({});
 
   const queryParam = new URLSearchParams(window.location.search);
   const reelChannelId = Number(queryParam.get('channelId')) || 1;
   const navigate                  = useNavigate();
+
+
+  useEffect(() => {
+
+    if(!socket)
+        return;
+    socket.on('connect', () => {
+
+        socket.emit('get_my_id', (response : {userId : number}) => {
+
+            if(response && response.userId)
+                setMyId(response.userId);
+  
+        });
+    });
+
+  }, [socket]);
+
 
   useEffect(() => {
     const token = sessionStorage.getItem('token');
@@ -42,6 +62,13 @@ export default function GamePage() {
         socketInstance.emit('join_room', { channelId: reelChannelId });
       }
       
+    });
+
+    socketInstance.on('room_created' , (data) => {
+
+      const reelId = data.channelId;
+      window.history.replaceState(null, '', `/game?channelId=${reelId}&action=join`);
+
     });
 
     socketInstance.on('update_players', (listeVenantDuBack) => {
@@ -76,6 +103,11 @@ export default function GamePage() {
             },5000);
     });
 
+    socketInstance.on('classement', (data) => {
+
+      setScores(data);
+    });
+
     socketInstance.on('error', (err: any) => {
       console.error("LE SERVEUR REJETTE L'ACTION :", err);
       alert("Erreur renvoyée par le serveur : " + (err.message || JSON.stringify(err)));
@@ -91,10 +123,14 @@ export default function GamePage() {
       socketInstance.off('exception');
       socketInstance.off('secret_word');
       socketInstance.off('round_end');
+      socketInstance.off('room_created');
+      socketInstance.off('classement');
       socketInstance.removeAllListeners();
       socketInstance.disconnect();
     };
   }, []);
+
+  const isMeTheDrawer = Number(drawerInfo?.drawerId) === Number(myId);
 
   const handleStartGame = () => {
     if (socket) {
@@ -200,16 +236,28 @@ export default function GamePage() {
           <ul className="space-y-2 overflow-y-auto flex-1">
             {listeJoueurs.map((joueur: any, index: number) => (
               <li key={index} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                
+                {/* GAUCHE : Pastille + Pseudo */}
                 <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
-                  <span className="font-semibold text-sm text-slate-700">
-                    {joueur.username || `Joueur #${joueur.dbId || index + 1}`}
+                  <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm"></span>
+                  <span className="font-semibold text-sm text-slate-700 truncate max-w-[100px]">
+                    {joueur.username || `Joueur #${joueur.id || index + 1}`}
                   </span>
                 </div>
-                {/* Icône crayon si c'est le dessinateur (à adapter avec ton code) */}
-                {drawerInfo && drawerInfo.drawerId === joueur.dbId && (
-                  <span title="Dessinateur" className="text-lg"></span>
-                )}
+
+                {/* DROITE : Score + Crayon */}
+                <div className="flex items-center gap-2">
+                  {/* Badge de score */}
+                  <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">
+                    {scores[joueur.id] || 0} pts
+                  </span>
+                  
+                  {/* Icône crayon si c'est le dessinateur (sécurisé avec Number) */}
+                  {drawerInfo && Number(drawerInfo.drawerId) === Number(joueur.id) && (
+                    <span title="Dessinateur" className="text-sm drop-shadow-sm animate-pulse">✏️</span>
+                  )}
+                </div>
+
               </li>
             ))}
           </ul>
@@ -229,7 +277,7 @@ export default function GamePage() {
           {/* C'est ICI qu'on placera ton composant <Canvas /> plus tard ! */}
           <div className="w-full h-full border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center bg-slate-50 text-slate-400">
             <span className="text-4xl mb-2">🖌️</span>
-            <p className="font-medium">Zone de dessin </p>
+            <GameCanvas isDrawer={isMeTheDrawer} socket={socket} channelId={reelChannelId}/> 
           </div>
 
         </section>
