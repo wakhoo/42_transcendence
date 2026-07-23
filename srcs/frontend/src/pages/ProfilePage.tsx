@@ -1,14 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AvatarPicker } from '../components/AvatarPicker';
+import { TotpEnrollForm } from '../components/TotpEnrollForm';
 
-type Me = { 
-    id: number; 
-    username: string; 
-    email: string; 
-    profileColor: string; 
-    avatarUrl: string | null; 
-    createdAt: string; 
+type Me = {
+    id: number;
+    username: string;
+    email: string;
+    profileColor: string;
+    avatarUrl: string | null;
+    createdAt: string;
+    totpEnabled: boolean;
 };
 
 type PublicUser = {
@@ -46,6 +48,13 @@ export function ProfileContent({ userId }: { userId?: number }) {
     const [msg, setMsg]           = useState('');
     const navigate                = useNavigate();
 
+    const [totpAction, setTotpAction] = useState<'none' | 'enable' | 'confirmDisable'>('none');
+    const [totpCode, setTotpCode]     = useState('');
+    const [totpError, setTotpError]   = useState('');
+
+    const [awaitingProfileCode, setAwaitingProfileCode] = useState(false);
+    const [profileCode, setProfileCode]                 = useState('');
+
     async function loadAll() {
         const token = sessionStorage.getItem('token');
         if (!token) {
@@ -80,14 +89,31 @@ export function ProfileContent({ userId }: { userId?: number }) {
 
     useEffect(() => { loadAll(); }, []); // le [] c'est pour lancer loadAll au demarage
 
-    async function saveProfile() {
-        const res = await fetch('/api/user/me', { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ username, email })}); //stringify c'est pour transformer en json
+    async function saveProfile(code?: string) {
+        const changingIdentity = me != null && (username !== me.username || email !== me.email);
+        if (changingIdentity && me?.totpEnabled && !code) {
+            setAwaitingProfileCode(true);
+            return;
+        }
+
+        const res = await fetch('/api/user/me', {
+            method: 'PATCH',
+            headers: authHeaders(),
+            body: JSON.stringify(code ? { username, email, code } : { username, email }),
+        }); //stringify c'est pour transformer en json
         const data = await res.json();
         if (res.ok) {  //res.ok veut dire que le code http est compris entre 200 et 299 donc que tout s'est bien passe
-            setMe(data); 
-            setMsg('Profile updated'); 
+            setMe(data);
+            setMsg('Profile updated');
+            setAwaitingProfileCode(false);
+            setProfileCode('');
         }
-        else setMsg(data.message ?? 'Error'); //dans le json de la requete retour message contient le code http et le message d'erreur lance par mes exceptions 
+        else setMsg(data.message ?? 'Error'); //dans le json de la requete retour message contient le code http et le message d'erreur lance par mes exceptions
+    }
+
+    function cancelProfileCode() {
+        setAwaitingProfileCode(false);
+        setProfileCode('');
     }
 
     async function addFriend(userId: number) {
@@ -117,6 +143,26 @@ export function ProfileContent({ userId }: { userId?: number }) {
             setMe(data);
             setMsg('Avatar updated');
         }
+    }
+
+    async function confirmDisable2fa(e: FormEvent) {
+        e.preventDefault();
+        setTotpError('');
+        const res = await fetch('/api/auth/2fa/disable', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ code: totpCode }) });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            setTotpError(data.message ?? 'Invalid code');
+            return;
+        }
+        setMe(prev => prev ? { ...prev, totpEnabled: false } : prev);
+        setTotpAction('none');
+        setTotpCode('');
+    }
+
+    function cancelTotpFlow() {
+        setTotpAction('none');
+        setTotpCode('');
+        setTotpError('');
     }
 
     function friendOf(f: Friendship) { //fonction qui permet de savoir si la personne a envoye la demande ou l'a recu
@@ -182,12 +228,114 @@ export function ProfileContent({ userId }: { userId?: number }) {
                                 className="mt-1 w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm"
                             />
                         </label>
-                        <button
-                            onClick={saveProfile}
-                            className="self-start px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors"
-                        >
-                            Save
-                        </button>
+                        {!awaitingProfileCode && (
+                            <button
+                                onClick={() => saveProfile()}
+                                className="self-start px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors"
+                            >
+                                Save
+                            </button>
+                        )}
+                        {awaitingProfileCode && (
+                            <form
+                                onSubmit={e => { e.preventDefault(); saveProfile(profileCode); }}
+                                className="flex flex-col gap-3"
+                            >
+                                <p className="text-yellow-400 text-xs">Enter your 2FA code to confirm this change.</p>
+                                <input
+                                    value={profileCode}
+                                    onChange={e => setProfileCode(e.target.value)}
+                                    placeholder="6-digit code"
+                                    maxLength={6}
+                                    className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
+                                />
+                                <div className="flex gap-2">
+                                    <button
+                                        type="submit"
+                                        disabled={profileCode.length !== 6}
+                                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors disabled:opacity-50"
+                                    >
+                                        Confirm
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={cancelProfileCode}
+                                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-800 hover:bg-gray-700 border border-gray-700 transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+
+                    <div className="bg-black rounded-xl border border-gray-800 p-4 mb-4 flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-semibold">Two-Factor Authentication</p>
+                                <p className="text-gray-500 text-xs">{me.totpEnabled ? 'Enabled' : 'Disabled'}</p>
+                            </div>
+                            {totpAction === 'none' && (
+                                me.totpEnabled ? (
+                                    <button
+                                        onClick={() => setTotpAction('confirmDisable')}
+                                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors"
+                                    >
+                                        Turn off
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => setTotpAction('enable')}
+                                        className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors"
+                                    >
+                                        Turn on
+                                    </button>
+                                )
+                            )}
+                        </div>
+
+                        {totpError && <p className="text-red-500 text-xs">{totpError}</p>}
+
+                        {totpAction === 'enable' && (
+                            <TotpEnrollForm
+                                onEnabled={() => {
+                                    setMe(prev => prev ? { ...prev, totpEnabled: true } : prev);
+                                    setTotpAction('none');
+                                }}
+                                onCancel={cancelTotpFlow}
+                            />
+                        )}
+
+                        {totpAction === 'confirmDisable' && (
+                            <div className="flex flex-col gap-3">
+                                <p className="text-yellow-400 text-xs">Are you sure you want to turn off 2FA? Enter your current code to confirm.</p>
+                                <form onSubmit={confirmDisable2fa} className="flex flex-col gap-3 items-center text-center">
+                                    <input
+                                        value={totpCode}
+                                        onChange={e => setTotpCode(e.target.value)}
+                                        placeholder="6-digit code"
+                                        maxLength={6}
+                                        className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
+                                    />
+                                    <div className="flex gap-2 w-full">
+                                        <button
+                                            type="submit"
+                                            disabled={totpCode.length !== 6}
+                                            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors disabled:opacity-50"
+                                        >
+                                            Confirm turn off
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={cancelTotpFlow}
+                                            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-gray-800 hover:bg-gray-700 border border-gray-700 transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
                     </div>
 
                     <h3 className="text-gray-400 text-xs uppercase tracking-wide mb-2">Friend request ({pending.length})</h3>

@@ -32,7 +32,7 @@ function SignUp() {
 
             sessionStorage.setItem('token', data.accessToken);
             sessionStorage.setItem('refreshToken', data.refreshToken);
-            navigate('/dashboard');
+            navigate('/2fa/prompt');
         } catch {
             setError('Unable to contact the server');
         } finally {
