@@ -274,11 +274,10 @@ export default function GamePage() {
             </div>
             )}
 
-          {/* C'est ICI qu'on placera ton composant <Canvas /> plus tard ! */}
-          <div className="w-full h-full border-2 border-dashed border-slate-300 rounded-lg flex flex-col items-center justify-center bg-slate-50 text-slate-400">
-            <span className="text-4xl mb-2">🖌️</span>
-            <GameCanvas isDrawer={isMeTheDrawer} socket={socket} channelId={reelChannelId}/> 
-          </div>
+        {/* 🚀 Conteneur propre : overflow-hidden pour éviter de déborder, relative pour bien caler la feuille */}
+        <div className="w-full h-full rounded-lg bg-white shadow-inner overflow-hidden relative flex items-center justify-center">
+          <GameCanvas isDrawer={isMeTheDrawer} socket={socket} channelId={reelChannelId}/> 
+        </div>
 
         </section>
 
@@ -291,7 +290,7 @@ export default function GamePage() {
 
           {/* 👉 Le vrai chat prend maintenant tout l'espace disponible ! */}
           <div className="flex-1 overflow-hidden">
-            <GameChat socket={socket} channelId={reelChannelId} />
+            <GameChat channelId={reelChannelId} />
           </div>
         </aside>
       </main>

@@ -27,8 +27,8 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		const canvas = canvasRef.current;
 		if(!canvas)
 			return;
-		canvas.width = 800;
-		canvas.height = 600;
+		canvas.width = 1000;
+		canvas.height = 800;
 
 		const context = canvas.getContext('2d');
 		if(!context)
@@ -43,17 +43,29 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 	}, []);
 
 
+	const getExactPosition = (canvas: HTMLCanvasElement, e: React.MouseEvent<HTMLCanvasElement> | MouseEvent) => {
+
+
+		const rect = canvas.getBoundingClientRect();
+
+		const scaleX = canvas.width / rect.width;
+		const scaleY = canvas.height / rect.height;
+		return {
+
+			x: (e.clientX - rect.left) * scaleX,
+			y: (e.clientY - rect.top) * scaleY
+
+		};
+
+	};
+
 	const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
 
 
-	if(!isDrawer)
+	if(!isDrawer || !contextRef.current || !canvasRef.current)
 		return;
-	if(!contextRef.current || !canvasRef.current)
-			return;
 	
-	const rect = canvasRef.current.getBoundingClientRect();
-	const x = e.clientX - rect.left;
-	const y = e.clientY - rect.top;
+	const { x, y } = getExactPosition(canvasRef.current, e);
 
 	contextRef.current.beginPath();
     contextRef.current.moveTo(x, y);
@@ -63,13 +75,16 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 
 	};
 
+
+
+
+
 	const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
 
 		if(!isDrawing || !isDrawer || !contextRef.current || !canvasRef.current || !prevPos.current)
 			return;
-		const rect = canvasRef.current.getBoundingClientRect();
-   	 	const x = e.clientX - rect.left;
-    	const y = e.clientY - rect.top;
+		//const rect = canvasRef.current.getBoundingClientRect();
+   	 	const { x, y } = getExactPosition(canvasRef.current, e);
 
 		contextRef.current.lineTo(x,y);
 		contextRef.current.stroke();
@@ -110,7 +125,6 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 	
 		const handleIncomingDraw = (recu: any) => {
 
-			console.log("🎨 DESSIN REÇU SUR LE SPECTATEUR ! :", recu);
 			if(isDrawer)
 				return;
 			const playload = recu.data || recu.drawData || recu;
@@ -135,8 +149,30 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		setIsDrawing(false);
 
 		prevPos.current = null;
-
 	};
+
+	const clearCanvas = () => {
+
+		const canvas =canvasRef.current;
+		if(!canvas)
+			return;
+		const ctx = canvas.getContext('2d');
+		if(ctx)
+			ctx.clearRect(0,0, canvas.width, canvas.height);
+	};
+
+	useEffect(() => {
+
+		if(!socket)
+			return;
+		socket.on('round_start', clearCanvas);
+		//socket.on('clear_canvas', clearCanvas);
+		return () => {
+
+			socket.off('round_start', clearCanvas);
+    		//socket.off('clear_canvas', clearCanvas);
+		};
+	}, [socket]);
 
 	return (
     <div className="flex justify-center items-center p-4 bg-slate-100 rounded-lg">

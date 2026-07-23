@@ -30,33 +30,79 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
 
 
-    async handleConnection(client: Socket) {
-        try {
-            const token = (client.handshake.auth as { token?: string })?.token?.replace('Bearer ', '');
-            if (!token) { 
-                client.disconnect(); 
-                return; 
-            }
+    // async handleConnection(client: Socket) {
+    //     try {
+    //         const token = (client.handshake.auth as { token?: string })?.token?.replace('Bearer ', '');
+    //         if (!token) { 
+    //             client.disconnect(); 
+    //             return; 
+    //         }
 
-            const payload = this.jwtService.verify<{ sub: number }>(token);
-            socketUserMap.set(client.id, payload.sub);
+    //         const payload = this.jwtService.verify<{ sub: number }>(token);
+    //         socketUserMap.set(client.id, payload.sub);
 
-            const general = await this.chatService.ensureGeneralChannel();
-            await this.chatService.joinChannel(payload.sub, general.id).catch(() => {});
-            void client.join(`channel_${general.id}`);
+    //         const general = await this.chatService.ensureGeneralChannel();
+    //         await this.chatService.joinChannel(payload.sub, general.id).catch(() => {});
+    //         void client.join(`channel_${general.id}`);
 
-            const myChannels = await this.chatService.getMyChannels(payload.sub);
-            for (const ch of myChannels) {
-                void client.join(`channel_${ch.id}`);
-            }
+    //         const myChannels = await this.chatService.getMyChannels(payload.sub);
+    //         for (const ch of myChannels) {
+    //             void client.join(`channel_${ch.id}`);
+    //         }
 
-            client.emit('ready', { generalChannelId: general.id });
-            this.server.emit('presenceChanged');
-            console.log(`User ${payload.sub} connected (socket ${client.id})`);
-        } catch {
-            client.disconnect();
+    //         client.emit('ready', { generalChannelId: general.id });
+    //         this.server.emit('presenceChanged');
+    //         console.log(`User ${payload.sub} connected (socket ${client.id})`);
+    //     } catch {
+    //         client.disconnect();
+    //     }
+    // }
+
+async handleConnection(client: Socket) {
+    try {
+        const token = (client.handshake.auth as { token?: string })?.token?.replace('Bearer ', '');
+        if (!token) { 
+            client.disconnect(); 
+            return; 
         }
+
+        const payload = this.jwtService.verify<{ sub: number }>(token);
+        socketUserMap.set(client.id, payload.sub);
+
+        // 🚀 LA CORRECTION NINJA EST ICI :
+        // On regarde si le front-end nous a dit qu'on se connectait en MODE JEU !
+        const isGameMode = client.handshake.query?.mode === 'game';
+        const targetChannelId = client.handshake.query?.channelId;
+
+        if (isGameMode && targetChannelId) {
+            // SI ON EST SUR LA PAGE DE JEU : 
+            // 1. On rejoint UNIQUEMENT la room de la partie pour ne pas surcharger le serveur
+            void client.join(`channel_${targetChannelId}`);
+            // 2. On rejoint aussi au cas où sans le préfixe selon votre standard
+            void client.join(targetChannelId.toString()); 
+            
+            console.log(`🎮 User ${payload.sub} connecté au CHAT DU JEU (salon #${targetChannelId})`);
+            return; // 👈 ET SURTOUT ON S'ARRÊTE LÀ ! On n'inscrit pas le joueur dans le salon Général !
+        }
+
+        // --- TOUT LE RESTE DE SON CODE ACTUEL NE BOUGE PAS ---
+        // (Il ne s'exécutera que si le joueur est sur le Dashboard normal)
+        const general = await this.chatService.ensureGeneralChannel();
+        await this.chatService.joinChannel(payload.sub, general.id).catch(() => {});
+        void client.join(`channel_${general.id}`);
+
+        const myChannels = await this.chatService.getMyChannels(payload.sub);
+        for (const ch of myChannels) {
+            void client.join(`channel_${ch.id}`);
+        }
+
+        client.emit('ready', { generalChannelId: general.id });
+        this.server.emit('presenceChanged');
+        console.log(`User ${payload.sub} connected (socket ${client.id})`);
+    } catch {
+        client.disconnect();
     }
+}
 
     handleDisconnect(client: Socket) {
         const userId = socketUserMap.get(client.id);

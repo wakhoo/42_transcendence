@@ -203,7 +203,7 @@ export class GameService implements OnModuleInit {
 
 		setTimeout(() =>{
 
-          session.timerInterval = setInterval(() => {
+        session.timerInterval = setInterval(() => {
          session.timeLeft -= 1;
           this.server.to(channelId.toString()).emit('timer_update',session.timeLeft);
           if(session.timeLeft <= 0){
@@ -392,5 +392,14 @@ export class GameService implements OnModuleInit {
         }
         return null;
       }
-  }
+  
+  
+  isCurrentDrawer(channelId: number, userId: number): boolean {
 
+    const game = this.activeGames.get(channelId);
+    if(!game)
+        return false;
+      return game.currentDrawerId === userId;
+  }
+}
+  

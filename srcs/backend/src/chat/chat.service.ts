@@ -213,7 +213,7 @@ export class ChatService implements OnModuleInit {
     // MESSAGES
     // ─────────────────────────────────────────────────────────────────────────
 
-    async sendMessage(userId: number, channelId: number, content: string): Promise<Message> {
+    async sendMessage(userId: number, channelId: number, content: string): Promise<Message | any> {
         const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, relations: { channel: true }});
         if (!membership) throw new ForbiddenException('You are not a member of this channel');
 
@@ -243,11 +243,14 @@ export class ChatService implements OnModuleInit {
 
          if (membership.channel.type === 'game'){
 
+            const isdrawer =this.gameService.isCurrentDrawer(channelId, userId);
             const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
 
-            if (isWord)
-                 throw new ForbiddenException(`Your message was blocked.`);
-
+            if (isWord && isdrawer)
+                 throw new ForbiddenException(`Your the drawer don't write the word.`);
+          //  if(!isdrawer && isWord)
+                  //  throw new ForbiddenException(`You have found the word.`);
+            
          }
 
         const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
@@ -341,7 +344,7 @@ export class ChatService implements OnModuleInit {
         return !!block;
     }
 
-    async getMemberRole(userId: number, channelId: number): Promise<'admin' | 'member' | 'spec' | null> {
+    async getMemberRole(userId: number, channelId: number): Promise<'admin' | 'member' | 'spec' | 'drawer' | null> {
         const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } } });
         return membership?.role ?? null;
     }

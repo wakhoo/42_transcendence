@@ -186,6 +186,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
     }
 
 
+
     async handleDisconnect(client: Socket) {
 
       const userId = gameSocketUserMap.get(client.id);
