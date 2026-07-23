@@ -206,6 +206,7 @@ export class GameService implements OnModuleInit {
         session.timerInterval = setInterval(() => {
          session.timeLeft -= 1;
           this.server.to(channelId.toString()).emit('timer_update',session.timeLeft);
+          if(session.guessedUsers)
           if(session.timeLeft <= 0){
 
             clearInterval(session.timerInterval);
@@ -249,8 +250,17 @@ export class GameService implements OnModuleInit {
         const members = await this.chatService.getChannelMember(channelId);
         if(currentGame.guessedUsers.length === members.length - 1)
         {
-          currentGame.timeLeft = 0;
-          return true;
+
+          if(currentGame.timerInterval)
+            clearInterval(currentGame.timerInterval);
+
+          this.server.to(channelId.toString()).emit('round_end', `Incroyable ! Tous les joueurs ont trouvé le mot : ${currentGame.secretWord} !`);
+          this.server.to(channelId.toString()).emit('classement', currentGame.scores);
+
+          setTimeout(() => {
+            this.handleNextTurn(channelId);
+          }, 5000);
+
         }
         return true;
       }
@@ -306,7 +316,11 @@ export class GameService implements OnModuleInit {
 
       if(id === currentGame.currentDrawerId)
       {
+        
+    
+        setTimeout(() => {
         this.server.to(socketId).emit('secret_word', currentGame.secretWord);
+        }, 5000);
         break;
       }
     }

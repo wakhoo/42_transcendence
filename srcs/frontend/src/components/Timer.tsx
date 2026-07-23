@@ -159,7 +159,7 @@ export default function GamePage() {
       return (
         <div className="animate-pulse">
           <p className="text-xs font-bold uppercase tracking-widest text-emerald-500">
-            🎨 À TOI DE DESSINER !
+            À TOI DE DESSINER !
           </p>
           <p className="text-3xl font-mono tracking-[0.2em] font-black text-emerald-600 uppercase">
             {secretWord}
@@ -189,21 +189,20 @@ export default function GamePage() {
 
   return (
     // 1. CONTENEUR PRINCIPAL : Prend tout l'écran avec un fond gris doux
-    <div className="min-h-screen bg-slate-100 p-4 flex flex-col gap-4 font-sans text-slate-800">
+    <div className="min-h-screen bg-slate-950 p-4 flex flex-col gap-4 font-sans text-slate-800">
 
       {/* 2. BARRE SUPÉRIEURE : Logo, Timer, Mot Secret et Bouton */}
-      <header className="bg-white px-6 py-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
+      <header className="bg-slate-950 px-6 py-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
         
         {/* 👉 SECTION GAUCHE : Le Logo ET le Timer bien alignés côte à côte */}
         <div className="flex items-center gap-6">
           <h1 className="text-2xl font-black tracking-wider text-indigo-600 flex items-center gap-2">
-            <span>🎨</span>
             <span>FT_SKRIBBL</span>
           </h1>
 
           {/* Le Timer (Fini la position absolute !) */}
           <div className={`flex items-center gap-2 text-xl font-bold px-4 py-1.5 rounded-lg border-2 shadow-sm ${
-            tempsRestant <= 10 ? 'bg-red-50 border-red-500 text-red-600 animate-pulse' : 'bg-slate-50 border-slate-300 text-slate-700'
+            tempsRestant <= 10 ? 'bg-red-50 border-red-500 text-red-600 animate-pulse' : 'bg-slate-950 border-slate-300 text-slate-700'
           }`}>
             <span>⏱️</span>
             <span>{tempsRestant}s</span>
@@ -227,15 +226,15 @@ export default function GamePage() {
       <main className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 min-h-[500px]">
 
         {/* --- COLONNE GAUCHE : JOUEURS (1 fraction sur 4) --- */}
-        <aside className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+        <aside className="bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 flex items-center justify-between">
             <span>👥 Joueurs</span>
-            <span className="bg-slate-100 text-slate-600 text-xs py-1 px-2 rounded-full">{listeJoueurs.length}</span>
+            <span className="bg-slate-950 text-slate-600 text-xs py-1 px-2 rounded-full">{listeJoueurs.length}</span>
           </h3>
 
           <ul className="space-y-2 overflow-y-auto flex-1">
             {listeJoueurs.map((joueur: any, index: number) => (
-              <li key={index} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+              <li key={index} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-100">
                 
                 {/* GAUCHE : Pastille + Pseudo */}
                 <div className="flex items-center gap-2.5">
@@ -265,7 +264,7 @@ export default function GamePage() {
 
 
         {/* --- COLONNE CENTRALE : ZONE DE DESSIN (2 fractions sur 4) --- */}
-        <section className="col-span-1 lg:col-span-2 bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
+        <section className="col-span-1 lg:col-span-2 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
           
           {/* Annonce au début de la manche (Overlay) */}
           {drawerInfo && (
@@ -274,16 +273,21 @@ export default function GamePage() {
             </div>
             )}
 
-        {/* 🚀 Conteneur propre : overflow-hidden pour éviter de déborder, relative pour bien caler la feuille */}
-        <div className="w-full h-full rounded-lg bg-white shadow-inner overflow-hidden relative flex items-center justify-center">
-          <GameCanvas isDrawer={isMeTheDrawer} socket={socket} channelId={reelChannelId}/> 
-        </div>
+     {/* --- COLONNE CENTRALE : LE JEU --- */}
+   {/* 🚀 On utilise h-[82vh] pour forcer le navigateur à créer une colonne centrale immense */}
+        <main className="flex-1 w-full h-[82vh] bg-slate-900/40 rounded-xl border border-slate-700/50 p-3 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
+          
+          {/* Le conteneur du canvas qui absorbe 100% de cette immense hauteur */}
+          <div className="relative w-full h-full flex-1 overflow-hidden rounded-lg">
+            <GameCanvas isDrawer={isMeTheDrawer} socket={socket} channelId={reelChannelId} /> 
+          </div>
 
+        </main>
         </section>
 
 
         {/* --- COLONNE DROITE : LE CHAT DE TON COLLÈGUE (1 fraction sur 4) --- */}
-        <aside className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+        <aside className="bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3">
             Chat du Jeu
           </h3>

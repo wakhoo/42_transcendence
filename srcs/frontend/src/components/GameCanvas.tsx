@@ -27,8 +27,8 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		const canvas = canvasRef.current;
 		if(!canvas)
 			return;
-		canvas.width = 1000;
-		canvas.height = 800;
+		canvas.width = 1200;
+		canvas.height = 1000;
 
 		const context = canvas.getContext('2d');
 		if(!context)
@@ -182,7 +182,7 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
         onMouseMove={draw}         // Quand on bouge
         onMouseUp={stopDrawing}    // Quand on relâche le clic
         onMouseLeave={stopDrawing} // Sécurité : si la souris sort du cadre, on arrête de dessiner
-        className="bg-white border-2 border-slate-300 rounded shadow-md cursor-crosshair w-full max-w-[800px] h-auto aspect-[4/3]"
+        className="absolute inset-0 w-full h-full bg-white cursor-crosshair shadow-2xl block touch-none"
       />
     </div>
   );
