@@ -46,17 +46,32 @@ export class UserController {
     @Patch('me')
     async updateMe(@Req() req: AuthedRequest, @Body() dto: UpdateUserDto) {
         const userId = req.user.sub;
+        const user = await this.userService.findById(userId);
+        if (!user) throw new UnauthorizedException();
 
-        if (dto.email) {
-            const existing = await this.userService.findByEmail(dto.email);
+        const changingEmail = dto.email !== undefined && dto.email !== user.email;
+        const changingUsername = dto.username !== undefined && dto.username !== user.username;
+
+        if ((changingEmail || changingUsername) && user.totpEnabled) {
+            if (!dto.code) throw new BadRequestException('2FA code required');
+            const valid = authenticator.verify({ token: dto.code, secret: user.totpSecret! });
+            if (!valid) throw new UnauthorizedException('Invalid 2FA code');
+        }
+
+        if (changingEmail) {
+            const existing = await this.userService.findByEmail(dto.email!);
             if (existing && existing.id !== userId) throw new ConflictException('Email already in use');
         }
-        if (dto.username) {
-            const existing = await this.userService.findByUsername(dto.username);
+        if (changingUsername) {
+            const existing = await this.userService.findByUsername(dto.username!);
             if (existing && existing.id !== userId) throw new ConflictException('Username already in use');
         }
 
-        const updated = await this.userService.update(userId, dto);
+        const updated = await this.userService.update(userId, {
+            email: dto.email,
+            username: dto.username,
+            avatarUrl: dto.avatarUrl,
+        });
         return this.toSafeProfile(updated);
     }
 

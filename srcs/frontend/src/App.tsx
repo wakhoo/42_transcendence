@@ -9,6 +9,8 @@ import GamePage from './pages/GamePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';
 import AuthCallbackPage from './pages/AuthCallbackPage.tsx';
+import TwoFactorSetupPage from './pages/TwoFactorSetupPage.tsx';
+import GoogleTwoFactorPage from './pages/GoogleTwoFactorPage.tsx';
 
 
 //export default App;
@@ -143,6 +145,8 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
+        <Route path="/2fa/prompt" element={<TwoFactorSetupPage />} />
+        <Route path="/auth/2fa" element={<GoogleTwoFactorPage />} />
       </Routes>
     </BrowserRouter>
   );

@@ -80,7 +80,7 @@ export class UserService {
         return this.repo.save(user);
     }
 
-    async update(userId: number, data: { email?: string; username?: string }): Promise<User> {
+    async update(userId: number, data: { email?: string; username?: string; avatarUrl?: string }): Promise<User> {
         await this.repo.update(userId, data);
         return (await this.findById(userId))!;
     }
