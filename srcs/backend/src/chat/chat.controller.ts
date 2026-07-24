@@ -7,6 +7,7 @@ import {
     ParseIntPipe,
     Patch,
     Post,
+    Req,
     UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -17,13 +18,14 @@ import { CreateChannelDto } from './dto/create-channel.dto';
 import { JoinChannelDto } from './dto/join-channel.dto';
 import { MuteMemberDto } from './dto/mute-member.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
+import { GameService } from '../game/game.service';
 
 @ApiTags('chat')
 @ApiBearerAuth()
 @UseGuards(JwtGuard)
 @Controller('chat')
 export class ChatController {
-    constructor(private readonly chatService: ChatService) {}
+    constructor(private readonly chatService: ChatService, private readonly gameService: GameService) {}
 
     // ── Channels ──────────────────────────────────────────────────────────────
 
@@ -127,4 +129,15 @@ export class ChatController {
     blockUser( @CurrentUser() user: JwtPayload, @Param('userId', ParseIntPipe) targetUserId: number) {
         return this.chatService.blockUser(user.sub, targetUserId);
     }
+
+    @Post('create-game')
+    async createGameRoom(@Req() req: any, @Body() body: { name?: string }) {
+
+        const creatorId = Number(req.user.sub || req.user.id || req.user.userId) ;
+        const roomName = body.name || `Game Room ${Math.floor(Math.random() * 1000)}`;
+        const session = await this.gameService.createGameSession(creatorId, roomName);
+
+        return session;
+    }
+
 }

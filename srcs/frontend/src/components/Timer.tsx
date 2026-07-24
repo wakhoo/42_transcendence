@@ -14,6 +14,7 @@ export default function GamePage() {
   const [secretWord, setSecretWord] = useState<any>(null);
   const [roundEndMsg, setRoundEndMsg] = useState<string | null>(null);
   const [scores, setScores] = useState<Record< number, number>>({});
+  const [message, setMessage] = useState<any>(null);
 
   const queryParam = new URLSearchParams(window.location.search);
   const reelChannelId = Number(queryParam.get('channelId')) || 1;
@@ -68,8 +69,10 @@ export default function GamePage() {
 
       const reelId = data.channelId;
       window.history.replaceState(null, '', `/game?channelId=${reelId}&action=join`);
+      socketInstance.emit('join_room', { channelId: Number(reelId) });
 
     });
+
 
     socketInstance.on('update_players', (listeVenantDuBack) => {
 
@@ -87,12 +90,23 @@ export default function GamePage() {
 
     });
 
+    socketInstance.on('message_channel', (data) => {
+      setMessage(data);
+      setTimeout(() => {
+      setMessage(null);
+      }, 4000);
+    });
+
+
     socketInstance.on('word_hint', (data) => {
       setWordHint(data);
     });
 
     socketInstance.on('secret_word', (data) => {
       setSecretWord(data);
+      setTimeout(() => {
+      setSecretWord(null);
+      }, 7000);
     });
 
     socketInstance.on('round_end', (data) => {
@@ -191,6 +205,23 @@ export default function GamePage() {
     // 1. CONTENEUR PRINCIPAL : Prend tout l'écran avec un fond gris doux
     <div className="min-h-screen bg-slate-950 p-4 flex flex-col gap-4 font-sans text-slate-800">
 
+      {message && (
+      <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-red-500/90 text-white px-6 py-3 rounded-full shadow-2xl border border-red-400 flex items-center gap-3 animate-bounce backdrop-blur-sm">
+        <span className="text-xl">⚠️</span>
+        <span className="font-bold text-sm tracking-wide">
+          {/* 🚀 SÉCURITÉ ANTI-CRASH : Si le backend envoie un objet, on affiche seulement sa propriété message (ou on le convertit en texte lisible !) */}
+          {typeof message === 'object' 
+            ? (message.message || JSON.stringify(message)) 
+            : message}
+        </span>
+        <button 
+          onClick={() => setMessage(null)} 
+          className="ml-2 bg-red-600 hover:bg-red-700 rounded-full w-6 h-6 flex items-center justify-center text-xs font-black transition-colors"
+        >
+          ✕
+        </button>
+      </div>
+      )}
       {/* 2. BARRE SUPÉRIEURE : Logo, Timer, Mot Secret et Bouton */}
       <header className="bg-slate-950 px-6 py-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
         
@@ -233,16 +264,14 @@ export default function GamePage() {
           </h3>
 
           <ul className="space-y-2 overflow-y-auto flex-1">
-            {listeJoueurs.map((joueur: any, index: number) => (
-              <li key={index} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-100">
-                
-                {/* GAUCHE : Pastille + Pseudo */}
-                <div className="flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm"></span>
-                  <span className="font-semibold text-sm text-slate-700 truncate max-w-[100px]">
-                    {joueur.username || `Joueur #${joueur.id || index + 1}`}
-                  </span>
-                </div>
+           {(Array.isArray(listeJoueurs) ? listeJoueurs : []).map((joueur: any, index: number) => (
+            <li key={joueur?.id || index} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm"></span>
+                <span className="font-semibold text-sm text-slate-700 truncate max-w-[100px]">
+                  {joueur?.username || joueur?.name || `Joueur #${joueur?.id || index + 1}`}
+                </span>
+              </div>
 
                 {/* DROITE : Score + Crayon */}
                 <div className="flex items-center gap-2">

@@ -68,25 +68,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
   }
 
   
-//   // cree une sessio n de jeu et ajoute le createur de la room 
-// @SubscribeMessage('create_room')
-//   async handleRoom(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number }) {
-//     const userId = gameSocketUserMap.get(client.id); 
-//     if (!userId) {
-//       return;
-//     }
-
-//     await this.gameService.createGameSession(data.channelId, userId);
-//     client.join(data.channelId.toString());
-//     const reelPlayer = await this.gameService.getUserName(data.channelId);
-
-//     console.log(`GAME] Room #${data.channelId} créée ! Envoi de la liste update_players :`,reelPlayer);
-
-//     // Envoi à la room ET envoi direct au client pour forcer l'affichage sur son écran
-//     this.server.to(data.channelId.toString()).emit('update_players', reelPlayer);
-//     client.emit('update_players', reelPlayer);
-//   }
-
 
  // cree une sessio n de jeu et ajoute le createur de la room
   // modifié : le front envoie maintenant un 'name' au lieu d'un 'channelId' aléatoire
@@ -123,17 +104,15 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
         return;
       }
      
-      const session = await this.gameService.joinGameSession(data.channelId, userId);
+      const roomName = data.channelId.toString();
+      client.join(roomName);
+      await this.gameService.joinGameSession(data.channelId, userId);
       
-      if(session){
-
-        client.join(data.channelId.toString());
-        const realPlayer = await this.gameService.getUserName(data.channelId);
-        this.server.to(data.channelId.toString()).emit('update_players', realPlayer);
+      const realPlayer = await this.gameService.getUserName(data.channelId);
+      if(realPlayer) {
+        this.server.to(roomName).emit('update_players', realPlayer);
         client.emit('update_players', realPlayer);
       }
-      else
-        client.emit('error', {message: 'No such room'});
 
     }
     
@@ -165,7 +144,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
         return;
       }
       this.gameService.handleDraw(userId, data.channelId, data.drawData);
-      client.to(`channel_${data.channelId}`).emit('draw', data.drawData);
+      client.to(data.channelId.toString()).emit('draw', data.drawData);
     }
 
 

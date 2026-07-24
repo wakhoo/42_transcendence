@@ -297,10 +297,33 @@ export default function DashboardPage() {
                         Join public room
                     </button>
                         <button
-                            onClick={() => {
-                                const randomRoomId = Math.floor(Math.random() * 9000) + 1000;
-                                navigate(`/game?channelId=${randomRoomId}&action=create`);
-                            }}
+                            onClick={ async () => {
+                                            try {
+                                        // 🚀 1. On appelle ton GameController pour exécuter ton createGameSession en back !
+                                        const response = await fetch(`${window.location.origin}/api/chat/create-game`, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Content-Type': 'application/json',
+                                                'Authorization': `Bearer ${sessionStorage.getItem('token')}` // Ou ton token JWT
+                                            },
+                                            body: JSON.stringify({ name: "Public Game" })
+                                        });
+
+                                        if (!response.ok) {
+                                            throw new Error("Erreur serveur lors de la création");
+                                        }
+
+                                        const newSession = await response.json();
+
+                                        // 🚀 2. Le serveur nous renvoie la session avec le VRAI channelId officiel !
+                                        // Plus besoin de &action=create, le salon est déjà en RAM et en BDD !
+                                        navigate(`/game?channelId=${newSession.channelId}`);
+
+                                    } catch (error) {
+                                        console.error("Erreur de création :", error);
+                                        alert("Impossible de créer le salon de jeu.");
+                                    }
+                                }}
                             className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-emerald-900 text-xl font-semibold
                                 border-2 border-emerald-400 bg-emerald-100
                                 transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]

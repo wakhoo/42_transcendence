@@ -92,18 +92,19 @@ export class GameService implements OnModuleInit {
 
     const session = this.activeGames.get(channelId);
     if(!session){
-
-      console.log(`Error : #${channelId} doesn't exist #`);
       return null;
     }
-        // on utilise cette fois joinChannel pour ajouter un joueur
-    await this.chatService.joinChannel(userId, channelId);
+    
+    try {
+        await this.chatService.joinChannel(userId, channelId);
+    } catch (error) {
+        // Le créateur est déjà dans la BDD SQL : on ignore l'erreur et on continue tranquillement !
+    }
     session.scores[userId] = 0;
 
     // on peut chopper directement maintenant le nombre de joueurs depuis la DB
     const members = await this.chatService.getChannelMember(channelId);
-    this.server.to(channelId.toString()).emit('message_channel', {channel: channelId, totalPlayer: members.length, userId: userId });
-    // bug corrige : t'envoyait a this.server.to(`channel_${channelId}`) dans le gateway donc c'etait pas coherent avec ici donc ca pouvait pas marcher
+    this.server.to(channelId.toString()).emit('message_channel', `${members.length} player(s) in the room`);
     return session;
 
   }
@@ -129,12 +130,13 @@ export class GameService implements OnModuleInit {
   async getUserName(channelId: number): Promise<Array<{id: number; username: string}>> {
 
     const members = await this.chatService.getChannelMember(channelId);
-    if(!members)
+    if(!members || members.length === 0)
         return [];
-    // lancement de la recherche pseudode chaque joeur dans la map jusque a ce que tout le monde a repondu plus filet de securite creatio nde faux joueur
+    // lancement de la recherche pseudo de chaque joeur dans la map jusque a ce que tout le monde a repondu plus filet de securite creation de faux joueur
     const playerName = await Promise.all(
       members.map(async (m) => {
 
+        //const userId = m?.user?.id || m?.userId || m?.id;
         try {
             const user = await this.userService.findById(m.user.id);
             return {
