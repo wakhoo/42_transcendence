@@ -99,6 +99,7 @@ export class GameService implements OnModuleInit {
         await this.chatService.joinChannel(userId, channelId);
     } catch (error) {
         // Le créateur est déjà dans la BDD SQL : on ignore l'erreur et on continue tranquillement !
+
     }
     session.scores[userId] = 0;
 
@@ -371,45 +372,110 @@ export class GameService implements OnModuleInit {
 
 
       // gere les departs netoie la ram annule la partie etc
-    async handleDisconnection(userId: number): Promise <number | null> {
+    // async handleDisconnection(userId: number): Promise <number | null> {
 
-      for (const[channelID, currentGame] of this.activeGames.entries()) {
+    //   for (const[channelID, currentGame] of this.activeGames.entries()) {
 
 
-          const members = await this.chatService.getChannelMember(channelID);
-          const playerIds = members.map(m => m.user.id);
-			    if(playerIds.includes(userId)){
+    //       const members = await this.chatService.getChannelMember(channelID);
+    //       const playerIds = members.map(m => m.user.id);
+		// 	    if(playerIds.includes(userId)){
 
-				   await this.chatService.leaveChannel(userId, channelID);
+		// 		   await this.chatService.leaveChannel(userId, channelID);
            
 
-            const remaining = await this.chatService.getChannelMember(channelID);
-            const newPlayerList = await this.getUserName(channelID);
-            this.server.to(channelID.toString()).emit('update_players', newPlayerList);
-            if(remaining.length <= 1){
+    //         const remaining = await this.chatService.getChannelMember(channelID);
+    //         const newPlayerList = await this.getUserName(channelID);
+    //         this.server.to(channelID.toString()).emit('update_players', newPlayerList);
+    //         if(remaining.length <= 1){
 
-              clearInterval(currentGame.timerInterval);
-              this.server.to(channelID.toString()).emit('game_cancelled', {reason : 'not_enough_players'});
-              await this.chatService.deleteChannel(currentGame.creatorId, channelID);
-              this.activeGames.delete(channelID);
-              return null;
-            }
+    //           clearInterval(currentGame.timerInterval);
+    //           this.server.to(channelID.toString()).emit('game_cancelled', {reason : 'not_enough_players'});
+    //           await this.chatService.deleteChannel(currentGame.creatorId, channelID);
+    //           this.activeGames.delete(channelID);
+    //           return null;
+    //         }
           
-            if(userId === currentGame.currentDrawerId){
+    //         if(userId === currentGame.currentDrawerId){
 
-              clearInterval(currentGame.timerInterval);
-              this.server.to(channelID.toString()).emit('drawer_left', {drawerLeftId: userId});
-              setTimeout(() =>{
-                this.handleNextTurn(channelID);
-                },5000);
-              }
-				      return channelID;
-          }
-        }
-        return null;
+    //           clearInterval(currentGame.timerInterval);
+    //           this.server.to(channelID.toString()).emit('drawer_left', {drawerLeftId: userId});
+    //           setTimeout(() =>{
+    //             this.handleNextTurn(channelID);
+    //             },5000);
+    //           }
+		// 		      return channelID;
+    //       }
+    //     }
+    //     return null;
+    //   }
+  
+
+    async handleDisconnection(userId: number): Promise<number | null> {
+
+  for (const [channelID, currentGame] of this.activeGames.entries()) {
+
+    // OPTIMISATION RAM : On regarde si le joueur est dans les scores de cette partie
+    // Ça évite de faire faire des requêtes SQL au serveur pour des salons où le joueur n'est pas !
+    if (!currentGame.scores || currentGame.scores[userId] === undefined) {
+      continue;
+    }
+    // À partir d'ici, on est sûr à 100% qu'il était dans CE salon :
+    try {
+      await this.chatService.leaveChannel(userId, channelID);
+    } catch {
+      console.log(`Le joueur #${userId} était déjà parti du salon SQL #${channelID}`);
+    }
+    // 🚀 2. NETTOYAGE RAM : On supprime son score pour qu'il disparaisse du classement
+    delete currentGame.scores[userId];
+
+    const remaining = await this.chatService.getChannelMember(channelID);
+    const newPlayerList = await this.getUserName(channelID);
+    
+    if (this.server) {
+      this.server.to(channelID.toString()).emit('update_players', newPlayerList);
+    }
+    // SI LA PARTIE N'A PLUS ASSEZ DE JOUEURS (0 ou 1) :
+    if (remaining.length <= 1) {
+      if (currentGame.timerInterval) {
+        clearInterval(currentGame.timerInterval);
       }
+      
+      if (this.server) {
+        this.server.to(channelID.toString()).emit('game_cancelled', { reason: 'not_enough_players' });
+      }
+      try {
+        await this.chatService.deleteChannel(currentGame.creatorId, channelID);
+      } catch {
+        console.log("Erreur lors de la suppression SQL du salon (peut-être déjà supprimé)");
+      }
+
+      this.activeGames.delete(channelID);
+      return null;
+    }
+    // SI LE DESSINATEUR A QUITTÉ EN PLEINE MANCHE :
+    if (userId === currentGame.currentDrawerId) {
+      if (currentGame.timerInterval) {
+        clearInterval(currentGame.timerInterval);
+      }
+
+      if (this.server) {
+        this.server.to(channelID.toString()).emit('drawer_left', { drawerLeftId: userId });
+      }
+      setTimeout(() => {
+        // SÉCURITÉ ANTI-CRASH : On vérifie que la partie existe toujours après les 5 secondes d'attente !
+        if (this.activeGames.has(channelID)) {
+          this.handleNextTurn(channelID);
+        }
+      }, 5000);
+    }
+    return channelID;
+  }
+  return null;
+}
   
-  
+
+
   isCurrentDrawer(channelId: number, userId: number): boolean {
 
     const game = this.activeGames.get(channelId);

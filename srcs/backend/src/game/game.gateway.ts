@@ -164,6 +164,16 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
       this.gameService.sendHistory(client.id, data.channelId);
     }
 
+    @SubscribeMessage('leave_room')
+    async handleLeaveRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelID: number}) {
+
+      const userId = gameSocketUserMap.get(client.id);
+      if(!userId)
+          return;
+      client.leave(data.channelID.toString());
+      await this.gameService.handleDisconnection(userId);
+    }
+
 
 
     async handleDisconnect(client: Socket) {

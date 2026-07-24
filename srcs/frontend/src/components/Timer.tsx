@@ -128,6 +128,10 @@ export default function GamePage() {
     });
 
     return () => {
+
+      if (socketInstance && socketInstance.connected)
+        socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
+  
       socketInstance.off('connect');
       socketInstance.off('update_players');
       socketInstance.off('timer_update');
@@ -253,10 +257,8 @@ export default function GamePage() {
       </header>
 
 
-      {/* 3. GRILLE CENTRALE EN 3 COLONNES (4 fractions : 1 + 2 + 1) */}
       <main className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 min-h-[500px]">
 
-        {/* --- COLONNE GAUCHE : JOUEURS (1 fraction sur 4) --- */}
         <aside className="bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 flex items-center justify-between">
             <span>👥 Joueurs</span>
@@ -292,7 +294,6 @@ export default function GamePage() {
         </aside>
 
 
-        {/* --- COLONNE CENTRALE : ZONE DE DESSIN (2 fractions sur 4) --- */}
         <section className="col-span-1 lg:col-span-2 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
           
           {/* Annonce au début de la manche (Overlay) */}
@@ -302,7 +303,6 @@ export default function GamePage() {
             </div>
             )}
 
-     {/* --- COLONNE CENTRALE : LE JEU --- */}
    {/* 🚀 On utilise h-[82vh] pour forcer le navigateur à créer une colonne centrale immense */}
         <main className="flex-1 w-full h-[82vh] bg-slate-900/40 rounded-xl border border-slate-700/50 p-3 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
           
@@ -315,7 +315,6 @@ export default function GamePage() {
         </section>
 
 
-        {/* --- COLONNE DROITE : LE CHAT DE TON COLLÈGUE (1 fraction sur 4) --- */}
         <aside className="bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3">
             Chat du Jeu
