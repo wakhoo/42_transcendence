@@ -7,6 +7,7 @@ import { User } from "./user.entity";
 import { Message } from "../chat/entities/message.entity";
 import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
+import { GdprAuditService } from "./gdpr-audit.service";
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { UserService } from "./user.service";
     }),
   ],
   controllers: [UserController],
-  providers: [UserService, JwtGuard],
+  providers: [UserService, JwtGuard, GdprAuditService],
   exports: [UserService],
 })
 export class UserModule {}

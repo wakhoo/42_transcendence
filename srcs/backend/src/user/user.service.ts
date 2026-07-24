@@ -61,6 +61,10 @@ export class UserService {
         await this.repo.update(userId, { totpSecret: secret });
     }
 
+    async setPasswordHash(userId: number, passwordHash: string): Promise<void> {
+        await this.repo.update(userId, { passwordHash });
+    }
+
     async enableTotp(userId: number): Promise<void> {
         await this.repo.update(userId, { totpEnabled: true });
     }
