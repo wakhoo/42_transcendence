@@ -143,6 +143,7 @@ export default function GamePage() {
       socketInstance.off('round_end');
       socketInstance.off('room_created');
       socketInstance.off('classement');
+      socketInstance.off('message_channel');
       socketInstance.removeAllListeners();
       socketInstance.disconnect();
     };
@@ -152,7 +153,6 @@ export default function GamePage() {
 
   const handleStartGame = () => {
     if (socket) {
-      console.log(` Demande de démarrage du jeu pour le salon officiel #${reelChannelId}...`);
       socket.emit('start_game', { channelId: reelChannelId });
     }
   };
@@ -164,7 +164,7 @@ export default function GamePage() {
       return (
         <div className="bg-amber-100 border border-amber-400 px-4 py-2 rounded-lg animate-bounce">
           <p className="text-xs font-bold uppercase tracking-widest text-amber-700">
-            ⏳ Fin du tour !
+             Fin du tour !
           </p>
           <p className="text-lg font-bold text-amber-900">
             {roundEndMsg}
@@ -296,7 +296,6 @@ export default function GamePage() {
 
         <section className="col-span-1 lg:col-span-2 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
           
-          {/* Annonce au début de la manche (Overlay) */}
           {drawerInfo && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium z-10 animate-bounce">
               🎨 It's <span className="font-bold underline">{drawerInfo.drawerName}</span> turn to draw !
@@ -306,7 +305,6 @@ export default function GamePage() {
    {/* 🚀 On utilise h-[82vh] pour forcer le navigateur à créer une colonne centrale immense */}
         <main className="flex-1 w-full h-[82vh] bg-slate-900/40 rounded-xl border border-slate-700/50 p-3 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
           
-          {/* Le conteneur du canvas qui absorbe 100% de cette immense hauteur */}
           <div className="relative w-full h-full flex-1 overflow-hidden rounded-lg">
             <GameCanvas isDrawer={isMeTheDrawer} socket={socket} channelId={reelChannelId} /> 
           </div>
@@ -320,7 +318,6 @@ export default function GamePage() {
             Chat du Jeu
           </h3>
 
-          {/* 👉 Le vrai chat prend maintenant tout l'espace disponible ! */}
           <div className="flex-1 overflow-hidden">
             <GameChat channelId={reelChannelId} />
           </div>

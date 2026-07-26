@@ -13,12 +13,17 @@ interface GameCanvasProps {
 }
 
 
+type DrawTool = 'pencil' | 'eraser';
+
 export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasProps) {
 
 
 	const canvasRef = useRef<HTMLCanvasElement | null>(null);
 	const contextRef = useRef<CanvasRenderingContext2D | null>(null);
 	const prevPos = useRef<{ x: number; y: number } | null>(null);
+	const [activeTool, setActiveTool] = useState<DrawTool>('pencil');
+	const [color, setColor] = useState('#FFFFFF');
+	const [brushSize ] = useState(4);
 
 	const [isDrawing, setIsDrawing] = useState(false);
 
@@ -75,20 +80,14 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 
 	};
 
-
-
-
-
 	const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
 
 		if(!isDrawing || !isDrawer || !contextRef.current || !canvasRef.current || !prevPos.current)
 			return;
-		//const rect = canvasRef.current.getBoundingClientRect();
+
    	 	const { x, y } = getExactPosition(canvasRef.current, e);
 
-		contextRef.current.lineTo(x,y);
-		contextRef.current.stroke();
-
+		drawSegment(prevPos.current.x, prevPos.current.y, x, y, color, brushSize, activeTool);
 		if (socket) {
 		const drawdata = {
 
@@ -96,8 +95,9 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 			prevY: prevPos.current!.y,
 			currentX: x,
 			currentY: y,
-			color: '#000000',
-			lineWidth: 5
+			color: color,
+			lineWidth: brushSize,
+			tool: activeTool
 		};
 
 		socket.emit('draw', {drawData: drawdata , channelId: channelId});
@@ -106,7 +106,8 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 
 	};
 
-	const drawSegment = (x1: number, y1: number, x2: number, y2: number) => {
+	const drawSegment = (x1: number, y1: number, x2: number, y2: number, segColor: string = '#FFFFFF',
+		segSize: number = 4, tool: DrawTool = 'pencil') => {
 
 		if(!contextRef.current)
 				return;
@@ -114,8 +115,20 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		contextRef.current.beginPath();
 		contextRef.current.moveTo(x1, y1);
 		contextRef.current.lineTo(x2,y2);
-		contextRef.current.stroke();
 
+		if (tool === 'eraser') {
+
+			contextRef.current.globalCompositeOperation = 'destination-out';
+			contextRef.current.strokeStyle = segColor;
+			contextRef.current.lineWidth = segSize * 4;
+		}
+		else{
+
+			contextRef.current.globalCompositeOperation = 'source-over';
+			contextRef.current.strokeStyle = segColor;
+			contextRef.current.lineWidth = segSize;
+		}
+		contextRef.current.stroke();
 	};
 
 	useEffect(() => {
@@ -128,7 +141,8 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 			if(isDrawer)
 				return;
 			const playload = recu.data || recu.drawData || recu;
-			drawSegment(playload.prevX, playload.prevY, playload.currentX, playload.currentY);
+			drawSegment(playload.prevX, playload.prevY, playload.currentX, playload.currentY,
+				playload.color, playload.lineWidth,playload.tool || 'pencil');
 		};
 		socket.on('draw', handleIncomingDraw);
 		return() => {
@@ -138,6 +152,15 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 	}, [socket, isDrawer]);
 
 
+	const handleEmitClear = () => {
+
+
+		if(!isDrawer || !socket)
+			return;
+
+		clearCanvas();
+		socket.emit('clear_canvas', {channelId: channelId});
+	}
 
 	const stopDrawing = () => {
 
@@ -166,16 +189,74 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		if(!socket)
 			return;
 		socket.on('round_start', clearCanvas);
-		//socket.on('clear_canvas', clearCanvas);
+		socket.on('clear_canvas', clearCanvas);
 		return () => {
 
 			socket.off('round_start', clearCanvas);
-    		//socket.off('clear_canvas', clearCanvas);
+    		socket.off('clear_canvas', clearCanvas);
 		};
 	}, [socket]);
 
 	return (
     <div className="flex justify-center items-center p-4 bg-slate-100 rounded-lg">
+		{isDrawer && (
+                <div className="absolute top-4 bg-slate-900/90 border border-slate-700 px-6 py-2.5 rounded-full shadow-2xl flex items-center gap-4 backdrop-blur-sm z-20">
+                    
+                    {/* Bouton Crayon */}
+                    <button
+                        onClick={() => setActiveTool('pencil')}
+                        className={`px-4 py-1.5 rounded-full font-bold text-sm flex items-center gap-2 transition-all ${
+                            activeTool === 'pencil' 
+                                ? 'bg-indigo-600 text-white shadow-lg scale-105' 
+                                : 'bg-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                    >
+                        <span>✏️</span>
+                        <span>Crayon</span>
+                    </button>
+
+                    {/* Bouton Gomme */}
+                    <button
+                        onClick={() => setActiveTool('eraser')}
+                        className={`px-4 py-1.5 rounded-full font-bold text-sm flex items-center gap-2 transition-all ${
+                            activeTool === 'eraser' 
+                                ? 'bg-amber-600 text-white shadow-lg scale-105' 
+                                : 'bg-slate-800 text-slate-400 hover:text-white'
+                        }`}
+                    >
+                        <span>🧽</span>
+                        <span>Gomme</span>
+                    </button>
+
+                    {/* Séparateur */}
+                    <div className="w-px h-6 bg-slate-700" />
+					<div className="flex items-center gap-1.5 ml-2">
+					{['#0a0a0a', '#EF4444', '#3B82F6', '#10B981', '#F59E0B' , '#a611ac'].map((couleur) => (
+						<button
+						key={couleur}
+						onClick={() => {
+							setColor(couleur);         // 👈 Voilà ! On utilise enfin setColor !
+							setActiveTool('pencil');   // Si on clique sur une couleur, on repasse automatiquement au crayon
+						}}
+						style={{ backgroundColor: couleur }}
+						className={`w-6 h-6 rounded-full border border-slate-600 transition-transform ${
+							color === couleur && activeTool === 'pencil' ? 'scale-125 ring-2 ring-indigo-400' : 'hover:scale-110'
+						}`}
+						title={`Couleur ${couleur}`}
+						/>
+					))}
+					</div>	
+
+                    {/* Bouton Poubelle (Tout effacer) */}
+                    <button
+                        onClick={handleEmitClear}
+                        title="Tout effacer"
+                        className="bg-red-500/20 hover:bg-red-600 text-red-400 hover:text-white p-2 rounded-full transition-all active:scale-90 flex items-center justify-center w-9 h-9"
+                    >
+                        🗑️
+                    </button>
+                </div>
+            )}
       <canvas
         ref={canvasRef} // On lie le HTML à notre référence React
         onMouseDown={startDrawing} // Quand on clique

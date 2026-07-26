@@ -175,6 +175,17 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
     }
 
 
+    @SubscribeMessage('clear_canvas')
+    async handleClearCanvas(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number}) {
+
+      const userId = gameSocketUserMap.get(client.id);
+      if(!userId)
+          return;
+      this.server.to(data.channelId.toString()).emit('clear_canvas');
+
+    }
+
+
 
     async handleDisconnect(client: Socket) {
 

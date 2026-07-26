@@ -24,12 +24,14 @@ export interface GameSession {
   currentDrawerId: number;
   timeLeft: number;
   timerInterval?: NodeJS.Timeout;
+  turnTimeout?: NodeJS.Timeout;
   scores: Record<number, number>;
   guessedUsers: number[];
   useWords: string[];
   currentRound: number;
   maxRound: number;
   historicDraw: any[];
+  isDrawing: boolean
 }
 
 
@@ -80,6 +82,7 @@ export class GameService implements OnModuleInit {
         currentRound: 0,
         maxRound: 3,
         historicDraw: [],
+        isDrawing: false,
       }   
       this.activeGames.set(channel.id, newGameSession);
       console.log(`Room #${channel.id} created by player #${creatorId}`);
@@ -99,7 +102,6 @@ export class GameService implements OnModuleInit {
         await this.chatService.joinChannel(userId, channelId);
     } catch (error) {
         // Le créateur est déjà dans la BDD SQL : on ignore l'erreur et on continue tranquillement !
-
     }
     session.scores[userId] = 0;
 
@@ -166,63 +168,21 @@ export class GameService implements OnModuleInit {
 			this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
 			return;
 		}
-		const secretWord = await this.getRandomWord();
-		const index = Math.floor(Math.random() * playerIds.length);
-		const drawerId = playerIds[index];
 	
-    
-    session.secretWord = secretWord;
-    session.currentDrawerId = drawerId;
     session.timeLeft = 60;
     session.scores = {};
     session.guessedUsers = [];
-    session.useWords = [secretWord];
+    session.useWords = [];
     session.currentRound = 1;
     session.historicDraw = [];
-
+    session.currentDrawerId = -1;
 
     playerIds.forEach((id) => {
         session.scores[id] = 0;
     });
 
-
-		//this.activeGames.set(channelId, newGame);
-    const playerList = await this.getUserName(channelId);
-    const drawerProfile = playerList.find((p) => p.id === drawerId) || { username: `Joueur #${drawerId}` };
-		this.server.to(channelId.toString()).emit('round_start', {drawerName: drawerProfile.username, 
-			drawerId: drawerId });
-
-		const hintLetter = "-".repeat(secretWord.length);
-		this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: secretWord.length} );	
-
-		for (const[socketId, id] of gameSocketUserMap.entries()) {
-
-			if(id === drawerId){
-				this.server.to(socketId).emit('secret_word', secretWord);
-				break;
-			}
-
-		}
-
-		setTimeout(() =>{
-
-        session.timerInterval = setInterval(() => {
-         session.timeLeft -= 1;
-          this.server.to(channelId.toString()).emit('timer_update',session.timeLeft);
-          if(session.guessedUsers)
-          if(session.timeLeft <= 0){
-
-            clearInterval(session.timerInterval);
-            this.server.to(channelId.toString()).emit('round_end',`Fin du temps reglementaire le mot a deviner etait ${session.secretWord}`);
-            this.server.to(channelId.toString()).emit('classement',session.scores);
-            setTimeout(() =>{
-              this.handleNextTurn(channelId);
-            },5000);
-          }
-        },1000);
-      },10000);
-    
-    }
+    await this.handleNextTurn(channelId);
+  }
 
 
 
@@ -233,6 +193,8 @@ export class GameService implements OnModuleInit {
     if(!currentGame)
         return false;
     
+    if(!currentGame.isDrawing)
+        return false;
     if(content.toLowerCase() === currentGame?.secretWord.toLowerCase()){
 
       if(userId === currentGame?.currentDrawerId)
@@ -280,30 +242,34 @@ export class GameService implements OnModuleInit {
         return false;
     if(currentGame.timerInterval)
       clearInterval(currentGame.timerInterval);
-		currentGame.currentRound += 1;
+    if (currentGame.turnTimeout) 
+      clearTimeout(currentGame.turnTimeout);
+	
+    currentGame.isDrawing = false;
     //fin de partie sauvgarde dans mariadb
-    if (currentGame.currentRound > currentGame.maxRound)
-    {
-      this.server.to(channelId.toString()).emit('game_over',currentGame.scores);
-      const matchHistory = this.match.create({
-        channelId: currentGame.channelId,
-        scores: currentGame.scores,
-      });
-      await this.match.save(matchHistory);
-      this.activeGames.delete(channelId);
-      return;
-    }
+   
     //changement de dessinateur
-    else{
-
     const members = await this.chatService.getChannelMember(channelId);
     const playerIds = members.map(m => m.user.id);
      let position = playerIds.indexOf(currentGame.currentDrawerId);
      position++;
-      if (position >= playerIds.length)
+      if (position >= playerIds.length){
           position = 0;
+          currentGame.currentRound += 1;
+           if (currentGame.currentRound > currentGame.maxRound)
+          {
+            this.server.to(channelId.toString()).emit('game_over',currentGame.scores);
+            const matchHistory = this.match.create({
+              channelId: currentGame.channelId,
+              scores: currentGame.scores,
+            });
+            await this.match.save(matchHistory);
+            this.activeGames.delete(channelId);
+            return;
+          }
+      }
       currentGame.currentDrawerId = playerIds[position];
-    }
+
 		currentGame.secretWord = await this.getRandomWord(currentGame.useWords);
 		currentGame.useWords.push(currentGame.secretWord);
     currentGame.historicDraw = [];
@@ -329,6 +295,7 @@ export class GameService implements OnModuleInit {
     }
 		setTimeout(() =>{
           currentGame.timerInterval = setInterval(() => {
+          currentGame.isDrawing = true;  
           currentGame.timeLeft -= 1;
           this.server.to(channelId.toString()).emit('timer_update',currentGame.timeLeft);
           if(currentGame.timeLeft <= 0){
@@ -336,7 +303,7 @@ export class GameService implements OnModuleInit {
             clearInterval(currentGame.timerInterval);
             this.server.to(channelId.toString()).emit('round_end',`End of time the word was ${currentGame.secretWord}`);
             this.server.to(channelId.toString()).emit('classement',currentGame.scores);
-            setTimeout(() =>{
+            currentGame.turnTimeout = setTimeout(() =>{
               this.handleNextTurn(channelId);
             },5000);
           }
@@ -455,9 +422,11 @@ export class GameService implements OnModuleInit {
     }
     // SI LE DESSINATEUR A QUITTÉ EN PLEINE MANCHE :
     if (userId === currentGame.currentDrawerId) {
-      if (currentGame.timerInterval) {
+      if (currentGame.timerInterval) 
         clearInterval(currentGame.timerInterval);
-      }
+      
+      if(currentGame.turnTimeout)
+          clearInterval(currentGame.turnTimeout);
 
       if (this.server) {
         this.server.to(channelID.toString()).emit('drawer_left', { drawerLeftId: userId });

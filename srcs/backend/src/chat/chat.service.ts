@@ -243,14 +243,13 @@ export class ChatService implements OnModuleInit {
 
          if (membership.channel.type === 'game'){
 
-            const isdrawer =this.gameService.isCurrentDrawer(channelId, userId);
+            const isdrawer = this.gameService.isCurrentDrawer(channelId, userId);
             const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
 
             if (isWord && isdrawer)
                  throw new ForbiddenException(`Your the drawer don't write the word.`);
-          //  if(!isdrawer && isWord)
-                  //  throw new ForbiddenException(`You have found the word.`);
-            
+            if(!isdrawer && isWord)
+             content = `🎉 has found the word !`;
          }
 
         const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
