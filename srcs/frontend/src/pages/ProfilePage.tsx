@@ -129,6 +129,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
             setMsg('Profile updated');
             setAwaitingProfileCode(false);
             setProfileCode('');
+            window.location.reload();
         }
         else setMsg(data.message ?? 'Error'); //dans le json de la requete retour message contient le code http et le message d'erreur lance par mes exceptions
     }

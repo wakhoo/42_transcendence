@@ -155,6 +155,14 @@ async handleConnection(client: Socket) {
         }
     }
 
+    private emitToUser(userId: number, event: string, payload: any) {
+        for (const [socketId, uid] of socketUserMap.entries()) { // transforme la map en une liste [key, value], extrait la cle dans socket id
+            if (uid === userId) {
+                this.server.to(socketId).emit(event, payload);
+            }
+        }
+    }
+
     @SubscribeMessage('sendDm')
     async onSendDm( @ConnectedSocket() client: Socket, @MessageBody() data: { targetUserId: number; content: string } ) {
         const userId = socketUserMap.get(client.id); 
@@ -168,7 +176,10 @@ async handleConnection(client: Socket) {
             }
             const channel = await this.chatService.getOrCreateDmChannel(userId, data.targetUserId);
             const message = await this.chatService.sendMessage(userId, channel.id, data.content);
-            this.server.to(`channel_${channel.id}`).emit('newMessage', message);
+            const payload = {...message, channelId: channel.id, isDm: true };
+
+            this.emitToUser(data.targetUserId, `newMessage`, payload);
+            client.emit('newMessage', payload);
         } catch (e) {
             client.emit('error', { message: (e as Error).message });
         }

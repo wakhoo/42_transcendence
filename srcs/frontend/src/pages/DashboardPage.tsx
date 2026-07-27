@@ -9,6 +9,8 @@ type Message = {
     createdAt: string;
     sender: { id: number; username: string; profileColor: string } | null;
     role?: 'admin' | 'member';
+    channelId?: number;
+    isDm?: boolean;
 };
 
 type UserProfile = {
@@ -367,6 +369,11 @@ export default function DashboardPage() {
                 <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
                 {messages.map(msg => (
                     <div key={msg.id} className="flex gap-2 items-baseline">
+                        {msg.isDm && (
+                            <span className="text-[10px] font-bold uppercase text-pink-400 bg-pink-950 px-1.5 py-0.5 rounded shrink-0">
+                                DM
+                            </span>
+                        )}
                         <span
                             className="text-sm font-semibold shrink-0"
                             style={{ color: msg.sender?.profileColor ?? '#9ca3af' }}
