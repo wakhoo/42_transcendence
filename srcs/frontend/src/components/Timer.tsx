@@ -15,6 +15,8 @@ export default function GamePage() {
   const [roundEndMsg, setRoundEndMsg] = useState<string | null>(null);
   const [scores, setScores] = useState<Record< number, number>>({});
   const [message, setMessage] = useState<any>(null);
+  const [endGame ,setEndGame] = useState<any>(null);
+  
 
   const queryParam = new URLSearchParams(window.location.search);
   const reelChannelId = Number(queryParam.get('channelId')) || 1;
@@ -87,6 +89,7 @@ export default function GamePage() {
     socketInstance.on('round_start', (data) => {
       setDrawerInfo(data);
       setSecretWord(null);
+      setTempsRestant(60);
 
     });
 
@@ -112,6 +115,7 @@ export default function GamePage() {
     socketInstance.on('round_end', (data) => {
       setRoundEndMsg(data);
       setSecretWord(null);
+      setTempsRestant(0);
          setTimeout(() =>{
                 setRoundEndMsg(null);
             },5000);
@@ -120,6 +124,12 @@ export default function GamePage() {
     socketInstance.on('classement', (data) => {
 
       setScores(data);
+    });
+
+    
+    socketInstance.on('game_over', (data) => {
+
+      setEndGame(data);
     });
 
     socketInstance.on('error', (err: any) => {
@@ -144,6 +154,8 @@ export default function GamePage() {
       socketInstance.off('room_created');
       socketInstance.off('classement');
       socketInstance.off('message_channel');
+      socketInstance.off('game_over');
+      socketInstance.off('load_history');
       socketInstance.removeAllListeners();
       socketInstance.disconnect();
     };
@@ -156,6 +168,24 @@ export default function GamePage() {
       socket.emit('start_game', { channelId: reelChannelId });
     }
   };
+
+  const handlePlayAgain = () => {
+
+    setEndGame(null);
+    setRoundEndMsg(null);
+    setWordHint(null);
+    setScores({});
+  };
+
+  const finalClassement = endGame
+  ? listeJoueurs.map((joueur: any) => ({
+
+    id: joueur.id,
+    username: joueur.username || joueur.name || `Player #${joueur.id}`,
+    score: endGame[joueur.id] || 0,
+  }))
+  .sort((a: any, b: any) => b.score - a.score)
+  : [];
 
   const wordDisplay = () => {
 
@@ -275,9 +305,7 @@ export default function GamePage() {
                 </span>
               </div>
 
-                {/* DROITE : Score + Crayon */}
                 <div className="flex items-center gap-2">
-                  {/* Badge de score */}
                   <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">
                     {scores[joueur.id] || 0} pts
                   </span>
@@ -296,13 +324,79 @@ export default function GamePage() {
 
         <section className="col-span-1 lg:col-span-2 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
           
-          {drawerInfo && (
+          {drawerInfo &&  !endGame && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium z-10 animate-bounce">
               🎨 It's <span className="font-bold underline">{drawerInfo.drawerName}</span> turn to draw !
             </div>
             )}
+            {endGame ? (
+            <div className="w-full h-[82vh] bg-slate-900/95 border border-slate-800 rounded-xl flex flex-col items-center justify-center p-6 shadow-2xl relative z-30 animate-fade-in">
+              
+              <h2 className="text-4xl lg:text-5xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 uppercase mb-2 drop-shadow">
+                🏆 Game Over !
+              </h2>
+              <p className="text-slate-400 text-sm font-medium mb-8">
+                Here are the session rankings
+              </p>
 
-   {/* 🚀 On utilise h-[82vh] pour forcer le navigateur à créer une colonne centrale immense */}
+              {/* LISTE DES JOUEURS (PODIUM) */}
+              <div className="w-full max-w-md bg-slate-950 border border-slate-800/80 rounded-2xl p-4 shadow-inner flex flex-col gap-2.5 max-h-[50vh] overflow-y-auto">
+                {finalClassement.map((joueur: any, index: number) => {
+                  const isWinner = index === 0;
+                  // Assignation des médailles pour le Top 3, sinon #4, #5...
+                  const medaille = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
+
+                  return (
+                    <div
+                      key={joueur.id}
+                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+                        isWinner
+                          ? "bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-transparent border-amber-500/50 scale-[1.02] shadow-lg my-1"
+                          : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                      }`}
+                    >
+                      {/* GAUCHE : Médaille + Pseudo */}
+                      <div className="flex items-center gap-3.5">
+                        <span className={`font-black w-7 text-center ${index > 2 ? "text-slate-500 text-xs font-mono" : "text-2xl"}`}>
+                          {medaille}
+                        </span>
+                        <span className={`font-bold truncate max-w-[160px] ${isWinner ? "text-amber-300 text-lg font-black" : "text-slate-200 text-sm"}`}>
+                          {joueur.username}
+                        </span>
+                      </div>
+
+                      {/* DROITE : Les Points */}
+                      <div className="flex items-center gap-1.5 bg-slate-950/80 px-3 py-1 rounded-lg border border-slate-800">
+                        <span className={`font-mono font-bold ${isWinner ? "text-amber-400 text-lg" : "text-emerald-400 text-sm"}`}>
+                          {joueur.score}
+                        </span>
+                        <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">pts</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* BOUTON RETOUR AU LOBBY */}
+              <button
+                onClick={() => {
+                  // Tu peux mettre ici ton routing pour quitter ou recharger
+                  window.location.href = "/dashboard";
+                }}
+                className="mt-8 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black px-8 py-3.5 rounded-xl shadow-xl hover:shadow-indigo-500/20 transition-all flex items-center gap-2 text-sm uppercase tracking-wider"
+              >
+                <span>⬅️ Return To Lobby</span>
+              </button>
+              <button
+                onClick={handlePlayAgain}
+                className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider border border-emerald-500/30"
+              >
+                <span>⬅️ Play Again</span>
+              </button>
+
+            </div>
+
+              ) : (
         <main className="flex-1 w-full h-[82vh] bg-slate-900/40 rounded-xl border border-slate-700/50 p-3 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
           
           <div className="relative w-full h-full flex-1 overflow-hidden rounded-lg">
@@ -310,6 +404,7 @@ export default function GamePage() {
           </div>
 
         </main>
+          )}
         </section>
 
 

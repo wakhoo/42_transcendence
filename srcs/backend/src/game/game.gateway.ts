@@ -2,6 +2,7 @@ import { SubscribeMessage,  WebSocketGateway, WebSocketServer, OnGatewayInit, On
 import { Server, Socket } from 'socket.io';
 import { GameService } from './game.service';
 import { JwtService } from '@nestjs/jwt';
+import { ChatService } from '../chat/chat.service';
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 
 
@@ -15,10 +16,13 @@ export const gameSocketUserMap = new Map<string, number>();
 
 export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewayConnection{
   
+
+  private disconnectTimeout = new Map<number, NodeJS.Timeout>();
   @WebSocketServer()
     server!: Server;
   
-    constructor(@Inject(forwardRef(() => GameService)) private readonly gameService: GameService,private readonly jwtService: JwtService ) {}
+    constructor(@Inject(forwardRef(() => GameService)) private readonly gameService: GameService,
+    private readonly jwtService: JwtService, @Inject(forwardRef(() => ChatService)) private readonly chatService: ChatService) {}
 
 
     // partage du serveur gateway avec service pour emettre les alertes
@@ -154,23 +158,32 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
     async handleHistory(@ConnectedSocket() client: Socket, 
             @MessageBody() data: {channelId: number}){
 
-
+      client.join(data.channelId.toString());
       const userId = gameSocketUserMap.get(client.id);
-      if(!userId){
+      if(userId && this.disconnectTimeout.has(userId)) {
 
-        client.emit('error' , {message: "User non identify"});
-        return;
+        clearTimeout(this.disconnectTimeout.get(userId));
+        this.disconnectTimeout.delete(userId);
       }
+      
+      if (userId) {
+        try {
+          await this.chatService.joinChannel(userId, data.channelId);
+        } catch {
+        }
+    }
+      
       this.gameService.sendHistory(client.id, data.channelId);
+      
     }
 
     @SubscribeMessage('leave_room')
-    async handleLeaveRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelID: number}) {
+    async handleLeaveRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelId: number}) {
 
       const userId = gameSocketUserMap.get(client.id);
       if(!userId)
           return;
-      client.leave(data.channelID.toString());
+      client.leave(data.channelId.toString());
       await this.gameService.handleDisconnection(userId);
     }
 
@@ -194,7 +207,13 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
         return;
       }
       gameSocketUserMap.delete(client.id);
-      await this.gameService.handleDisconnection(userId);
+      const timeout = setTimeout(async () => {
+      this.disconnectTimeout.delete(userId);
+      await this.gameService.handleDisconnection(userId); // La destruction n'a lieu qu'ici si la page ne revient pas !
+      }, 10000);
+
+    this.disconnectTimeout.set(userId, timeout);
+      
     }
 
 }

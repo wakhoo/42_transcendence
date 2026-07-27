@@ -26,26 +26,63 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 	const [brushSize ] = useState(4);
 
 	const [isDrawing, setIsDrawing] = useState(false);
+	const [historyContent, setHistory] = useState<any[] | null>(null);
+
+	useEffect(() => {
+    	if (!socket) 
+			return;
+
+    	socket.on('load_history', (data: any[]) => {
+			//console.log("historique reçu :", data);
+      	setHistory(data);
+    	});
+
+    	socket.emit('request_history', { channelId: Number(channelId) });
+
+    return () => {
+      socket.off('load_history');
+    };
+  	}, [socket, channelId]);
+
 
 	useEffect(() => {
 
+		if (!historyContent || !canvasRef.current)
+			return;
 		const canvas = canvasRef.current;
 		if(!canvas)
 			return;
 		canvas.width = 1200;
 		canvas.height = 1000;
+		const ctx = canvas.getContext('2d');
+    	if (!ctx)
+			return;
 
-		const context = canvas.getContext('2d');
-		if(!context)
-				return;
+		ctx.lineCap = 'round';
+		ctx.lineJoin = 'round';
+		ctx.strokeStyle = 'black';
+		ctx.lineWidth = 5;
 
-		context.lineCap = 'round';
-		context.lineJoin = 'round';
-		context.strokeStyle = 'black';
-		context.lineWidth = 5;
+		contextRef.current = ctx;
 
-		contextRef.current = context;
-	}, []);
+		historyContent.forEach((action: any) => {
+		if (action.type === 'clear') {
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			return;
+		}
+		if (action.x0 !== undefined && action.y0 !== undefined) {
+			ctx.beginPath();
+			ctx.moveTo(action.x0, action.y0);
+			ctx.lineTo(action.x1, action.y1);
+			ctx.strokeStyle = action.color || '#000000';
+			ctx.lineWidth = action.size || 5;
+			ctx.lineCap = 'round';
+			ctx.lineJoin = 'round';
+			ctx.stroke();
+		}
+		});
+			
+	}, [historyContent]);
 
 
 	const getExactPosition = (canvas: HTMLCanvasElement, e: React.MouseEvent<HTMLCanvasElement> | MouseEvent) => {

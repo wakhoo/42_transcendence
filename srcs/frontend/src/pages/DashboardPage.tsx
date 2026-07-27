@@ -308,11 +308,14 @@ export default function DashboardPage() {
                                                 'Content-Type': 'application/json',
                                                 'Authorization': `Bearer ${sessionStorage.getItem('token')}` // Ou ton token JWT
                                             },
-                                            body: JSON.stringify({ name: "Public Game" })
+                                            body: JSON.stringify({ name: `Public Game #${Math.floor(Math.random() * 10000)}`})
                                         });
 
                                         if (!response.ok) {
-                                            throw new Error("Erreur serveur lors de la création");
+                                            const errorData = await response.json().catch(() => ({ message: "Erreur inconnue" }));
+                                            console.error("Détail de l'erreur NestJS :", errorData);
+                                            // On affiche le VRAI message d'erreur envoyé par le back dans l'alerte !
+                                            throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
                                         }
 
                                         const newSession = await response.json();
