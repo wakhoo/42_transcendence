@@ -282,31 +282,55 @@ export default function DashboardPage() {
             <div className="flex-1 flex items-center justify-center">
                 <div className="flex flex-col gap-12">
                     <button
-                        onClick={() => navigate('/game')}
-                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-blue-900 text-xl font-semibold
-                            border-2 border-blue-400 bg-blue-100
-                            transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:bg-blue-200 hover:[transform:translate(0,0.25em)]
-                            active:bg-blue-200 active:[transform:translate(0,0.75em)]
-                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-blue-200
-                            before:shadow-[0_0_0_2px_#60a5fa,0_0.625em_0_0_#dbeafe]
-                            before:[transform:translate3d(0,0.75em,-1em)]
-                            before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:before:shadow-[0_0_0_2px_#60a5fa,0_0.5em_0_0_#dbeafe]
-                            hover:before:[transform:translate3d(0,0.5em,-1em)]
-                            active:before:shadow-[0_0_0_2px_#60a5fa,0_0_#dbeafe]
-                            active:before:[transform:translate3d(0,0,-1em)]">
-                        Join public room
+                       onClick={async () => {
+                        try {
+                            const response = await fetch(`${window.location.origin}/api/chat/join-public-game`, {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                                }
+                            });
+
+                            if (!response.ok) {
+                                const errorData = await response.json().catch(() => ({ message: "Erreur inconnue" }));
+                                throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
+                            }
+
+                            const data = await response.json();
+
+                            // 🚀 Redirection instantanée vers la room publique trouvée par le serveur !
+                            navigate(`/game?channelId=${data.channelId}&action=join`);
+
+                        } catch (error: any) {
+                            console.error("Erreur pour rejoindre :", error);
+                            alert(error.message || "Impossible de rejoindre un salon public.");
+                        }
+                    }}
+                    className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-blue-900 text-xl font-semibold
+                        border-2 border-blue-400 bg-blue-100
+                        transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                        hover:bg-blue-200 hover:[transform:translate(0,0.25em)]
+                        active:bg-blue-200 active:[transform:translate(0,0.75em)]
+                        before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-blue-200
+                        before:shadow-[0_0_0_2px_#60a5fa,0_0.625em_0_0_#dbeafe]
+                        before:[transform:translate3d(0,0.75em,-1em)]
+                        before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                        hover:before:shadow-[0_0_0_2px_#60a5fa,0_0.5em_0_0_#dbeafe]
+                        hover:before:[transform:translate3d(0,0.5em,-1em)]
+                        active:before:shadow-[0_0_0_2px_#60a5fa,0_0_#dbeafe]
+                        active:before:[transform:translate3d(0,0,-1em)]">
+                    Join public room
                     </button>
                         <button
                             onClick={ async () => {
                                             try {
-                                        // 🚀 1. On appelle ton GameController pour exécuter ton createGameSession en back !
+                        
                                         const response = await fetch(`${window.location.origin}/api/chat/create-game`, {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json',
-                                                'Authorization': `Bearer ${sessionStorage.getItem('token')}` // Ou ton token JWT
+                                                'Authorization': `Bearer ${sessionStorage.getItem('token')}`
                                             },
                                             body: JSON.stringify({ name: `Public Game #${Math.floor(Math.random() * 10000)}`})
                                         });

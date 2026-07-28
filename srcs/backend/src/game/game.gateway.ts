@@ -16,8 +16,6 @@ export const gameSocketUserMap = new Map<string, number>();
 
 export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewayConnection{
   
-
-  private disconnectTimeout = new Map<number, NodeJS.Timeout>();
   @WebSocketServer()
     server!: Server;
   
@@ -110,15 +108,34 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
      
       const roomName = data.channelId.toString();
       client.join(roomName);
-      await this.gameService.joinGameSession(data.channelId, userId);
-      
+      try {
+        await this.chatService.joinChannel(userId, data.channelId);
+      }
+      catch (e)
+      {}
+
       const realPlayer = await this.gameService.getUserName(data.channelId);
       if(realPlayer) {
         this.server.to(roomName).emit('update_players', realPlayer);
-        client.emit('update_players', realPlayer);
       }
-
     }
+
+    // @SubscribeMessage('join_public_room')
+    // async handleJoinPublicRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelId: number}) {
+
+    //   const userId = gameSocketUserMap.get(client.id);
+    //   if(!userId) {
+
+    //     client.emit('error', {message: 'User non identify'});
+    //     return;
+    //   }
+
+    //   const channelFound = await this.gameService.findPublicRoom();
+    //   if(channelFound)
+    //     client.emit('public_room_found', { channelId: channelFound });
+    //   else
+    //     client.emit('error', { message: 'No public room yet you can create one !' });
+    // }
     
 
     //debut de manche 
@@ -153,29 +170,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
 
 
 
-    // histrique du ddessin a un joueur qu ia par exemple actualsier la page
-    @SubscribeMessage('request_history')
-    async handleHistory(@ConnectedSocket() client: Socket, 
-            @MessageBody() data: {channelId: number}){
 
-      client.join(data.channelId.toString());
-      const userId = gameSocketUserMap.get(client.id);
-      if(userId && this.disconnectTimeout.has(userId)) {
-
-        clearTimeout(this.disconnectTimeout.get(userId));
-        this.disconnectTimeout.delete(userId);
-      }
-      
-      if (userId) {
-        try {
-          await this.chatService.joinChannel(userId, data.channelId);
-        } catch {
-        }
-    }
-      
-      this.gameService.sendHistory(client.id, data.channelId);
-      
-    }
 
     @SubscribeMessage('leave_room')
     async handleLeaveRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelId: number}) {
@@ -207,12 +202,10 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
         return;
       }
       gameSocketUserMap.delete(client.id);
-      const timeout = setTimeout(async () => {
-      this.disconnectTimeout.delete(userId);
-      await this.gameService.handleDisconnection(userId); // La destruction n'a lieu qu'ici si la page ne revient pas !
-      }, 10000);
 
-    this.disconnectTimeout.set(userId, timeout);
+      await this.gameService.handleDisconnection(userId); 
+
+
       
     }
 

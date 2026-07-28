@@ -3,6 +3,7 @@ import {
     Controller,
     Delete,
     Get,
+    NotFoundException,
     Param,
     ParseIntPipe,
     Patch,
@@ -138,6 +139,15 @@ export class ChatController {
         const session = await this.gameService.createGameSession(creatorId, roomName);
 
         return session;
+    }
+
+    @Get('join-public-game')
+    async joinPublicGame(@Req() req: any) {
+
+        const channelId = await this.gameService.findPublicRoom();
+        if(!channelId)
+            throw new NotFoundException('No public room yet you can create one !');
+        return {channelId};
     }
 
 }

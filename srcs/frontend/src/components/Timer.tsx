@@ -25,6 +25,11 @@ export default function GamePage() {
 
   useEffect(() => {
 
+    if (!reelChannelId) {
+      navigate('/dashboard', { replace: true });
+      return;
+      }
+
     if(!socket)
         return;
     socket.on('connect', () => {
@@ -46,7 +51,7 @@ export default function GamePage() {
       navigate('/login');
       return;
     }
-
+    
     const socketInstance = io(`${window.location.origin}/game`, {
       auth: { token: token }, transports: ['websocket']
     });
@@ -54,7 +59,7 @@ export default function GamePage() {
     setSocket(socketInstance);
 
     socketInstance.on('connect', () => {
-      console.log("Connecté au GameGateway !");
+      window.history.replaceState(null, '', '/game');
 
       const action = queryParam.get('action');
       if (action === 'create') {
@@ -67,6 +72,22 @@ export default function GamePage() {
       
     });
 
+     const handleGameCancelled = () => {
+
+        alert("A player has left the room , game is cancelled , waiting for more players");
+        handlePlayAgain();
+        setDrawerInfo(null);
+        setTempsRestant(0);
+        //setDrawerInfo(null);
+       // setSecretWord(null);
+        //setWordHint(null);
+        //setTempsRestant(0);
+       // setScores({});
+        //setRoundEndMsg(null);
+        //setEndGame(null);
+
+      };
+
     socketInstance.on('room_created' , (data) => {
 
       const reelId = data.channelId;
@@ -74,7 +95,6 @@ export default function GamePage() {
       socketInstance.emit('join_room', { channelId: Number(reelId) });
 
     });
-
 
     socketInstance.on('update_players', (listeVenantDuBack) => {
 
@@ -137,10 +157,14 @@ export default function GamePage() {
       alert("Erreur renvoyée par le serveur : " + (err.message || JSON.stringify(err)));
     });
 
+    socketInstance.on('game_cancelled', handleGameCancelled);
+
     return () => {
 
-      if (socketInstance && socketInstance.connected)
+      if (socketInstance && socketInstance.connected){
         socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
+        //socketInstance.disconnect();
+      }
   
       socketInstance.off('connect');
       socketInstance.off('update_players');
@@ -155,7 +179,7 @@ export default function GamePage() {
       socketInstance.off('classement');
       socketInstance.off('message_channel');
       socketInstance.off('game_over');
-      socketInstance.off('load_history');
+      socketInstance.off('game_cancelled');
       socketInstance.removeAllListeners();
       socketInstance.disconnect();
     };
@@ -186,6 +210,8 @@ export default function GamePage() {
   }))
   .sort((a: any, b: any) => b.score - a.score)
   : [];
+
+ 
 
   const wordDisplay = () => {
 
