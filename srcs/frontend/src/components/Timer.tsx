@@ -25,11 +25,6 @@ export default function GamePage() {
 
   useEffect(() => {
 
-    if (!reelChannelId) {
-      navigate('/dashboard', { replace: true });
-      return;
-      }
-
     if(!socket)
         return;
     socket.on('connect', () => {
@@ -51,7 +46,7 @@ export default function GamePage() {
       navigate('/login');
       return;
     }
-    
+
     const socketInstance = io(`${window.location.origin}/game`, {
       auth: { token: token }, transports: ['websocket']
     });
@@ -59,7 +54,7 @@ export default function GamePage() {
     setSocket(socketInstance);
 
     socketInstance.on('connect', () => {
-      window.history.replaceState(null, '', '/game');
+      console.log("Connecté au GameGateway !");
 
       const action = queryParam.get('action');
       if (action === 'create') {

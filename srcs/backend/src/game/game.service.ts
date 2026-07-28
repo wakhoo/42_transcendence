@@ -477,7 +477,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
       const remainingMembers = await this.chatService.getChannelMember(channelID);
       const remainingCount = remainingMembers.length;
 
-      // 3. SI LA ROOM EST TOTALEMENT VIDE (0 JOUEUR) : ON SUPPRIME TOUT !
+       //SI LA ROOM EST TOTALEMENT VIDE (0 JOUEUR) : ON SUPPRIME TOUT !
       if (remainingCount === 0) {
         if (currentGame.timerInterval) clearInterval(currentGame.timerInterval);
         if (currentGame.turnTimeout) clearTimeout(currentGame.turnTimeout);
@@ -495,7 +495,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
         this.server.to(channelID.toString()).emit('update_players', newPlayerList);
       }
 
-      // 5. S'IL NE RESTE QU'UN SEUL JOUEUR (OU MOINS DE 2), ON ANNULE LA PARTIE !
+      // S'IL NE RESTE QU'UN SEUL JOUEUR (OU MOINS DE 2), ON ANNULE LA PARTIE !
       if (remainingCount < 2) {
         if (currentGame.timerInterval) {
           clearInterval(currentGame.timerInterval);
@@ -522,7 +522,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
         return null; 
       }
 
-      // 6. S'IL RESTE AU MOINS 2 JOUEURS : LA PARTIE CONTINUE !
+      // S'IL RESTE AU MOINS 2 JOUEURS : LA PARTIE CONTINUE !
       // Mais si c'était le dessinateur qui est parti, on doit passer au tour suivant :
       if (userId === currentGame.currentDrawerId) {
         if (currentGame.timerInterval) clearInterval(currentGame.timerInterval);
