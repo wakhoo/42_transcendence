@@ -96,8 +96,9 @@ async handleConnection(client: Socket) {
             void client.join(`channel_${ch.id}`);
         }
 
+        const onlineUserIds = [...new Set(socketUserMap.values())];
         client.emit('ready', { generalChannelId: general.id });
-        this.server.emit('presenceChanged');
+        this.server.emit('presenceChanged', { userId: payload.sub, status: 'online' });
         console.log(`User ${payload.sub} connected (socket ${client.id})`);
     } catch {
         client.disconnect();
@@ -107,7 +108,13 @@ async handleConnection(client: Socket) {
     handleDisconnect(client: Socket) {
         const userId = socketUserMap.get(client.id);
         socketUserMap.delete(client.id);
-        this.server.emit('presenceChanged');
+
+        if (userId !== undefined) {
+            const stillConnectedElsewhere = [...socketUserMap.values()].includes(userId);
+            if (!stillConnectedElsewhere) {
+                this.server.emit('presenceChanged', { userId, status: 'offline' });
+            }
+        }
         console.log(`User ${userId ?? '?'} disconnected (socket ${client.id})`);
     }
 

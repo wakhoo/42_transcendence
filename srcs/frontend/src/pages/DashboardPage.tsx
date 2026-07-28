@@ -33,7 +33,8 @@ export default function DashboardPage() {
     const typingTimer               = useRef<ReturnType<typeof setTimeout> | null>(null);
     const navigate                  = useNavigate();
     const [openProfileId, setOpenProfileId] = useState<number | null>(null);
-
+    const [onlineUserIds, setOnlineUserId] = useState<Set<number>>(new Set());
+ 
     useEffect(() => {
         const token = sessionStorage.getItem('token');
         if (!token) {
@@ -56,8 +57,9 @@ export default function DashboardPage() {
         const socket = io(`${window.location.origin}/chat`, { auth: { token } });
         socketRef.current = socket;
 
-        socket.on('ready', ({ generalChannelId }: { generalChannelId: number }) => {
+        socket.on('ready', ({ generalChannelId, onlineUserIds }: { generalChannelId: number, onlineUserIds: number[] }) => {
             setChannelId(generalChannelId);
+            setOnlineUserId(new Set(onlineUserIds));
 
             fetch(`/api/chat/channels/${generalChannelId}/messages`, {headers: { Authorization: `Bearer ${token}` }})
             .then(r => r.json())
@@ -87,10 +89,16 @@ export default function DashboardPage() {
             typingTimer.current = setTimeout(() => setTyping(''), 3000);
         });
 
-        socket.on('presenceChanged', () => {
-            fetch('/api/user', { headers: { Authorization: `Bearer ${token}` } })
-                .then(r => r.json())
-                .then((data: UserProfile[]) => setUsers(data));
+        socket.on('presenceChanged', (data: { userId: number; status: 'online' | 'offline' }) => {
+            setOnlineUserId(prev => {
+                const next = new Set(prev);
+                if (data.status === 'online') next.add(data.userId);
+                else next.delete(data.userId);
+                return next;
+            });
+            // fetch('/api/user', { headers: { Authorization: `Bearer ${token}` } })
+            //     .then(r => r.json())
+            //     .then((data: UserProfile[]) => setUsers(data));
          });
 
         return (() => { socketRef.current?.disconnect(); });
@@ -264,18 +272,22 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
                     {users.map(user => (
-                        <div
-                            key={user.id} 
-                            onClick={() => setOpenProfileId(user.id)}
-                            className="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
-                        >
-                        {user.avatarUrl
-                            ? <img src={user.avatarUrl} className="w-8 h-8 rounded-md shrink-0 object-cover" />
-                            : <div className="w-8 h-8 rounded-md shrink-0" style={{ backgroundColor: user.profileColor }} />
-                        }
-                            <span className="text-gray-300 text-sm truncate">{user.username}</span>
-                        </div>
-                    ))}
+                    <div
+                        key={user.id} 
+                        onClick={() => setOpenProfileId(user.id)}
+                        className="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
+                    >
+                    {user.avatarUrl
+                        ? <img src={user.avatarUrl} className="w-8 h-8 rounded-md shrink-0 object-cover" />
+                        : <div className="w-8 h-8 rounded-md shrink-0" style={{ backgroundColor: user.profileColor }} />
+                    }
+                        <span className="text-gray-300 text-sm truncate">{user.username}</span>
+                        <span className={`ml-auto flex items-center gap-1 text-[10px] shrink-0 ${onlineUserIds.has(user.id) ? 'text-emerald-400' : 'text-gray-500'}`}>
+                            <span className={`w-2 h-2 rounded-full ${onlineUserIds.has(user.id) ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+                            {onlineUserIds.has(user.id) ? 'online' : 'offline'}
+                        </span>
+                    </div>
+                ))}
                 </div>
             </div>
 
