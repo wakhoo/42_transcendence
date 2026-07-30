@@ -371,7 +371,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 mb-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => startExport('download')}
@@ -833,10 +833,17 @@ export function ProfileContent({ userId }: { userId?: number }) {
 export default function ProfilePage() {
     const navigate = useNavigate();
     return (
-        <div style={{ padding: 20, fontFamily: 'monospace' }}>
-            <button onClick={() => navigate('/dashboard')}>← Dashboard</button>
-            <h1>Profile</h1>
-            <ProfileContent />
+        <div className="min-h-screen bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)] px-4 py-6 md:py-10">
+            <div className="max-w-lg mx-auto">
+                <button
+                    onClick={() => navigate('/dashboard')}
+                    className="text-gray-300 hover:text-white text-sm mb-4"
+                >
+                    ← Dashboard
+                </button>
+                <h1 className="text-white text-xl md:text-2xl font-bold mb-4">Profile</h1>
+                <ProfileContent />
+            </div>
         </div>
     );
 }

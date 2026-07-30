@@ -34,6 +34,8 @@ export default function DashboardPage() {
     const navigate                  = useNavigate();
     const [openProfileId, setOpenProfileId] = useState<number | null>(null);
     const [onlineUserIds, setOnlineUserId] = useState<Set<number>>(new Set());
+    const [showMyProfile, setShowMyProfile] = useState<boolean>(false);
+    const [showUsers, setShowUsers] = useState<boolean>(false);
  
     useEffect(() => {
         const token = sessionStorage.getItem('token');
@@ -260,15 +262,29 @@ export default function DashboardPage() {
 
 
     return (
-        <div className="min-h-screen bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)] flex relative">
-
-            <div className="absolute top-6 left-8">
-                <h1 className="text-white text-2xl font-bold">Transcendence</h1>
+        <div className="h-screen overflow-hidden flex flex-col relative lg:h-auto lg:min-h-screen lg:overflow-visible bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)]">
+            <div className="lg:hidden shrink-0 flex items-center justify-between px-4 py-3">
+                <h1 className="text-white text-lg font-bold">Transcendence</h1>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowUsers(true)}
+                        className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-900 border border-gray-800 text-gray-300"
+                    >
+                        👀
+                    </button>
+                    <button
+                        onClick={() => setShowMyProfile(true)}
+                        className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-900 border border-gray-800 text-gray-300"
+                    >
+                        👤
+                    </button>
+                </div>
             </div>
 
-            <div className="absolute left-4 top-4 bottom-4 w-64 flex flex-col bg-gray-900 rounded-xl border border-gray-800">
-                <div className="px-4 py-3 bg-black rounded-t-xl border-b border-gray-800">
+            <div className={`${showUsers ? 'flex fixed inset-0 z-40' : 'hidden'} lg:flex lg:absolute lg:inset-auto lg:left-4 lg:top-4 lg:bottom-4 lg:w-64 flex-col bg-gray-900 lg:rounded-xl border border-gray-800`}>
+                <div className="px-4 py-3 bg-black lg:rounded-t-xl border-b border-gray-800 flex items-center justify-between">
                     <span className="text-gray-400 text-sm">Joueurs</span>
+                    <button onClick={() => setShowUsers(false)} className="text-gray-400 hover:text-white lg:hidden">✕</button>
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
                     {users.map(user => (
@@ -291,11 +307,11 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <div className="flex-1 flex items-center justify-center">
-                <div className="flex flex-col gap-12">
+            <div className="shrink-0 flex items-center justify-center px-4 py-6 lg:flex-1 lg:py-4">
+                <div className="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full max-w-xs sm:max-w-sm">
                     <button
                         onClick={() => navigate('/game')}
-                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-blue-900 text-xl font-semibold
+                        className="relative [transform-style:preserve-3d] px-8 py-4 sm:px-16 sm:py-6 lg:px-32 lg:py-8 rounded-2xl text-blue-900 text-base sm:text-lg lg:text-xl font-semibold
                             border-2 border-blue-400 bg-blue-100
                             transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
                             hover:bg-blue-200 hover:[transform:translate(0,0.25em)]
@@ -338,7 +354,7 @@ export default function DashboardPage() {
                                         alert("Impossible de créer le salon de jeu.");
                                     }
                                 }}
-                            className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-emerald-900 text-xl font-semibold
+                            className="relative [transform-style:preserve-3d] px-8 py-4 sm:px-16 sm:py-6 lg:px-32 lg:py-8 rounded-2xl text-emerald-900 text-base sm:text-lg lg:text-xl font-semibold
                                 border-2 border-emerald-400 bg-emerald-100
                                 transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
                                 hover:bg-emerald-200 hover:[transform:translate(0,0.25em)]
@@ -356,7 +372,7 @@ export default function DashboardPage() {
 
                     <button
                         onClick={() => navigate('/game')}
-                        className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-violet-900 text-xl font-semibold
+                        className="relative [transform-style:preserve-3d] px-8 py-4 sm:px-16 sm:py-6 lg:px-32 lg:py-8 rounded-2xl text-violet-900 text-base sm:text-lg lg:text-xl font-semibold
                             border-2 border-violet-400 bg-violet-100
                             transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
                             hover:bg-violet-200 hover:[transform:translate(0,0.25em)]
@@ -374,8 +390,8 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <div className="absolute right-4 top-4 bottom-4 w-80 flex flex-col bg-gray-900 rounded-xl border border-gray-800">
-                <div className="px-4 py-3 bg-black rounded-t-xl border-b border-gray-800">
+            <div className="flex-1 min-h-0 flex flex-col bg-gray-900 border-t border-gray-800 lg:flex-none lg:absolute lg:right-4 lg:top-4 lg:bottom-4 lg:w-80 lg:border lg:rounded-xl">
+                <div className="px-4 py-3 bg-black lg:rounded-t-xl border-b border-gray-800">
                     <span className="text-gray-400 text-sm"># general</span>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
@@ -440,27 +456,27 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
-        {openProfileId !== null && (
-                <div
-                    className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center"
-                    onClick={() => setOpenProfileId(null)}
-                >
+            {(openProfileId !== null || showMyProfile) && (
                     <div
-                        className="bg-gray-900 rounded-xl border border-gray-800 max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto relative"
-                        onClick={e => e.stopPropagation()}
+                        className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center"
+                        onClick={() => { setOpenProfileId(null); setShowMyProfile(false); }}
                     >
-                        <button
-                            onClick={() => setOpenProfileId(null)}
-                            className="absolute top-3 right-3 text-gray-400 hover:text-white text-lg"
+                        <div
+                            className="bg-gray-900 rounded-xl border border-gray-800 max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto relative"
+                            onClick={e => e.stopPropagation()}
                         >
-                            ✕
-                        </button>
-                        <div className="p-6">
-                            <ProfileContent userId={openProfileId} key={openProfileId} />
+                            <button
+                                onClick={() => { setOpenProfileId(null); setShowMyProfile(false); }}
+                                className="absolute top-3 right-3 text-gray-400 hover:text-white text-lg"
+                            >
+                                ✕
+                            </button>
+                            <div className="p-6">
+                                <ProfileContent userId={showMyProfile ? undefined : openProfileId ?? undefined} key={showMyProfile ? 'me' : openProfileId} />
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
         </div>
     );
 }
