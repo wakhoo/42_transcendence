@@ -13,13 +13,24 @@ export default function GamePage() {
   const [wordHint, setWordHint] = useState<any>(null);
   const [secretWord, setSecretWord] = useState<any>(null);
   const [roundEndMsg, setRoundEndMsg] = useState<string | null>(null);
+  const [showMsg, setShowMsg] = useState(false);
   const [scores, setScores] = useState<Record< number, number>>({});
   const [message, setMessage] = useState<any>(null);
   const [endGame ,setEndGame] = useState<any>(null);
   
 
-  const queryParam = new URLSearchParams(window.location.search);
-  const reelChannelId = Number(queryParam.get('channelId')) || 1;
+ // const queryParam = new URLSearchParams(window.location.search);
+ // const reelChannelId = Number(queryParam.get('channelId')) || 1;
+
+ const [reelChannelId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return Number(params.get('channelId'));
+  });
+
+  const [actionType] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('action');
+  });
   const navigate                  = useNavigate();
 
 
@@ -42,10 +53,13 @@ export default function GamePage() {
 
   useEffect(() => {
     const token = sessionStorage.getItem('token');
-    if(!token){
-      navigate('/login');
+    if(!token || !reelChannelId){
+      navigate('/dashboard', {replace: true});
       return;
     }
+
+    window.history.replaceState(null, '', '/game');
+    
 
     const socketInstance = io(`${window.location.origin}/game`, {
       auth: { token: token }, transports: ['websocket']
@@ -56,8 +70,8 @@ export default function GamePage() {
     socketInstance.on('connect', () => {
       console.log("Connecté au GameGateway !");
 
-      const action = queryParam.get('action');
-      if (action === 'create') {
+     // const action = queryParam.get('action');
+      if (actionType === 'create') {
         console.log(`Ordre reçu : Création de la room #${reelChannelId}...`);
         socketInstance.emit('create_room', { name: `Salon de ${sessionStorage.getItem('username') || 'Game'}` });
       } else {
@@ -105,6 +119,10 @@ export default function GamePage() {
       setDrawerInfo(data);
       setSecretWord(null);
       setTempsRestant(60);
+      setShowMsg(true);
+      setTimeout(() => {
+        setShowMsg(false);
+      }, 5000);
 
     });
 
@@ -122,9 +140,6 @@ export default function GamePage() {
 
     socketInstance.on('secret_word', (data) => {
       setSecretWord(data);
-      setTimeout(() => {
-      setSecretWord(null);
-      }, 7000);
     });
 
     socketInstance.on('round_end', (data) => {
@@ -145,10 +160,13 @@ export default function GamePage() {
     socketInstance.on('game_over', (data) => {
 
       setEndGame(data);
+      setWordHint(null);
+      setSecretWord(null);
+      setRoundEndMsg(null);
+      setTempsRestant(0);
     });
 
     socketInstance.on('error', (err: any) => {
-      console.error("LE SERVEUR REJETTE L'ACTION :", err);
       alert("Erreur renvoyée par le serveur : " + (err.message || JSON.stringify(err)));
     });
 
@@ -156,11 +174,16 @@ export default function GamePage() {
 
     return () => {
 
-      if (socketInstance && socketInstance.connected){
-        socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
-        //socketInstance.disconnect();
-      }
+     if (socketInstance && socketInstance.connected) {
   
+        socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
+        setTimeout(() => {
+          if (socketInstance) {
+            socketInstance.disconnect();
+          }
+        }, 100);
+      }
+
       socketInstance.off('connect');
       socketInstance.off('update_players');
       socketInstance.off('timer_update');
@@ -176,8 +199,9 @@ export default function GamePage() {
       socketInstance.off('game_over');
       socketInstance.off('game_cancelled');
       socketInstance.removeAllListeners();
-      socketInstance.disconnect();
+     // socketInstance.disconnect();
     };
+  
   }, []);
 
   const isMeTheDrawer = Number(drawerInfo?.drawerId) === Number(myId);
@@ -194,6 +218,9 @@ export default function GamePage() {
     setRoundEndMsg(null);
     setWordHint(null);
     setScores({});
+    setDrawerInfo(null);
+    setSecretWord(null);
+    setTempsRestant(60);
   };
 
   const finalClassement = endGame
@@ -210,12 +237,21 @@ export default function GamePage() {
 
   const wordDisplay = () => {
 
+
+    if (endGame) {
+      return (
+        <p className="text-xl font-black uppercase tracking-widest text-amber-500">
+          Game over
+        </p>
+      );
+    }
+
     if (roundEndMsg){
 
       return (
         <div className="bg-amber-100 border border-amber-400 px-4 py-2 rounded-lg animate-bounce">
           <p className="text-xs font-bold uppercase tracking-widest text-amber-700">
-             Fin du tour !
+             End Of The Round !
           </p>
           <p className="text-lg font-bold text-amber-900">
             {roundEndMsg}
@@ -228,7 +264,7 @@ export default function GamePage() {
       return (
         <div className="animate-pulse">
           <p className="text-xs font-bold uppercase tracking-widest text-emerald-500">
-            À TOI DE DESSINER !
+            Your Turn To Draw !
           </p>
           <p className="text-3xl font-mono tracking-[0.2em] font-black text-emerald-600 uppercase">
             {secretWord}
@@ -241,7 +277,7 @@ export default function GamePage() {
       return (
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Mot à deviner
+            Word To Guess
           </p>
           <p className="text-3xl font-mono tracking-[0.4em] font-black text-indigo-600">
             {wordHint.hint}
@@ -251,20 +287,19 @@ export default function GamePage() {
     }
     return (
       <p className="text-sm font-medium text-slate-400 italic">
-        En attente du début de manche...
+       Waiting For The Begining...
       </p>
     );
   };
 
   return (
-    // 1. CONTENEUR PRINCIPAL : Prend tout l'écran avec un fond gris doux
     <div className="min-h-screen bg-slate-950 p-4 flex flex-col gap-4 font-sans text-slate-800">
 
       {message && (
       <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-red-500/90 text-white px-6 py-3 rounded-full shadow-2xl border border-red-400 flex items-center gap-3 animate-bounce backdrop-blur-sm">
         <span className="text-xl">⚠️</span>
         <span className="font-bold text-sm tracking-wide">
-          {/* 🚀 SÉCURITÉ ANTI-CRASH : Si le backend envoie un objet, on affiche seulement sa propriété message (ou on le convertit en texte lisible !) */}
+          {/* SÉCURITÉ ANTI-CRASH : Si le backend envoie un objet, on affiche seulement sa propriété message (ou on le convertit en texte lisible !) */}
           {typeof message === 'object' 
             ? (message.message || JSON.stringify(message)) 
             : message}
@@ -345,7 +380,7 @@ export default function GamePage() {
 
         <section className="col-span-1 lg:col-span-2 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
           
-          {drawerInfo &&  !endGame && (
+          {showMsg && drawerInfo &&  !endGame && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium z-10 animate-bounce">
               🎨 It's <span className="font-bold underline">{drawerInfo.drawerName}</span> turn to draw !
             </div>

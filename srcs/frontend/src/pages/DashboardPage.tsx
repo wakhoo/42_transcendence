@@ -299,7 +299,6 @@ export default function DashboardPage() {
 
                             const data = await response.json();
 
-                            // 🚀 Redirection instantanée vers la room publique trouvée par le serveur !
                             navigate(`/game?channelId=${data.channelId}&action=join`);
 
                         } catch (error: any) {
@@ -338,14 +337,13 @@ export default function DashboardPage() {
                                         if (!response.ok) {
                                             const errorData = await response.json().catch(() => ({ message: "Erreur inconnue" }));
                                             console.error("Détail de l'erreur NestJS :", errorData);
-                                            // On affiche le VRAI message d'erreur envoyé par le back dans l'alerte !
                                             throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
                                         }
 
                                         const newSession = await response.json();
 
-                                        // 🚀 2. Le serveur nous renvoie la session avec le VRAI channelId officiel !
-                                        // Plus besoin de &action=create, le salon est déjà en RAM et en BDD !
+                                        //  Le serveur nous renvoie la session avec le VRAI channelId officiel !
+                        
                                         navigate(`/game?channelId=${newSession.channelId}`);
 
                                     } catch (error) {

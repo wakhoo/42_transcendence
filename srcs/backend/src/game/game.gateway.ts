@@ -189,7 +189,9 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
       const userId = gameSocketUserMap.get(client.id);
       if(!userId)
           return;
-      this.server.to(data.channelId.toString()).emit('clear_canvas');
+      
+      if (this.gameService.isCurrentDrawer(data.channelId, userId))
+          this.server.to(data.channelId.toString()).emit('clear_canvas');
 
     }
 

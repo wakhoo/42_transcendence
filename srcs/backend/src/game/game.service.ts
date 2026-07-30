@@ -80,7 +80,7 @@ export class GameService implements OnModuleInit {
         guessedUsers: [],
         useWords: [],
         currentRound: 0,
-        maxRound: 3,
+        maxRound: 1,
         historicDraw: [],
         isDrawing: false,
       }   
@@ -172,7 +172,7 @@ export class GameService implements OnModuleInit {
     }
     // recuperatio ndes membres via chatservice
 		const members = await this.chatService.getChannelMember(channelId);
-    const playerIds = members.map(m => m.user.id)
+    const playerIds = members.map(m => m.user.id);
     if(playerIds.length < 2){
       	this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
         return;
@@ -251,7 +251,7 @@ export class GameService implements OnModuleInit {
           this.server.to(channelId.toString()).emit('round_end', `Incroyable ! Tous les joueurs ont trouvé le mot : ${currentGame.secretWord} !`);
           this.server.to(channelId.toString()).emit('classement', currentGame.scores);
 
-          setTimeout(() => {
+          currentGame.turnTimeout = setTimeout(() => {
             this.handleNextTurn(channelId);
           }, 5000);
 
@@ -297,7 +297,7 @@ export class GameService implements OnModuleInit {
               scores: currentGame.scores,
             });
             await this.match.save(matchHistory);
-            this.activeGames.delete(channelId);
+           // this.activeGames.delete(channelId);
             return;
           }
       }
@@ -319,18 +319,35 @@ export class GameService implements OnModuleInit {
       if(id === currentGame.currentDrawerId)
       {
         
-    
-        setTimeout(() => {
+        //setTimeout(() => {
         this.server.to(socketId).emit('secret_word', currentGame.secretWord);
-        }, 5000);
+        //}, 5000);
         break;
       }
     }
-		setTimeout(() =>{
+		currentGame.turnTimeout = setTimeout(() =>{
           currentGame.timerInterval = setInterval(() => {
           currentGame.isDrawing = true;  
           currentGame.timeLeft -= 1;
           this.server.to(channelId.toString()).emit('timer_update',currentGame.timeLeft);
+          if(currentGame.timeLeft == 45){
+
+            const firstLetter = currentGame.secretWord[0];
+            const newHint = "-".repeat(currentGame.secretWord.length-1);
+            const hintLetter = firstLetter + newHint;
+            this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
+
+          }
+          else if (currentGame.timeLeft == 25){
+
+            let hintArray = Array(currentGame.secretWord.length).fill("-");
+            hintArray[0] = currentGame.secretWord[0];
+            const random  = Math.floor(Math.random() * (currentGame.secretWord.length - 1) + 1);
+            hintArray[random] = currentGame.secretWord[random];
+            const hintLetter = hintArray.join("");
+            this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
+
+          }
           if(currentGame.timeLeft <= 0){
 
             clearInterval(currentGame.timerInterval);
@@ -524,14 +541,16 @@ async handleDisconnection(userId: number): Promise<number | null> {
 
       // S'IL RESTE AU MOINS 2 JOUEURS : LA PARTIE CONTINUE !
       // Mais si c'était le dessinateur qui est parti, on doit passer au tour suivant :
-      if (userId === currentGame.currentDrawerId) {
-        if (currentGame.timerInterval) clearInterval(currentGame.timerInterval);
-        if (currentGame.turnTimeout) clearTimeout(currentGame.turnTimeout);
+      if (userId === currentGame.currentDrawerId&& currentGame.currentRound <= currentGame.maxRound && currentGame.currentRound > 0 ) {
+        if (currentGame.timerInterval)
+          clearInterval(currentGame.timerInterval);
+        if (currentGame.turnTimeout)
+          clearTimeout(currentGame.turnTimeout);
 
         if (this.server) {
           this.server.to(channelID.toString()).emit('drawer_left', { drawerLeftId: userId });
         }
-        setTimeout(() => {
+        currentGame.turnTimeout = setTimeout(() => {
           if (this.activeGames.has(channelID)) {
             this.handleNextTurn(channelID);
           }

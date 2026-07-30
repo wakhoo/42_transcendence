@@ -1,8 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { Socket } from 'socket.io-client';
-//import { io } from 'socket.io-client';
-//import GameChat from './GameChat';
-//import { useNavigate } from 'react-router-dom';
+
 
 
 interface GameCanvasProps {
