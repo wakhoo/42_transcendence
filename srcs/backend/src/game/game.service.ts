@@ -130,7 +130,7 @@ export class GameService implements OnModuleInit {
 
 
   // recupere les noms des users dans mariadb grace a l id
-  async getUserName(channelId: number): Promise<Array<{id: number; username: string}>> {
+  async getUserName(channelId: number): Promise<Array<{id: number; username: string ; avatarUrl: string | null; profileColor: string | null }>> {
 
     const members = await this.chatService.getChannelMember(channelId);
     if(!members || members.length === 0)
@@ -144,10 +144,11 @@ export class GameService implements OnModuleInit {
             const user = await this.userService.findById(m.user.id);
             return {
 
-              id: Number(user?.id || m.user.id), username: String(user?.username || `Player #${m.user.id}`)
+              id: Number(user?.id || m.user.id), username: String(user?.username || `Player #${m.user.id}`),
+                 avatarUrl: user?.avatarUrl || null, profileColor: user?.profileColor || null
             };
           } catch {
-            return { id: m.user.id, username: `Player #${m.user.id}`}
+            return { id: m.user.id, username: `Player #${m.user.id}`, avatarUrl: null, profileColor: null}
           }
       })
     );
@@ -248,7 +249,7 @@ export class GameService implements OnModuleInit {
           if(currentGame.timerInterval)
             clearInterval(currentGame.timerInterval);
 
-          this.server.to(channelId.toString()).emit('round_end', `Incroyable ! Tous les joueurs ont trouvé le mot : ${currentGame.secretWord} !`);
+          this.server.to(channelId.toString()).emit('round_end', `Amazing ! Every players has found the word : ${currentGame.secretWord} !`);
           this.server.to(channelId.toString()).emit('classement', currentGame.scores);
 
           currentGame.turnTimeout = setTimeout(() => {

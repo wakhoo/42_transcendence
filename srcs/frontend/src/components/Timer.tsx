@@ -355,7 +355,19 @@ export default function GamePage() {
            {(Array.isArray(listeJoueurs) ? listeJoueurs : []).map((joueur: any, index: number) => (
             <li key={joueur?.id || index} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-100">
               <div className="flex items-center gap-2.5">
-                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm"></span>
+                
+                {joueur.avatarUrl ? (
+                  <img 
+                      src={joueur.avatarUrl} 
+                      alt="avatar" 
+                      className="w-7 h-7 rounded-md object-cover shadow-sm border border-slate-700" 
+                  />
+                ) : (
+                  <div 
+                      className="w-7 h-7 rounded-md shadow-sm border border-slate-700" 
+                      style={{ backgroundColor: joueur.profileColor || '#10B981' }} 
+                  />
+              )}
                 <span className="font-semibold text-sm text-slate-700 truncate max-w-[100px]">
                   {joueur?.username || joueur?.name || `Joueur #${joueur?.id || index + 1}`}
                 </span>
