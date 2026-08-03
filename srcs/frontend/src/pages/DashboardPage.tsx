@@ -310,43 +310,68 @@ export default function DashboardPage() {
             <div className="shrink-0 flex items-center justify-center px-4 py-6 lg:flex-1 lg:py-4">
                 <div className="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full max-w-xs sm:max-w-sm">
                     <button
-                        onClick={() => navigate('/game')}
-                        className="relative [transform-style:preserve-3d] px-8 py-4 sm:px-16 sm:py-6 lg:px-32 lg:py-8 rounded-2xl text-blue-900 text-base sm:text-lg lg:text-xl font-semibold
-                            border-2 border-blue-400 bg-blue-100
-                            transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:bg-blue-200 hover:[transform:translate(0,0.25em)]
-                            active:bg-blue-200 active:[transform:translate(0,0.75em)]
-                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-blue-200
-                            before:shadow-[0_0_0_2px_#60a5fa,0_0.625em_0_0_#dbeafe]
-                            before:[transform:translate3d(0,0.75em,-1em)]
-                            before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
-                            hover:before:shadow-[0_0_0_2px_#60a5fa,0_0.5em_0_0_#dbeafe]
-                            hover:before:[transform:translate3d(0,0.5em,-1em)]
-                            active:before:shadow-[0_0_0_2px_#60a5fa,0_0_#dbeafe]
-                            active:before:[transform:translate3d(0,0,-1em)]">
-                        Join public room
+                       onClick={async () => {
+                        try {
+                            const response = await fetch(`${window.location.origin}/api/chat/join-public-game`, {
+                                method: 'GET',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+                                }
+                            });
+
+                            if (!response.ok) {
+                                const errorData = await response.json().catch(() => ({ message: "Erreur inconnue" }));
+                                throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
+                            }
+
+                            const data = await response.json();
+
+                            navigate(`/game?channelId=${data.channelId}&action=join`);
+
+                        } catch (error: any) {
+                            console.error("Erreur pour rejoindre :", error);
+                            alert(error.message || "Impossible de rejoindre un salon public.");
+                        }
+                    }}
+                    className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-blue-900 text-xl font-semibold
+                        border-2 border-blue-400 bg-blue-100
+                        transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                        hover:bg-blue-200 hover:[transform:translate(0,0.25em)]
+                        active:bg-blue-200 active:[transform:translate(0,0.75em)]
+                        before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-blue-200
+                        before:shadow-[0_0_0_2px_#60a5fa,0_0.625em_0_0_#dbeafe]
+                        before:[transform:translate3d(0,0.75em,-1em)]
+                        before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                        hover:before:shadow-[0_0_0_2px_#60a5fa,0_0.5em_0_0_#dbeafe]
+                        hover:before:[transform:translate3d(0,0.5em,-1em)]
+                        active:before:shadow-[0_0_0_2px_#60a5fa,0_0_#dbeafe]
+                        active:before:[transform:translate3d(0,0,-1em)]">
+                    Join public room
                     </button>
                         <button
                             onClick={ async () => {
                                             try {
-                                        // 🚀 1. On appelle ton GameController pour exécuter ton createGameSession en back !
+                        
                                         const response = await fetch(`${window.location.origin}/api/chat/create-game`, {
                                             method: 'POST',
                                             headers: {
                                                 'Content-Type': 'application/json',
-                                                'Authorization': `Bearer ${sessionStorage.getItem('token')}` // Ou ton token JWT
+                                                'Authorization': `Bearer ${sessionStorage.getItem('token')}`
                                             },
-                                            body: JSON.stringify({ name: "Public Game" })
+                                            body: JSON.stringify({ name: `Public Game #${Math.floor(Math.random() * 10000)}`})
                                         });
 
                                         if (!response.ok) {
-                                            throw new Error("Erreur serveur lors de la création");
+                                            const errorData = await response.json().catch(() => ({ message: "Erreur inconnue" }));
+                                            console.error("Détail de l'erreur NestJS :", errorData);
+                                            throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
                                         }
 
                                         const newSession = await response.json();
 
-                                        // 🚀 2. Le serveur nous renvoie la session avec le VRAI channelId officiel !
-                                        // Plus besoin de &action=create, le salon est déjà en RAM et en BDD !
+                                        //  Le serveur nous renvoie la session avec le VRAI channelId officiel !
+                        
                                         navigate(`/game?channelId=${newSession.channelId}`);
 
                                     } catch (error) {

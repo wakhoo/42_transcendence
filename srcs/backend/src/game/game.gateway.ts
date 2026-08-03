@@ -2,6 +2,7 @@ import { SubscribeMessage,  WebSocketGateway, WebSocketServer, OnGatewayInit, On
 import { Server, Socket } from 'socket.io';
 import { GameService } from './game.service';
 import { JwtService } from '@nestjs/jwt';
+import { ChatService } from '../chat/chat.service';
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 
 
@@ -18,7 +19,8 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
   @WebSocketServer()
     server!: Server;
   
-    constructor(@Inject(forwardRef(() => GameService)) private readonly gameService: GameService,private readonly jwtService: JwtService ) {}
+    constructor(@Inject(forwardRef(() => GameService)) private readonly gameService: GameService,
+    private readonly jwtService: JwtService, @Inject(forwardRef(() => ChatService)) private readonly chatService: ChatService) {}
 
 
     // partage du serveur gateway avec service pour emettre les alertes
@@ -106,15 +108,34 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
      
       const roomName = data.channelId.toString();
       client.join(roomName);
-      await this.gameService.joinGameSession(data.channelId, userId);
-      
+      try {
+        await this.chatService.joinChannel(userId, data.channelId);
+      }
+      catch (e)
+      {}
+
       const realPlayer = await this.gameService.getUserName(data.channelId);
       if(realPlayer) {
         this.server.to(roomName).emit('update_players', realPlayer);
-        client.emit('update_players', realPlayer);
       }
-
     }
+
+    // @SubscribeMessage('join_public_room')
+    // async handleJoinPublicRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelId: number}) {
+
+    //   const userId = gameSocketUserMap.get(client.id);
+    //   if(!userId) {
+
+    //     client.emit('error', {message: 'User non identify'});
+    //     return;
+    //   }
+
+    //   const channelFound = await this.gameService.findPublicRoom();
+    //   if(channelFound)
+    //     client.emit('public_room_found', { channelId: channelFound });
+    //   else
+    //     client.emit('error', { message: 'No public room yet you can create one !' });
+    // }
     
 
     //debut de manche 
@@ -149,28 +170,15 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
 
 
 
-    // histrique du ddessin a un joueur qu ia par exemple actualsier la page
-    @SubscribeMessage('request_history')
-    async handleHistory(@ConnectedSocket() client: Socket, 
-            @MessageBody() data: {channelId: number}){
 
-
-      const userId = gameSocketUserMap.get(client.id);
-      if(!userId){
-
-        client.emit('error' , {message: "User non identify"});
-        return;
-      }
-      this.gameService.sendHistory(client.id, data.channelId);
-    }
 
     @SubscribeMessage('leave_room')
-    async handleLeaveRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelID: number}) {
+    async handleLeaveRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelId: number}) {
 
       const userId = gameSocketUserMap.get(client.id);
       if(!userId)
           return;
-      client.leave(data.channelID.toString());
+      client.leave(data.channelId.toString());
       await this.gameService.handleDisconnection(userId);
     }
 
@@ -181,7 +189,9 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
       const userId = gameSocketUserMap.get(client.id);
       if(!userId)
           return;
-      this.server.to(data.channelId.toString()).emit('clear_canvas');
+      
+      if (this.gameService.isCurrentDrawer(data.channelId, userId))
+          this.server.to(data.channelId.toString()).emit('clear_canvas');
 
     }
 
@@ -194,7 +204,11 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
         return;
       }
       gameSocketUserMap.delete(client.id);
-      await this.gameService.handleDisconnection(userId);
+
+      await this.gameService.handleDisconnection(userId); 
+
+
+      
     }
 
 }

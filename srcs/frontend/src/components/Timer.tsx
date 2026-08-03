@@ -13,11 +13,24 @@ export default function GamePage() {
   const [wordHint, setWordHint] = useState<any>(null);
   const [secretWord, setSecretWord] = useState<any>(null);
   const [roundEndMsg, setRoundEndMsg] = useState<string | null>(null);
+  const [showMsg, setShowMsg] = useState(false);
   const [scores, setScores] = useState<Record< number, number>>({});
   const [message, setMessage] = useState<any>(null);
+  const [endGame ,setEndGame] = useState<any>(null);
+  
 
-  const queryParam = new URLSearchParams(window.location.search);
-  const reelChannelId = Number(queryParam.get('channelId')) || 1;
+ // const queryParam = new URLSearchParams(window.location.search);
+ // const reelChannelId = Number(queryParam.get('channelId')) || 1;
+
+ const [reelChannelId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return Number(params.get('channelId'));
+  });
+
+  const [actionType] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('action');
+  });
   const navigate                  = useNavigate();
 
 
@@ -40,10 +53,13 @@ export default function GamePage() {
 
   useEffect(() => {
     const token = sessionStorage.getItem('token');
-    if(!token){
-      navigate('/login');
+    if(!token || !reelChannelId){
+      navigate('/dashboard', {replace: true});
       return;
     }
+
+    window.history.replaceState(null, '', '/game');
+    
 
     const socketInstance = io(`${window.location.origin}/game`, {
       auth: { token: token }, transports: ['websocket']
@@ -54,8 +70,8 @@ export default function GamePage() {
     socketInstance.on('connect', () => {
       console.log("Connecté au GameGateway !");
 
-      const action = queryParam.get('action');
-      if (action === 'create') {
+     // const action = queryParam.get('action');
+      if (actionType === 'create') {
         console.log(`Ordre reçu : Création de la room #${reelChannelId}...`);
         socketInstance.emit('create_room', { name: `Salon de ${sessionStorage.getItem('username') || 'Game'}` });
       } else {
@@ -65,6 +81,22 @@ export default function GamePage() {
       
     });
 
+     const handleGameCancelled = () => {
+
+        alert("A player has left the room , game is cancelled , waiting for more players");
+        handlePlayAgain();
+        setDrawerInfo(null);
+        setTempsRestant(0);
+        //setDrawerInfo(null);
+       // setSecretWord(null);
+        //setWordHint(null);
+        //setTempsRestant(0);
+       // setScores({});
+        //setRoundEndMsg(null);
+        //setEndGame(null);
+
+      };
+
     socketInstance.on('room_created' , (data) => {
 
       const reelId = data.channelId;
@@ -72,7 +104,6 @@ export default function GamePage() {
       socketInstance.emit('join_room', { channelId: Number(reelId) });
 
     });
-
 
     socketInstance.on('update_players', (listeVenantDuBack) => {
 
@@ -87,6 +118,11 @@ export default function GamePage() {
     socketInstance.on('round_start', (data) => {
       setDrawerInfo(data);
       setSecretWord(null);
+      setTempsRestant(60);
+      setShowMsg(true);
+      setTimeout(() => {
+        setShowMsg(false);
+      }, 5000);
 
     });
 
@@ -104,14 +140,12 @@ export default function GamePage() {
 
     socketInstance.on('secret_word', (data) => {
       setSecretWord(data);
-      setTimeout(() => {
-      setSecretWord(null);
-      }, 7000);
     });
 
     socketInstance.on('round_end', (data) => {
       setRoundEndMsg(data);
       setSecretWord(null);
+      setTempsRestant(0);
          setTimeout(() =>{
                 setRoundEndMsg(null);
             },5000);
@@ -122,16 +156,34 @@ export default function GamePage() {
       setScores(data);
     });
 
+    
+    socketInstance.on('game_over', (data) => {
+
+      setEndGame(data);
+      setWordHint(null);
+      setSecretWord(null);
+      setRoundEndMsg(null);
+      setTempsRestant(0);
+    });
+
     socketInstance.on('error', (err: any) => {
-      console.error("LE SERVEUR REJETTE L'ACTION :", err);
       alert("Erreur renvoyée par le serveur : " + (err.message || JSON.stringify(err)));
     });
 
+    socketInstance.on('game_cancelled', handleGameCancelled);
+
     return () => {
 
-      if (socketInstance && socketInstance.connected)
-        socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
+     if (socketInstance && socketInstance.connected) {
   
+        socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
+        setTimeout(() => {
+          if (socketInstance) {
+            socketInstance.disconnect();
+          }
+        }, 100);
+      }
+
       socketInstance.off('connect');
       socketInstance.off('update_players');
       socketInstance.off('timer_update');
@@ -144,9 +196,12 @@ export default function GamePage() {
       socketInstance.off('room_created');
       socketInstance.off('classement');
       socketInstance.off('message_channel');
+      socketInstance.off('game_over');
+      socketInstance.off('game_cancelled');
       socketInstance.removeAllListeners();
-      socketInstance.disconnect();
+     // socketInstance.disconnect();
     };
+  
   }, []);
 
   const isMeTheDrawer = Number(drawerInfo?.drawerId) === Number(myId);
@@ -157,14 +212,46 @@ export default function GamePage() {
     }
   };
 
+  const handlePlayAgain = () => {
+
+    setEndGame(null);
+    setRoundEndMsg(null);
+    setWordHint(null);
+    setScores({});
+    setDrawerInfo(null);
+    setSecretWord(null);
+    setTempsRestant(60);
+  };
+
+  const finalClassement = endGame
+  ? listeJoueurs.map((joueur: any) => ({
+
+    id: joueur.id,
+    username: joueur.username || joueur.name || `Player #${joueur.id}`,
+    score: endGame[joueur.id] || 0,
+  }))
+  .sort((a: any, b: any) => b.score - a.score)
+  : [];
+
+ 
+
   const wordDisplay = () => {
+
+
+    if (endGame) {
+      return (
+        <p className="text-xl font-black uppercase tracking-widest text-amber-500">
+          Game over
+        </p>
+      );
+    }
 
     if (roundEndMsg){
 
       return (
         <div className="bg-amber-100 border border-amber-400 px-4 py-2 rounded-lg animate-bounce">
           <p className="text-xs font-bold uppercase tracking-widest text-amber-700">
-             Fin du tour !
+             End Of The Round !
           </p>
           <p className="text-lg font-bold text-amber-900">
             {roundEndMsg}
@@ -177,7 +264,7 @@ export default function GamePage() {
       return (
         <div className="animate-pulse">
           <p className="text-xs font-bold uppercase tracking-widest text-emerald-500">
-            À TOI DE DESSINER !
+            Your Turn To Draw !
           </p>
           <p className="text-3xl font-mono tracking-[0.2em] font-black text-emerald-600 uppercase">
             {secretWord}
@@ -190,7 +277,7 @@ export default function GamePage() {
       return (
         <div>
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Mot à deviner
+            Word To Guess
           </p>
           <p className="text-3xl font-mono tracking-[0.4em] font-black text-indigo-600">
             {wordHint.hint}
@@ -200,20 +287,19 @@ export default function GamePage() {
     }
     return (
       <p className="text-sm font-medium text-slate-400 italic">
-        En attente du début de manche...
+       Waiting For The Begining...
       </p>
     );
   };
 
   return (
-    // 1. CONTENEUR PRINCIPAL : Prend tout l'écran avec un fond gris doux
     <div className="min-h-screen bg-slate-950 p-4 flex flex-col gap-4 font-sans text-slate-800">
 
       {message && (
       <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-red-500/90 text-white px-6 py-3 rounded-full shadow-2xl border border-red-400 flex items-center gap-3 animate-bounce backdrop-blur-sm">
         <span className="text-xl">⚠️</span>
         <span className="font-bold text-sm tracking-wide">
-          {/* 🚀 SÉCURITÉ ANTI-CRASH : Si le backend envoie un objet, on affiche seulement sa propriété message (ou on le convertit en texte lisible !) */}
+          {/* SÉCURITÉ ANTI-CRASH : Si le backend envoie un objet, on affiche seulement sa propriété message (ou on le convertit en texte lisible !) */}
           {typeof message === 'object' 
             ? (message.message || JSON.stringify(message)) 
             : message}
@@ -269,15 +355,25 @@ export default function GamePage() {
            {(Array.isArray(listeJoueurs) ? listeJoueurs : []).map((joueur: any, index: number) => (
             <li key={joueur?.id || index} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-100">
               <div className="flex items-center gap-2.5">
-                <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full shadow-sm"></span>
+                
+                {joueur.avatarUrl ? (
+                  <img 
+                      src={joueur.avatarUrl} 
+                      alt="avatar" 
+                      className="w-7 h-7 rounded-md object-cover shadow-sm border border-slate-700" 
+                  />
+                ) : (
+                  <div 
+                      className="w-7 h-7 rounded-md shadow-sm border border-slate-700" 
+                      style={{ backgroundColor: joueur.profileColor || '#10B981' }} 
+                  />
+              )}
                 <span className="font-semibold text-sm text-slate-700 truncate max-w-[100px]">
                   {joueur?.username || joueur?.name || `Joueur #${joueur?.id || index + 1}`}
                 </span>
               </div>
 
-                {/* DROITE : Score + Crayon */}
                 <div className="flex items-center gap-2">
-                  {/* Badge de score */}
                   <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">
                     {scores[joueur.id] || 0} pts
                   </span>
@@ -296,13 +392,79 @@ export default function GamePage() {
 
         <section className="col-span-1 lg:col-span-2 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
           
-          {drawerInfo && (
+          {showMsg && drawerInfo &&  !endGame && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium z-10 animate-bounce">
               🎨 It's <span className="font-bold underline">{drawerInfo.drawerName}</span> turn to draw !
             </div>
             )}
+            {endGame ? (
+            <div className="w-full h-[82vh] bg-slate-900/95 border border-slate-800 rounded-xl flex flex-col items-center justify-center p-6 shadow-2xl relative z-30 animate-fade-in">
+              
+              <h2 className="text-4xl lg:text-5xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-500 uppercase mb-2 drop-shadow">
+                🏆 Game Over !
+              </h2>
+              <p className="text-slate-400 text-sm font-medium mb-8">
+                Here are the session rankings
+              </p>
 
-   {/* 🚀 On utilise h-[82vh] pour forcer le navigateur à créer une colonne centrale immense */}
+              {/* LISTE DES JOUEURS (PODIUM) */}
+              <div className="w-full max-w-md bg-slate-950 border border-slate-800/80 rounded-2xl p-4 shadow-inner flex flex-col gap-2.5 max-h-[50vh] overflow-y-auto">
+                {finalClassement.map((joueur: any, index: number) => {
+                  const isWinner = index === 0;
+                  // Assignation des médailles pour le Top 3, sinon #4, #5...
+                  const medaille = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
+
+                  return (
+                    <div
+                      key={joueur.id}
+                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+                        isWinner
+                          ? "bg-gradient-to-r from-amber-500/20 via-yellow-500/10 to-transparent border-amber-500/50 scale-[1.02] shadow-lg my-1"
+                          : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                      }`}
+                    >
+                      {/* GAUCHE : Médaille + Pseudo */}
+                      <div className="flex items-center gap-3.5">
+                        <span className={`font-black w-7 text-center ${index > 2 ? "text-slate-500 text-xs font-mono" : "text-2xl"}`}>
+                          {medaille}
+                        </span>
+                        <span className={`font-bold truncate max-w-[160px] ${isWinner ? "text-amber-300 text-lg font-black" : "text-slate-200 text-sm"}`}>
+                          {joueur.username}
+                        </span>
+                      </div>
+
+                      {/* DROITE : Les Points */}
+                      <div className="flex items-center gap-1.5 bg-slate-950/80 px-3 py-1 rounded-lg border border-slate-800">
+                        <span className={`font-mono font-bold ${isWinner ? "text-amber-400 text-lg" : "text-emerald-400 text-sm"}`}>
+                          {joueur.score}
+                        </span>
+                        <span className="text-[10px] text-slate-500 uppercase font-black tracking-widest">pts</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* BOUTON RETOUR AU LOBBY */}
+              <button
+                onClick={() => {
+                  // Tu peux mettre ici ton routing pour quitter ou recharger
+                  window.location.href = "/dashboard";
+                }}
+                className="mt-8 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black px-8 py-3.5 rounded-xl shadow-xl hover:shadow-indigo-500/20 transition-all flex items-center gap-2 text-sm uppercase tracking-wider"
+              >
+                <span>⬅️ Return To Lobby</span>
+              </button>
+              <button
+                onClick={handlePlayAgain}
+                className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider border border-emerald-500/30"
+              >
+                <span>⬅️ Play Again</span>
+              </button>
+
+            </div>
+
+              ) : (
         <main className="flex-1 w-full h-[82vh] bg-slate-900/40 rounded-xl border border-slate-700/50 p-3 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
           
           <div className="relative w-full h-full flex-1 overflow-hidden rounded-lg">
@@ -310,6 +472,7 @@ export default function GamePage() {
           </div>
 
         </main>
+          )}
         </section>
 
 

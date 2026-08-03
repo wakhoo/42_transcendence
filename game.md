@@ -35,5 +35,4 @@ Notre architecture divise clairement le réseau de la logique métier pour reste
 | **`join_room`** | Invités (Joueurs 2+) | Ajoute l'ID à la session RAM et au salon Socket.io. | `update_players` + `message_channel` |
 | **`start_game`** | Créateur | Lance le jeu, désigne le 1er dessinateur et lance le chrono. | `round_start`, `word_hint` (+ `secret_word` en privé au dessinateur) |
 | **`draw`** | Dessinateur actif | Enregistre le tracé dans `historicDraw` (RAM). | `draw` (transmet les coordonnées à tout le salon) |
-| **`request_history`**| Joueur (reconnexion) | Récupère l'historique de dessin pour rafraîchir le canvas. | `request_history` (envoyé en privé au client demandeur) |
 | **`disconnect`** *(auto)* | Navigateur / Client | Nettoie la RAM, retire le joueur et gère les départs en direct.| `update_players`, `drawer_left`, ou `game_cancelled` si $< 2$ joueurs |

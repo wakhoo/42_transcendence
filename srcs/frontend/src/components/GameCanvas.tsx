@@ -1,8 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import { Socket } from 'socket.io-client';
-//import { io } from 'socket.io-client';
-//import GameChat from './GameChat';
-//import { useNavigate } from 'react-router-dom';
+
 
 
 interface GameCanvasProps {
@@ -27,6 +25,7 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 
 	const [isDrawing, setIsDrawing] = useState(false);
 
+
 	useEffect(() => {
 
 		const canvas = canvasRef.current;
@@ -34,17 +33,19 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 			return;
 		canvas.width = 1200;
 		canvas.height = 1000;
+		const ctx = canvas.getContext('2d');
+    	if (!ctx)
+			return;
 
-		const context = canvas.getContext('2d');
-		if(!context)
-				return;
+		ctx.lineCap = 'round';
+		ctx.lineJoin = 'round';
+		ctx.strokeStyle = 'black';
+		ctx.lineWidth = 5;
 
-		context.lineCap = 'round';
-		context.lineJoin = 'round';
-		context.strokeStyle = 'black';
-		context.lineWidth = 5;
+		contextRef.current = ctx;
 
-		contextRef.current = context;
+		
+			
 	}, []);
 
 

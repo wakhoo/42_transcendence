@@ -17,9 +17,8 @@ import { channel } from 'diagnostics_channel';
 export interface GameSession {
 
   channelId: number;
+  type?: 'public' | 'private',
   creatorId: number;
-  //totalPlayers: number;
-  //playersIds: number[];
   secretWord: string;
   currentDrawerId: number;
   timeLeft: number;
@@ -72,6 +71,7 @@ export class GameService implements OnModuleInit {
     const newGameSession : GameSession = {
 
         channelId: channel.id,
+        type: 'public',
         creatorId: creatorId,
         secretWord: '',
         currentDrawerId: 0,
@@ -80,7 +80,7 @@ export class GameService implements OnModuleInit {
         guessedUsers: [],
         useWords: [],
         currentRound: 0,
-        maxRound: 3,
+        maxRound: 1,
         historicDraw: [],
         isDrawing: false,
       }   
@@ -130,7 +130,7 @@ export class GameService implements OnModuleInit {
 
 
   // recupere les noms des users dans mariadb grace a l id
-  async getUserName(channelId: number): Promise<Array<{id: number; username: string}>> {
+  async getUserName(channelId: number): Promise<Array<{id: number; username: string ; avatarUrl: string | null; profileColor: string | null }>> {
 
     const members = await this.chatService.getChannelMember(channelId);
     if(!members || members.length === 0)
@@ -144,10 +144,11 @@ export class GameService implements OnModuleInit {
             const user = await this.userService.findById(m.user.id);
             return {
 
-              id: Number(user?.id || m.user.id), username: String(user?.username || `Player #${m.user.id}`)
+              id: Number(user?.id || m.user.id), username: String(user?.username || `Player #${m.user.id}`),
+                 avatarUrl: user?.avatarUrl || null, profileColor: user?.profileColor || null
             };
           } catch {
-            return { id: m.user.id, username: `Player #${m.user.id}`}
+            return { id: m.user.id, username: `Player #${m.user.id}`, avatarUrl: null, profileColor: null}
           }
       })
     );
@@ -159,14 +160,43 @@ export class GameService implements OnModuleInit {
 	async startGame(userId: number, channelId: number) {
 
 
+    const sessionCheck = this.activeGames.get(channelId);
+    if(sessionCheck){
+      if (sessionCheck.timerInterval) {
+            clearInterval(sessionCheck.timerInterval);
+            sessionCheck.timerInterval = undefined;
+        }
+        if (sessionCheck.turnTimeout) {
+            clearTimeout(sessionCheck.turnTimeout);
+            sessionCheck.turnTimeout = undefined;
+        }
+    }
     // recuperatio ndes membres via chatservice
 		const members = await this.chatService.getChannelMember(channelId);
-    const playerIds = members.map(m => m.user.id)
-    const session = this.activeGames.get(channelId);
-		if (!session || playerIds.length < 2) {
+    const playerIds = members.map(m => m.user.id);
+    if(playerIds.length < 2){
+      	this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
+        return;
+    }
+    let session = this.activeGames.get(channelId);
+		if (!session ) {
 
-			this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
-			return;
+      session = {
+        channelId: channelId,
+        creatorId: userId,
+        secretWord: '',
+        currentDrawerId: -1,
+        timeLeft: 60,
+        scores: {},
+        guessedUsers: [],
+        useWords: [],
+        currentRound: 1,
+        maxRound: 3, 
+        historicDraw: [],
+        isDrawing: false
+      };
+		
+			this.activeGames.set(channelId, session);
 		}
 	
     session.timeLeft = 60;
@@ -219,10 +249,10 @@ export class GameService implements OnModuleInit {
           if(currentGame.timerInterval)
             clearInterval(currentGame.timerInterval);
 
-          this.server.to(channelId.toString()).emit('round_end', `Incroyable ! Tous les joueurs ont trouvé le mot : ${currentGame.secretWord} !`);
+          this.server.to(channelId.toString()).emit('round_end', `Amazing ! Every players has found the word : ${currentGame.secretWord} !`);
           this.server.to(channelId.toString()).emit('classement', currentGame.scores);
 
-          setTimeout(() => {
+          currentGame.turnTimeout = setTimeout(() => {
             this.handleNextTurn(channelId);
           }, 5000);
 
@@ -240,10 +270,14 @@ export class GameService implements OnModuleInit {
     const currentGame = this.activeGames.get(channelId);
     if (!currentGame)
         return false;
-    if(currentGame.timerInterval)
+    if(currentGame.timerInterval){
       clearInterval(currentGame.timerInterval);
-    if (currentGame.turnTimeout) 
+      currentGame.timerInterval = undefined;
+    }
+    if (currentGame.turnTimeout) {
       clearTimeout(currentGame.turnTimeout);
+      currentGame.turnTimeout = undefined;
+    }
 	
     currentGame.isDrawing = false;
     //fin de partie sauvgarde dans mariadb
@@ -264,7 +298,7 @@ export class GameService implements OnModuleInit {
               scores: currentGame.scores,
             });
             await this.match.save(matchHistory);
-            this.activeGames.delete(channelId);
+           // this.activeGames.delete(channelId);
             return;
           }
       }
@@ -286,18 +320,35 @@ export class GameService implements OnModuleInit {
       if(id === currentGame.currentDrawerId)
       {
         
-    
-        setTimeout(() => {
+        //setTimeout(() => {
         this.server.to(socketId).emit('secret_word', currentGame.secretWord);
-        }, 5000);
+        //}, 5000);
         break;
       }
     }
-		setTimeout(() =>{
+		currentGame.turnTimeout = setTimeout(() =>{
           currentGame.timerInterval = setInterval(() => {
           currentGame.isDrawing = true;  
           currentGame.timeLeft -= 1;
           this.server.to(channelId.toString()).emit('timer_update',currentGame.timeLeft);
+          if(currentGame.timeLeft == 45){
+
+            const firstLetter = currentGame.secretWord[0];
+            const newHint = "-".repeat(currentGame.secretWord.length-1);
+            const hintLetter = firstLetter + newHint;
+            this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
+
+          }
+          else if (currentGame.timeLeft == 25){
+
+            let hintArray = Array(currentGame.secretWord.length).fill("-");
+            hintArray[0] = currentGame.secretWord[0];
+            const random  = Math.floor(Math.random() * (currentGame.secretWord.length - 1) + 1);
+            hintArray[random] = currentGame.secretWord[random];
+            const hintLetter = hintArray.join("");
+            this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
+
+          }
           if(currentGame.timeLeft <= 0){
 
             clearInterval(currentGame.timerInterval);
@@ -326,123 +377,192 @@ export class GameService implements OnModuleInit {
 
 
 
-//historiaue au cas ou actualisation
-    sendHistory(clientId: string, channelId: number) {
-
-      const currentGame = this.activeGames.get(channelId);
-      if(!currentGame)
-          return;
-      this.server.to(clientId).emit('load_history', currentGame.historicDraw);
-
-      }
-
-
-
-      // gere les departs netoie la ram annule la partie etc
-    // async handleDisconnection(userId: number): Promise <number | null> {
-
-    //   for (const[channelID, currentGame] of this.activeGames.entries()) {
-
-
-    //       const members = await this.chatService.getChannelMember(channelID);
-    //       const playerIds = members.map(m => m.user.id);
-		// 	    if(playerIds.includes(userId)){
-
-		// 		   await this.chatService.leaveChannel(userId, channelID);
-           
-
-    //         const remaining = await this.chatService.getChannelMember(channelID);
-    //         const newPlayerList = await this.getUserName(channelID);
-    //         this.server.to(channelID.toString()).emit('update_players', newPlayerList);
-    //         if(remaining.length <= 1){
-
-    //           clearInterval(currentGame.timerInterval);
-    //           this.server.to(channelID.toString()).emit('game_cancelled', {reason : 'not_enough_players'});
-    //           await this.chatService.deleteChannel(currentGame.creatorId, channelID);
-    //           this.activeGames.delete(channelID);
-    //           return null;
-    //         }
-          
-    //         if(userId === currentGame.currentDrawerId){
-
-    //           clearInterval(currentGame.timerInterval);
-    //           this.server.to(channelID.toString()).emit('drawer_left', {drawerLeftId: userId});
-    //           setTimeout(() =>{
-    //             this.handleNextTurn(channelID);
-    //             },5000);
-    //           }
-		// 		      return channelID;
-    //       }
-    //     }
-    //     return null;
-    //   }
   
-
-    async handleDisconnection(userId: number): Promise<number | null> {
-
-  for (const [channelID, currentGame] of this.activeGames.entries()) {
-
-    // OPTIMISATION RAM : On regarde si le joueur est dans les scores de cette partie
-    // Ça évite de faire faire des requêtes SQL au serveur pour des salons où le joueur n'est pas !
-    if (!currentGame.scores || currentGame.scores[userId] === undefined) {
-      continue;
-    }
-    // À partir d'ici, on est sûr à 100% qu'il était dans CE salon :
-    try {
-      await this.chatService.leaveChannel(userId, channelID);
-    } catch {
-      console.log(`Le joueur #${userId} était déjà parti du salon SQL #${channelID}`);
-    }
-    // 🚀 2. NETTOYAGE RAM : On supprime son score pour qu'il disparaisse du classement
-    delete currentGame.scores[userId];
-
-    const remaining = await this.chatService.getChannelMember(channelID);
-    const newPlayerList = await this.getUserName(channelID);
-    
-    if (this.server) {
-      this.server.to(channelID.toString()).emit('update_players', newPlayerList);
-    }
-    // SI LA PARTIE N'A PLUS ASSEZ DE JOUEURS (0 ou 1) :
-    if (remaining.length <= 1) {
-      if (currentGame.timerInterval) {
-        clearInterval(currentGame.timerInterval);
-      }
+  //   async handleDisconnection(userId: number): Promise<number | null> {
+  //   for (const [channelID, currentGame] of this.activeGames.entries()) {
+  //     const isCreator = currentGame.creatorId === userId;
+  //     const isInScore = currentGame.scores && currentGame.scores[userId] != undefined;
       
-      if (this.server) {
-        this.server.to(channelID.toString()).emit('game_cancelled', { reason: 'not_enough_players' });
+  //     if (!isCreator && !isInScore) {
+  //       continue;
+  //     }
+
+  //     // 🚀 1. On vérifie combien de joueurs sont présents AVANT le départ
+  //     const currentMembers = await this.chatService.getChannelMember(channelID);
+
+
+  //     if (currentMembers.length <= 2) {
+  //       if (currentGame.timerInterval) {
+  //         clearInterval(currentGame.timerInterval);
+  //         currentGame.timerInterval = undefined;
+
+  //       }
+  //       if (currentGame.turnTimeout) {
+  //         clearTimeout(currentGame.turnTimeout);
+  //         currentGame.turnTimeout = undefined;
+  //       }
+
+  //       currentGame.isDrawing = false;
+  //       currentGame.currentRound = 0;
+  //       currentGame.currentDrawerId = 0;
+  //       currentGame.secretWord = '';
+  //       currentGame.guessedUsers = [];
+  //       currentGame.timeLeft = 60;
+  //       if (this.server) {
+  //         this.server.to(channelID.toString()).emit('game_cancelled', { reason: 'not_enough_players' });
+  //       }
+
+  //       try {
+  //         // Le créateur n'a pas encore fait "leaveChannel", donc la sécurité requireAdmin de ton mate RÉUSSIT !
+  //         await this.chatService.leaveChannel(userId, channelID);
+  //       } catch (error) {
+  //         //console.error("Erreur lors de la suppression SQL du salon :", error);
+  //       }
+
+  //       if (this.server) {
+  //         const newPlayerList = await this.getUserName(channelID);
+  //         this.server.to(channelID.toString()).emit('update_players', newPlayerList);
+  //       }
+  //       if (currentMembers.length - 1 <= 0) {
+
+  //         if (currentGame.timerInterval) 
+  //           clearInterval(currentGame.timerInterval);
+  //         if (currentGame.turnTimeout) 
+  //           clearTimeout(currentGame.turnTimeout);
+
+  //       this.activeGames.delete(channelID);
+  //         try {
+  //           await this.chatService.deleteChannel(currentGame.creatorId, channelID);
+  //         }
+  //         catch{}
+
+  //       }
+
+  //       return null;
+  //     }
+
+  //     try {
+  //       await this.chatService.leaveChannel(userId, channelID);
+  //     } catch {
+  //       console.log(`Le joueur #${userId} était déjà parti du salon SQL #${channelID}`);
+  //     }
+  //     delete currentGame.scores[userId];
+
+  //     const remaining = await this.chatService.getChannelMember(channelID);
+  //     const newPlayerList = await this.getUserName(channelID);
+      
+  //     if (this.server) {
+  //       this.server.to(channelID.toString()).emit('update_players', newPlayerList);
+  //     }
+
+  //     // SI LE DESSINATEUR A QUITTÉ EN PLEINE MANCHE :
+  //     if (userId === currentGame.currentDrawerId) {
+  //       if (currentGame.timerInterval) clearInterval(currentGame.timerInterval);
+  //       if (currentGame.turnTimeout) clearTimeout(currentGame.turnTimeout);
+
+  //       if (this.server) {
+  //         this.server.to(channelID.toString()).emit('drawer_left', { drawerLeftId: userId });
+  //       }
+  //       setTimeout(() => {
+  //         if (this.activeGames.has(channelID)) {
+  //           this.handleNextTurn(channelID);
+  //         }
+  //       }, 5000);
+  //     }
+  //     return channelID;
+  //   }
+  //   return null;
+  // }  
+
+async handleDisconnection(userId: number): Promise<number | null> {
+    for (const [channelID, currentGame] of this.activeGames.entries()) {
+      const isCreator = currentGame.creatorId === userId;
+      const isInScore = currentGame.scores && currentGame.scores[userId] != undefined;
+      
+      if (!isCreator && !isInScore) {
+        continue;
       }
+
+      //ON FAIT QUITTER LE JOUEUR DU SQL DIRECTEMENT
       try {
-        await this.chatService.deleteChannel(currentGame.creatorId, channelID);
+        await this.chatService.leaveChannel(userId, channelID);
       } catch {
-        console.log("Erreur lors de la suppression SQL du salon (peut-être déjà supprimé)");
+        console.log(`Le joueur #${userId} était déjà parti du salon SQL #${channelID}`);
+      }
+      delete currentGame.scores[userId];
+
+      //ON REGARDE COMBIEN DE JOUEURS IL RESTE VRAIMENT MAINTENANT
+      const remainingMembers = await this.chatService.getChannelMember(channelID);
+      const remainingCount = remainingMembers.length;
+
+       //SI LA ROOM EST TOTALEMENT VIDE (0 JOUEUR) : ON SUPPRIME TOUT !
+      if (remainingCount === 0) {
+        if (currentGame.timerInterval) clearInterval(currentGame.timerInterval);
+        if (currentGame.turnTimeout) clearTimeout(currentGame.turnTimeout);
+        
+        this.activeGames.delete(channelID);
+        try {
+          await this.chatService.deleteChannel(currentGame.creatorId, channelID);
+        } catch {}
+        return null;
       }
 
-      this.activeGames.delete(channelID);
-      return null;
-    }
-    // SI LE DESSINATEUR A QUITTÉ EN PLEINE MANCHE :
-    if (userId === currentGame.currentDrawerId) {
-      if (currentGame.timerInterval) 
-        clearInterval(currentGame.timerInterval);
-      
-      if(currentGame.turnTimeout)
-          clearInterval(currentGame.turnTimeout);
-
+      // ON MET À JOUR LA LISTE DES JOUEURS POUR CEUX QUI SONT ENCORE LÀ
       if (this.server) {
-        this.server.to(channelID.toString()).emit('drawer_left', { drawerLeftId: userId });
+        const newPlayerList = await this.getUserName(channelID);
+        this.server.to(channelID.toString()).emit('update_players', newPlayerList);
       }
-      setTimeout(() => {
-        // SÉCURITÉ ANTI-CRASH : On vérifie que la partie existe toujours après les 5 secondes d'attente !
-        if (this.activeGames.has(channelID)) {
-          this.handleNextTurn(channelID);
+
+      // S'IL NE RESTE QU'UN SEUL JOUEUR (OU MOINS DE 2), ON ANNULE LA PARTIE !
+      if (remainingCount < 2) {
+        if (currentGame.timerInterval) {
+          clearInterval(currentGame.timerInterval);
+          currentGame.timerInterval = undefined;
         }
-      }, 5000);
+        if (currentGame.turnTimeout) {
+          clearTimeout(currentGame.turnTimeout);
+          currentGame.turnTimeout = undefined;
+        }
+
+        // On remet la room au propre pour qu'elle soit prête à relancer plus tard
+        currentGame.isDrawing = false;
+        currentGame.currentRound = 0;
+        currentGame.currentDrawerId = 0;
+        currentGame.secretWord = '';
+        currentGame.guessedUsers = [];
+        currentGame.timeLeft = 60;
+
+        if (this.server) {
+          this.server.to(channelID.toString()).emit('game_cancelled', { reason: 'not_enough_players' });
+        }
+        
+        // On s'arrête là pour cette room (la partie est stoppée, mais la room reste en RAM pour le survivant)
+        return null; 
+      }
+
+      // S'IL RESTE AU MOINS 2 JOUEURS : LA PARTIE CONTINUE !
+      // Mais si c'était le dessinateur qui est parti, on doit passer au tour suivant :
+      if (userId === currentGame.currentDrawerId&& currentGame.currentRound <= currentGame.maxRound && currentGame.currentRound > 0 ) {
+        if (currentGame.timerInterval)
+          clearInterval(currentGame.timerInterval);
+        if (currentGame.turnTimeout)
+          clearTimeout(currentGame.turnTimeout);
+
+        if (this.server) {
+          this.server.to(channelID.toString()).emit('drawer_left', { drawerLeftId: userId });
+        }
+        currentGame.turnTimeout = setTimeout(() => {
+          if (this.activeGames.has(channelID)) {
+            this.handleNextTurn(channelID);
+          }
+        }, 5000);
+      }
+
+      return channelID;
     }
-    return channelID;
+    return null;
   }
-  return null;
-}
-  
+
 
 
   isCurrentDrawer(channelId: number, userId: number): boolean {
@@ -452,5 +572,19 @@ export class GameService implements OnModuleInit {
         return false;
       return game.currentDrawerId === userId;
   }
-}
+
   
+  async findPublicRoom(): Promise<number | null> {
+
+     for (const [channelID, currentGame] of this.activeGames.entries()) {
+      
+      const currentMembers = await this.chatService.getChannelMember(channelID);
+        if(currentGame.type === 'public' && currentMembers.length < 8){
+            return channelID;
+        }
+      }
+       return null;
+  }
+
+ 
+}
