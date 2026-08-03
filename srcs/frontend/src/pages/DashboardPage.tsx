@@ -98,9 +98,9 @@ export default function DashboardPage() {
                 else next.delete(data.userId);
                 return next;
             });
-            // fetch('/api/user', { headers: { Authorization: `Bearer ${token}` } })
-            //     .then(r => r.json())
-            //     .then((data: UserProfile[]) => setUsers(data));
+            fetch('/api/user', { headers: { Authorization: `Bearer ${token}` } })
+                .then(r => r.json())
+                .then((data: UserProfile[]) => setUsers(data));
          });
 
         return (() => { socketRef.current?.disconnect(); });

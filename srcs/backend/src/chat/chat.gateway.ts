@@ -97,7 +97,7 @@ async handleConnection(client: Socket) {
         }
 
         const onlineUserIds = [...new Set(socketUserMap.values())];
-        client.emit('ready', { generalChannelId: general.id, onlineUserIds });
+        client.emit('ready', { generalChannelId: general.id });
         this.server.emit('presenceChanged', { userId: payload.sub, status: 'online' });
         console.log(`User ${payload.sub} connected (socket ${client.id})`);
     } catch {
