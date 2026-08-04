@@ -1,7 +1,25 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getAccessToken } from '../lib/session';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
 
 function HomePage() {
     const navigate = useNavigate();
+    const [checkingSession, setCheckingSession] = useState(true);
+
+    useEffect(() => {
+        (async () => {
+            const token = await getAccessToken();
+            if (token) {
+                navigate('/dashboard', { replace: true });
+                return;
+            }
+            setCheckingSession(false);
+        })();
+    }, [navigate]);
+
+    if (checkingSession)
+        return null;
 
     return (
         <div className="min-h-screen bg-black flex items-center justify-center">
@@ -17,11 +35,7 @@ function HomePage() {
                 className="border border-white text-white px-6 py-2 rounded hover:bg-white hover:text-black">
                 sign up
                 </button>
-                <button
-                    onClick={() => { window.location.href = '/api/auth/google'; }}
-                    className="border border-white text-white px-6 py-2 rounded hover:bg-white hover:text-black">
-                    Continue with Google
-                </button>
+                <GoogleSignInButton />
             </div>
         </div>
     );

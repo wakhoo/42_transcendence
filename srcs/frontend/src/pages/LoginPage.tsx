@@ -1,7 +1,8 @@
-import { useState, type SubmitEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OtpVerifyForm } from '../components/OtpVerifyForm';
-import { saveSession } from '../lib/session';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { saveSession, getAccessToken } from '../lib/session';
 
 function LoginPage() {
     const [email, setEmail] = useState('');
@@ -11,6 +12,18 @@ function LoginPage() {
 
     const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
     const [partialToken, setPartialToken] = useState('');
+    const [checkingSession, setCheckingSession] = useState(true);
+
+    useEffect(() => {
+        (async () => {
+            const token = await getAccessToken();
+            if (token) {
+                navigate('/dashboard', { replace: true });
+                return;
+            }
+            setCheckingSession(false);
+        })();
+    }, [navigate]);
 
     const emailValide = email.includes('@') && email.includes('.');
     const formValide = emailValide && password.length > 0;
@@ -51,6 +64,9 @@ function LoginPage() {
         setError('');
     }
 
+    if (checkingSession)
+        return null;
+
     return (
         <div className="min-h-screen bg-black flex items-center justify-center">
             <div className="bg-gray-900 p-10 rounded-xl flex flex-col gap-4">
@@ -83,6 +99,7 @@ function LoginPage() {
                                 Log in
                             </button>
                         </form>
+                        <GoogleSignInButton />
                         <button
                             onClick={() => navigate(-1)}
                             className="text-gray-500 text-sm text-center hover:text-white transition-colors">
