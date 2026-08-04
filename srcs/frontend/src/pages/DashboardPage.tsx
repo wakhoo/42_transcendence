@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import { ProfileContent } from './ProfilePage';
 import { useChatCommands } from '../hooks/useChatCommands';
+import { getAccessToken, authHeaders } from '../lib/session';
 
 type Message = {
     id: number;
@@ -35,63 +36,73 @@ export default function DashboardPage() {
     const [openProfileId, setOpenProfileId] = useState<number | null>(null);
 
     useEffect(() => {
-        const token = sessionStorage.getItem('token');
-        if (!token) {
-            navigate('/login');
-            return;
-        }
+        (async () => {
+            const token = await getAccessToken();
+            if (!token) {
+                navigate('/login');
+                return;
+            }
 
-        fetch('/api/user', { headers: { Authorization: `Bearer ${token}` }})
-            .then(r => r.json())
-            .then((data: UserProfile[]) => setUsers(data));
+            fetch('/api/user', { headers: await authHeaders() })
+                .then(r => r.json())
+                .then((data: UserProfile[]) => setUsers(data));
+        })();
     }, [])
 
     useEffect(() => {
-        const token = sessionStorage.getItem('token');
-        if (!token) {
-            navigate('/login');
-            return;
-        }
+        let socket: Socket | null = null;
 
-        const socket = io(`${window.location.origin}/chat`, { auth: { token } });
-        socketRef.current = socket;
+        (async () => {
+            const token = await getAccessToken();
+            if (!token) {
+                navigate('/login');
+                return;
+            }
 
-        socket.on('ready', ({ generalChannelId }: { generalChannelId: number }) => {
-            setChannelId(generalChannelId);
+            socket = io(`${window.location.origin}/chat`, { auth: { token } });
+            socketRef.current = socket;
 
-            fetch(`/api/chat/channels/${generalChannelId}/messages`, {headers: { Authorization: `Bearer ${token}` }})
-            .then(r => r.json())
-            .then((data: Message[]) => setMessages(data.reverse()));
-        });
+            socket.on('ready', ({ generalChannelId }: { generalChannelId: number }) => {
+                setChannelId(generalChannelId);
 
-        socket.on('newMessage', (msg: Message) => {
-            setMessages((prev: Message[]) => [...prev, msg]);
-        });
-
-        socket.on('error', (err: { message: string }) => {
-            setError(err.message);
-            setTimeout(() => setError(''), 5000);
-        });
-
-        socket.on('connect_error', () => navigate('/login'));
-
-        socket.on('userTyping', ({ userId }: { userId: number }) => {
-            setUsers(prev => {
-                const user = prev.find(u => u.id === userId);
-                if (user)
-                    setTyping(`${user.username} is writing...`);
-                return prev;
+                authHeaders().then(headers =>
+                    fetch(`/api/chat/channels/${generalChannelId}/messages`, { headers })
+                        .then(r => r.json())
+                        .then((data: Message[]) => setMessages(data.reverse()))
+                );
             });
-            if (typingTimer.current)
-                clearTimeout(typingTimer.current);
-            typingTimer.current = setTimeout(() => setTyping(''), 3000);
-        });
 
-        socket.on('presenceChanged', () => {
-            fetch('/api/user', { headers: { Authorization: `Bearer ${token}` } })
-                .then(r => r.json())
-                .then((data: UserProfile[]) => setUsers(data));
-         });
+            socket.on('newMessage', (msg: Message) => {
+                setMessages((prev: Message[]) => [...prev, msg]);
+            });
+
+            socket.on('error', (err: { message: string }) => {
+                setError(err.message);
+                setTimeout(() => setError(''), 5000);
+            });
+
+            socket.on('connect_error', () => navigate('/login'));
+
+            socket.on('userTyping', ({ userId }: { userId: number }) => {
+                setUsers(prev => {
+                    const user = prev.find(u => u.id === userId);
+                    if (user)
+                        setTyping(`${user.username} is writing...`);
+                    return prev;
+                });
+                if (typingTimer.current)
+                    clearTimeout(typingTimer.current);
+                typingTimer.current = setTimeout(() => setTyping(''), 3000);
+            });
+
+            socket.on('presenceChanged', () => {
+                authHeaders().then(headers =>
+                    fetch('/api/user', { headers })
+                        .then(r => r.json())
+                        .then((data: UserProfile[]) => setUsers(data))
+                );
+             });
+        })();
 
         return (() => { socketRef.current?.disconnect(); });
     }, [navigate]);
@@ -151,10 +162,7 @@ export default function DashboardPage() {
                         try {
                             const response = await fetch(`${window.location.origin}/api/chat/join-public-game`, {
                                 method: 'GET',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-                                }
+                                headers: await authHeaders()
                             });
 
                             if (!response.ok) {
@@ -192,10 +200,7 @@ export default function DashboardPage() {
                         
                                         const response = await fetch(`${window.location.origin}/api/chat/create-game`, {
                                             method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-                                            },
+                                            headers: await authHeaders(),
                                             body: JSON.stringify({ name: `Public Game #${Math.floor(Math.random() * 10000)}`})
                                         });
 

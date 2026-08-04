@@ -38,7 +38,11 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                 return; 
             }
 
-            const payload = this.jwtService.verify<{ sub: number }>(token);
+            const payload = this.jwtService.verify<{ sub: number; pending2fa?: boolean }>(token);
+            if (payload.pending2fa) {
+                client.disconnect();
+                return;
+            }
             socketUserMap.set(client.id, payload.sub);
 
             const isGameMode = client.handshake.query?.mode === 'game';

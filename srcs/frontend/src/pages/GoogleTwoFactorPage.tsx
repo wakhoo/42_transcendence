@@ -1,12 +1,22 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OtpVerifyForm } from '../components/OtpVerifyForm';
+import { saveSession } from '../lib/session';
 
 function GoogleTwoFactorPage() {
     const navigate = useNavigate();
-    const partialToken = new URLSearchParams(window.location.search).get('partialToken');
+    // Captured once on mount, before the URL gets scrubbed below — the OTP form still needs
+    // this value for the lifetime of this page even after it's gone from the address bar.
+    const [partialToken] = useState(() => new URLSearchParams(window.location.search).get('partialToken'));
+
+    useEffect(() => {
+        // Strip the token out of the URL bar/history immediately — it shouldn't sit there
+        // in plain sight (or in browser history) for as long as the user takes to type their code.
+        window.history.replaceState(null, '', window.location.pathname);
+    }, []);
 
     if (!partialToken) {
-        navigate('/login');
+        navigate('/login', { replace: true });
         return null;
     }
 
@@ -17,10 +27,10 @@ function GoogleTwoFactorPage() {
                 <OtpVerifyForm
                     partialToken={partialToken}
                     onVerified={(tokens) => {
-                        sessionStorage.setItem('token', tokens.accessToken);
-                        navigate('/dashboard');
+                        saveSession(tokens.accessToken, tokens.refreshToken);
+                        navigate('/dashboard', { replace: true });
                     }}
-                    onCancel={() => navigate('/login')}
+                    onCancel={() => navigate('/login', { replace: true })}
                 />
             </div>
         </div>

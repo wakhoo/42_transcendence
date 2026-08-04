@@ -50,13 +50,16 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
       const token = authHeader.replace(/^Bearer\s+/i, '');
       
       // Décodage cle secrete  pour verifier que token pas flasifier)
-      const payload = await this.jwtService.verifyAsync(token, {
-        secret: process.env.JWT_SECRET || 'secret_par_defaut', 
-      });
+      const payload = await this.jwtService.verifyAsync(token);
 
       const userId = payload.sub || payload.id;
 
       if (!userId) {
+        client.disconnect();
+        return;
+      }
+
+      if (payload.pending2fa) {
         client.disconnect();
         return;
       }

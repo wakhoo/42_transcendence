@@ -1,9 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-
-function authHeaders() {
-    const token = sessionStorage.getItem('token');
-    return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-}
+import { authHeaders } from '../lib/session';
 
 type Props = {
     onEnabled: () => void;
@@ -20,7 +16,7 @@ export function TotpEnrollForm({ onEnabled, onCancel }: Props) {
     useEffect(() => {
         (async () => {
             try {
-                const res = await fetch('/api/auth/2fa/setup', { method: 'POST', headers: authHeaders() });
+                const res = await fetch('/api/auth/2fa/setup', { method: 'POST', headers: await authHeaders() });
                 const data = await res.json();
                 if (!res.ok) {
                     setError(data.message ?? 'Failed to start 2FA setup');
@@ -42,7 +38,7 @@ export function TotpEnrollForm({ onEnabled, onCancel }: Props) {
         try {
             const res = await fetch('/api/auth/2fa/enable', {
                 method: 'POST',
-                headers: authHeaders(),
+                headers: await authHeaders(),
                 body: JSON.stringify({ code }),
             });
             const data = await res.json().catch(() => ({}));

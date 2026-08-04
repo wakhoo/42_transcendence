@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Socket } from 'socket.io-client';
+import { getAccessToken, authHeaders } from '../lib/session';
 
 type UserProfile = { id: number; username: string; profileColor: string };
 
@@ -19,10 +20,10 @@ export function useChatCommands(
         const parts   = raw.slice(1).trim().split(' ');
         const cmd     = parts[0].toLowerCase();
         const args    = parts.slice(1);
-        const token   = sessionStorage.getItem('token');
+        const token   = await getAccessToken();
         if (!token || channelId === null)
             return;
-        const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+        const headers = await authHeaders();
 
         function ok(msg: string) { setCmdMsg(msg); setTimeout(() => setCmdMsg(''), 5000); }
         function err(msg: string) { setError(msg);  setTimeout(() => setError(''),  5000); }

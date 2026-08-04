@@ -1,5 +1,6 @@
 import { useState, type SubmitEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { saveSession } from '../lib/session';
 
 function SignUp() {
     const [email, setEmail] = useState('');
@@ -30,8 +31,7 @@ function SignUp() {
                 return;
             }
 
-            sessionStorage.setItem('token', data.accessToken);
-            sessionStorage.setItem('refreshToken', data.refreshToken);
+            saveSession(data.accessToken, data.refreshToken);
             navigate('/2fa/prompt');
         } catch {
             setError('Unable to contact the server');
