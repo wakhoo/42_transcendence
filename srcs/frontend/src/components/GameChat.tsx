@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useChatCommands } from '../hooks/useChatCommands'; //je t'ai importe les commandes du chat ici
+import { getAccessToken, authHeaders } from '../lib/session';
 
 type Message = {
   id: number;
@@ -26,54 +27,62 @@ export default function GameChat({ channelId }: GameChatProps) {
 
   // 1. Connexion indépendante au namespace /chat exactement comme le Dashboard
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
-    if (!token || !channelId) return;
+    let socket: Socket | null = null;
+    let cancelled = false;
 
-    const socket = io(`${window.location.origin}/chat`, { auth: { token }, transports: ['websocket'],
-  // 🚀 ON RAJOUTE CE BOUT DE CODE : On prévient le back qu'on est en mode jeu sur ce salon !
-  query: { 
-    mode: 'game',
-    channelId: channelId.toString()
-  } });
-    socketRef.current = socket;
-    socket.on('connect', () => {
-     // socket.emit('joinChannel', { channelId: Number(channelId) });
+    (async () => {
+      const token = await getAccessToken();
+      if (!token || !channelId || cancelled) return;
 
-    })
+      socket = io(`${window.location.origin}/chat`, { auth: { token }, transports: ['websocket'],
+    // 🚀 ON RAJOUTE CE BOUT DE CODE : On prévient le back qu'on est en mode jeu sur ce salon !
+    query: {
+      mode: 'game',
+      channelId: channelId.toString()
+    } });
+      socketRef.current = socket;
+      socket.on('connect', () => {
+       // socket.emit('joinChannel', { channelId: Number(channelId) });
 
-    // Charger l'historique des messages du salon de jeu
-    fetch(`/api/chat/channels/${channelId}/messages`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-      .then(r => r.json())
-      .then((data: Message[]) => {
-        if (Array.isArray(data)) setMessages(data.reverse());
       })
-      .catch(() => console.log("Aucun historique pour ce salon"));
 
-    // Écouter les nouveaux messages en direct
-    socket.on('newMessage', (msg: Message) => {
-      setMessages((prev) => [...prev, msg]);
-    });
+      // Charger l'historique des messages du salon de jeu
+      fetch(`/api/chat/channels/${channelId}/messages`, {
+        headers: await authHeaders()
+      })
+        .then(r => r.json())
+        .then((data: Message[]) => {
+          if (Array.isArray(data)) setMessages(data.reverse());
+        })
+        .catch(() => console.log("Aucun historique pour ce salon"));
 
-    socket.on('error', (err: { message: string }) => {
-      setError(err.message);
-      setTimeout(() => setError(''), 5000);
-    });
+      // Écouter les nouveaux messages en direct
+      socket.on('newMessage', (msg: Message) => {
+        setMessages((prev) => [...prev, msg]);
+      });
+
+      socket.on('error', (err: { message: string }) => {
+        setError(err.message);
+        setTimeout(() => setError(''), 5000);
+      });
+    })();
 
     return () => {
-      socket.disconnect();
+      cancelled = true;
+      socket?.disconnect();
     };
   }, [channelId]);
 
   // charge les joueurs du channel pour résoudre les usernames dans les commandes
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
-    if (!token || !channelId) return;
-    fetch('/api/user', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then((data: UserProfile[]) => setUsers(data))
-      .catch(() => {});
+    (async () => {
+      const token = await getAccessToken();
+      if (!token || !channelId) return;
+      fetch('/api/user', { headers: await authHeaders() })
+        .then(r => r.json())
+        .then((data: UserProfile[]) => setUsers(data))
+        .catch(() => {});
+    })();
   }, [channelId]);
 
   // 2. Scroll automatique tout en bas

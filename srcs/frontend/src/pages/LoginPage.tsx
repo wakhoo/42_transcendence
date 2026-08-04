@@ -1,6 +1,7 @@
 import { useState, type SubmitEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OtpVerifyForm } from '../components/OtpVerifyForm';
+import { saveSession } from '../lib/session';
 
 function LoginPage() {
     const [email, setEmail] = useState('');
@@ -35,7 +36,7 @@ function LoginPage() {
                     return;
                 }
 
-                sessionStorage.setItem('token', data.accessToken);
+                saveSession(data.accessToken, data.refreshToken);
                 navigate('/dashboard');
             }
 
@@ -92,7 +93,7 @@ function LoginPage() {
                     <OtpVerifyForm
                         partialToken={partialToken}
                         onVerified={(tokens) => {
-                            sessionStorage.setItem('token', tokens.accessToken);
+                            saveSession(tokens.accessToken, tokens.refreshToken);
                             navigate('/dashboard');
                         }}
                         onCancel={cancelOtp}

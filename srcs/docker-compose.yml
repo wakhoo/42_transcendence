@@ -83,30 +83,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-    ports:
-      - "3000:3000"
 
-  # ----------------------------------------------------------
-  #  WebSocket — Real-time server
-  #  No external port — accessed through WAF only
-  # ----------------------------------------------------------
-  websocket:
-    build:
-      context: ./websocket
-      dockerfile: Dockerfile
-    container_name: websocket
-    networks:
-      - internal
-    depends_on:
-      - backend
-    env_file: .env
-    restart: unless-stopped
-    healthcheck:
-      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
-      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
   # ----------------------------------------------------------
   #  MariaDB — Database
   #  db network only — no external access

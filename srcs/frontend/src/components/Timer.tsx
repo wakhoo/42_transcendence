@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import GameChat from './GameChat';
 import { useNavigate } from 'react-router-dom';
 import GameCanvas from './GameCanvas';
+import { getAccessToken } from '../lib/session';
 export default function GamePage() {
 
   const [myId, setMyId] = useState<number | null>(null);
@@ -52,33 +53,40 @@ export default function GamePage() {
 
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
+    let socketInstance: Socket | null = null;
+    let cancelled = false;
+
+    (async () => {
+    const token = await getAccessToken();
     if(!token || !reelChannelId){
       navigate('/dashboard', {replace: true});
       return;
     }
 
-    window.history.replaceState(null, '', '/game');
-    
+    if (cancelled) return;
 
-    const socketInstance = io(`${window.location.origin}/game`, {
+    window.history.replaceState(null, '', '/game');
+
+
+    const socket = io(`${window.location.origin}/game`, {
       auth: { token: token }, transports: ['websocket']
     });
+    socketInstance = socket;
 
-    setSocket(socketInstance);
+    setSocket(socket);
 
-    socketInstance.on('connect', () => {
+    socket.on('connect', () => {
       console.log("Connecté au GameGateway !");
 
      // const action = queryParam.get('action');
       if (actionType === 'create') {
         console.log(`Ordre reçu : Création de la room #${reelChannelId}...`);
-        socketInstance.emit('create_room', { name: `Salon de ${sessionStorage.getItem('username') || 'Game'}` });
+        socket.emit('create_room', { name: `Salon de ${sessionStorage.getItem('username') || 'Game'}` });
       } else {
         console.log(` Ordre reçu : Rejoindre la room #${reelChannelId}...`);
-        socketInstance.emit('join_room', { channelId: reelChannelId });
+        socket.emit('join_room', { channelId: reelChannelId });
       }
-      
+
     });
 
      const handleGameCancelled = () => {
@@ -97,25 +105,25 @@ export default function GamePage() {
 
       };
 
-    socketInstance.on('room_created' , (data) => {
+    socket.on('room_created' , (data) => {
 
       const reelId = data.channelId;
       window.history.replaceState(null, '', `/game?channelId=${reelId}&action=join`);
-      socketInstance.emit('join_room', { channelId: Number(reelId) });
+      socket.emit('join_room', { channelId: Number(reelId) });
 
     });
 
-    socketInstance.on('update_players', (listeVenantDuBack) => {
+    socket.on('update_players', (listeVenantDuBack) => {
 
       console.log(" Liste des joueurs reçue du serveur :", listeVenantDuBack);
       setListeJoueurs(listeVenantDuBack);
     });
 
-    socketInstance.on('timer_update', (nouveauTemps) => {
+    socket.on('timer_update', (nouveauTemps) => {
       setTempsRestant(nouveauTemps);
     });
 
-    socketInstance.on('round_start', (data) => {
+    socket.on('round_start', (data) => {
       setDrawerInfo(data);
       setSecretWord(null);
       setTempsRestant(60);
@@ -126,7 +134,7 @@ export default function GamePage() {
 
     });
 
-    socketInstance.on('message_channel', (data) => {
+    socket.on('message_channel', (data) => {
       setMessage(data);
       setTimeout(() => {
       setMessage(null);
@@ -134,15 +142,15 @@ export default function GamePage() {
     });
 
 
-    socketInstance.on('word_hint', (data) => {
+    socket.on('word_hint', (data) => {
       setWordHint(data);
     });
 
-    socketInstance.on('secret_word', (data) => {
+    socket.on('secret_word', (data) => {
       setSecretWord(data);
     });
 
-    socketInstance.on('round_end', (data) => {
+    socket.on('round_end', (data) => {
       setRoundEndMsg(data);
       setSecretWord(null);
       setTempsRestant(0);
@@ -151,13 +159,13 @@ export default function GamePage() {
             },5000);
     });
 
-    socketInstance.on('classement', (data) => {
+    socket.on('classement', (data) => {
 
       setScores(data);
     });
 
-    
-    socketInstance.on('game_over', (data) => {
+
+    socket.on('game_over', (data) => {
 
       setEndGame(data);
       setWordHint(null);
@@ -166,16 +174,18 @@ export default function GamePage() {
       setTempsRestant(0);
     });
 
-    socketInstance.on('error', (err: any) => {
+    socket.on('error', (err: any) => {
       alert("Erreur renvoyée par le serveur : " + (err.message || JSON.stringify(err)));
     });
 
-    socketInstance.on('game_cancelled', handleGameCancelled);
+    socket.on('game_cancelled', handleGameCancelled);
+    })();
 
     return () => {
+      cancelled = true;
 
      if (socketInstance && socketInstance.connected) {
-  
+
         socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
         setTimeout(() => {
           if (socketInstance) {
@@ -184,24 +194,26 @@ export default function GamePage() {
         }, 100);
       }
 
-      socketInstance.off('connect');
-      socketInstance.off('update_players');
-      socketInstance.off('timer_update');
-      socketInstance.off('round_start');
-      socketInstance.off('word_hint');
-      socketInstance.off('error');
-      socketInstance.off('exception');
-      socketInstance.off('secret_word');
-      socketInstance.off('round_end');
-      socketInstance.off('room_created');
-      socketInstance.off('classement');
-      socketInstance.off('message_channel');
-      socketInstance.off('game_over');
-      socketInstance.off('game_cancelled');
-      socketInstance.removeAllListeners();
+      if (socketInstance) {
+        socketInstance.off('connect');
+        socketInstance.off('update_players');
+        socketInstance.off('timer_update');
+        socketInstance.off('round_start');
+        socketInstance.off('word_hint');
+        socketInstance.off('error');
+        socketInstance.off('exception');
+        socketInstance.off('secret_word');
+        socketInstance.off('round_end');
+        socketInstance.off('room_created');
+        socketInstance.off('classement');
+        socketInstance.off('message_channel');
+        socketInstance.off('game_over');
+        socketInstance.off('game_cancelled');
+        socketInstance.removeAllListeners();
+      }
      // socketInstance.disconnect();
     };
-  
+
   }, []);
 
   const isMeTheDrawer = Number(drawerInfo?.drawerId) === Number(myId);
