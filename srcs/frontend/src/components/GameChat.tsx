@@ -35,7 +35,7 @@ export default function GameChat({ channelId }: GameChatProps) {
       if (!token || !channelId || cancelled) return;
 
       socket = io(`${window.location.origin}/chat`, { auth: { token }, transports: ['websocket'],
-    // 🚀 ON RAJOUTE CE BOUT DE CODE : On prévient le back qu'on est en mode jeu sur ce salon !
+    //  ON RAJOUTE CE BOUT DE CODE : On prévient le back qu'on est en mode jeu sur ce salon !
     query: {
       mode: 'game',
       channelId: channelId.toString()

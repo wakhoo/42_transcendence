@@ -72,6 +72,18 @@ export default function DashboardPage() {
                 );
             });
 
+
+            // recuperer l id pour iviter user
+            // socket.on('game_invite', (data: { targetUserId: number, channelId: number, inviterName: string }) => {
+
+            //     if(data.targetUserId == myId){
+            //         const accept = window.confirm(`${data.inviterName} is inviting you to join a game , do you want to join ?`);
+
+            //         if(accept)
+            //         window.location.href = `/dashboard?joinRoom=${data.channelId}`;
+            //     }
+            // });
+
             socket.on('newMessage', (msg: Message) => {
                 setMessages((prev: Message[]) => [...prev, msg]);
             });

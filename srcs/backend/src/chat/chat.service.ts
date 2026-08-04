@@ -163,6 +163,7 @@ export class ChatService implements OnModuleInit {
         const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
         if (!target) throw new NotFoundException('Target user is not in this channel');
         await this.memberRepo.remove(target);
+        await this.gameService.forcedRemovePlayer(channelId, targetUserId);
     }
 
     async inviteUser(adminId: number, channelId: number, targetUserId: number): Promise<ChannelMember> {
@@ -174,6 +175,7 @@ export class ChatService implements OnModuleInit {
             channel: { id: channelId },
             role: 'member',
         });
+        await this.gameService.sendInviteNotif(targetUserId, channelId,"Admin");
         return this.memberRepo.save(membership);
     }
 
@@ -206,6 +208,8 @@ export class ChatService implements OnModuleInit {
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
         if (!channel) throw new NotFoundException('Channel not found');
         if (channel.type === 'general') throw new ForbiddenException('Cannot delete the general channel');
+
+        await this.gameService.forceCloseGame(channelId);
         await this.channelRepo.remove(channel);
     }
 
