@@ -244,12 +244,16 @@ export class ChatService implements OnModuleInit {
          if (membership.channel.type === 'game'){
 
             const isdrawer = this.gameService.isCurrentDrawer(channelId, userId);
-            const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
 
-            if (isWord && isdrawer)
-                 throw new ForbiddenException(`Your the drawer don't write the word.`);
-            if(!isdrawer && isWord)
-             content = `🎉 has found the word !`;
+            if (isdrawer) {
+                const secretWord = this.gameService.getSecretWord(channelId);
+                if (secretWord && content.toLowerCase().includes(secretWord.toLowerCase()))
+                    throw new ForbiddenException(`You are the drawer, don't write the secret word.`);
+            } else {
+                const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
+                if (isWord)
+                    content = ` has found the word !`;
+            }
          }
 
         const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
@@ -318,6 +322,13 @@ export class ChatService implements OnModuleInit {
         if (!friendship) throw new NotFoundException('Friend request not found');
         if (friendship.addressee.id !== userId) throw new ForbiddenException('Not your request');
         await this.friendshipRepo.remove(friendship);
+    }
+
+    async unblockUser(userId: number, targetUserId: number): Promise<void> {
+        // correction : on ne cherche que dans le sens userId=requester pour que seul le bloqueur puisse débloquer
+        const block = await this.friendshipRepo.findOne({ where: { requester: { id: userId }, addressee: { id: targetUserId }, status: 'blocked' } });
+        if (!block) throw new NotFoundException('No block found with this user');
+        await this.friendshipRepo.remove(block);
     }
 
     async blockUser(userId: number, targetUserId: number): Promise<Friendship> {

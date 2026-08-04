@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { useChatCommands } from '../hooks/useChatCommands'; //je t'ai importe les commandes du chat ici
 
 type Message = {
   id: number;
   content: string;
   createdAt: string;
   sender: { id: number; username: string; profileColor: string } | null;
+  isDm?: boolean;
 };
+
+type UserProfile = { id: number; username: string; profileColor: string };
 
 interface GameChatProps {
   channelId: number;
@@ -14,10 +18,11 @@ interface GameChatProps {
 
 export default function GameChat({ channelId }: GameChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
-  const [error, setError] = useState('');
-  const socketRef = useRef<Socket | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [input, setInput]       = useState('');
+  const [users, setUsers]       = useState<UserProfile[]>([]);
+  const socketRef               = useRef<Socket | null>(null);
+  const bottomRef               = useRef<HTMLDivElement>(null);
+  const { handleCommand, cmdMsg, error, setError } = useChatCommands(channelId, users, socketRef); //ca c'est pour utiliser les commandes chat
 
   // 1. Connexion indépendante au namespace /chat exactement comme le Dashboard
   useEffect(() => {
@@ -61,6 +66,16 @@ export default function GameChat({ channelId }: GameChatProps) {
     };
   }, [channelId]);
 
+  // charge les joueurs du channel pour résoudre les usernames dans les commandes
+  useEffect(() => {
+    const token = sessionStorage.getItem('token');
+    if (!token || !channelId) return;
+    fetch('/api/user', { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then((data: UserProfile[]) => setUsers(data))
+      .catch(() => {});
+  }, [channelId]);
+
   // 2. Scroll automatique tout en bas
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -69,10 +84,17 @@ export default function GameChat({ channelId }: GameChatProps) {
   // 3. Envoi du message (qui sera analysé par checkGuess côté serveur !)
   const sendMessage = () => {
     if (!input.trim() || !socketRef.current || !channelId) return;
-    
-    socketRef.current.emit('sendMessage', { 
-      channelId: Number(channelId), 
-      content: input.trim() 
+
+    // si le message commence par / on le traite comme une commande
+    if (input[0] === '/') {
+      handleCommand(input.trim());
+      setInput('');
+      return;
+    }
+
+    socketRef.current.emit('sendMessage', {
+      channelId: Number(channelId),
+      content: input.trim()
     });
     setInput('');
   };
@@ -95,6 +117,11 @@ export default function GameChat({ channelId }: GameChatProps) {
         ) : (
           messages.map((msg, idx) => (
             <div key={msg.id || idx} className="flex gap-2 items-baseline break-all">
+              {msg.isDm && (
+                <span className="text-[10px] font-bold uppercase text-pink-400 bg-pink-950 px-1.5 py-0.5 rounded shrink-0">
+                  DM
+                </span>
+              )}
               <span
                 className="text-sm font-semibold shrink-0"
                 style={{ color: msg.sender?.profileColor ?? '#60a5fa' }}
@@ -110,6 +137,11 @@ export default function GameChat({ channelId }: GameChatProps) {
         )}
         <div ref={bottomRef} />
       </div>
+
+      {/*la c'est juste pour t'afficher le resultat de la commande chat*/}
+      {cmdMsg && (
+        <div className="mx-4 mb-1 text-gray-400 text-xs px-2 py-1 whitespace-pre-line shrink-0">{cmdMsg}</div>
+      )}
 
       {/* Affichage des erreurs éventuelles */}
       {error && (

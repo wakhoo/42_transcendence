@@ -161,6 +161,12 @@ export class GameService implements OnModuleInit {
 
 
     const sessionCheck = this.activeGames.get(channelId);
+
+    //j'ai ajoute cette condition pour que seul l'admin pouisse lancer le jeu
+    if(sessionCheck && userId !== sessionCheck.creatorId){
+      return 'not_admin';
+    }
+
     if(sessionCheck){
       if (sessionCheck.timerInterval) {
             clearInterval(sessionCheck.timerInterval);
@@ -225,6 +231,10 @@ export class GameService implements OnModuleInit {
     
     if(!currentGame.isDrawing)
         return false;
+
+    if(userId === currentGame.currentDrawerId && content.toLowerCase().includes(currentGame.secretWord.toLowerCase()))
+        return true;
+
     if(content.toLowerCase() === currentGame?.secretWord.toLowerCase()){
 
       if(userId === currentGame?.currentDrawerId)
@@ -326,41 +336,40 @@ export class GameService implements OnModuleInit {
         break;
       }
     }
-		currentGame.turnTimeout = setTimeout(() =>{
-          currentGame.timerInterval = setInterval(() => {
-          currentGame.isDrawing = true;  
-          currentGame.timeLeft -= 1;
-          this.server.to(channelId.toString()).emit('timer_update',currentGame.timeLeft);
-          if(currentGame.timeLeft == 45){
+    // j'ai enleve le timer de 10sec avant le timer, c'etait bizarre et je ne voit pas l'interet, on aurait dit un bug volontaire
+    currentGame.isDrawing = true;
+    currentGame.timerInterval = setInterval(() => {
+      currentGame.timeLeft -= 1;
+      this.server.to(channelId.toString()).emit('timer_update',currentGame.timeLeft);
+      if(currentGame.timeLeft == 45){
 
-            const firstLetter = currentGame.secretWord[0];
-            const newHint = "-".repeat(currentGame.secretWord.length-1);
-            const hintLetter = firstLetter + newHint;
-            this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
+        const firstLetter = currentGame.secretWord[0];
+        const newHint = "-".repeat(currentGame.secretWord.length-1);
+        const hintLetter = firstLetter + newHint;
+        this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
 
-          }
-          else if (currentGame.timeLeft == 25){
+      }
+      else if (currentGame.timeLeft == 25){
 
-            let hintArray = Array(currentGame.secretWord.length).fill("-");
-            hintArray[0] = currentGame.secretWord[0];
-            const random  = Math.floor(Math.random() * (currentGame.secretWord.length - 1) + 1);
-            hintArray[random] = currentGame.secretWord[random];
-            const hintLetter = hintArray.join("");
-            this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
+        let hintArray = Array(currentGame.secretWord.length).fill("-");
+        hintArray[0] = currentGame.secretWord[0];
+        const random  = Math.floor(Math.random() * (currentGame.secretWord.length - 1) + 1);
+        hintArray[random] = currentGame.secretWord[random];
+        const hintLetter = hintArray.join("");
+        this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
 
-          }
-          if(currentGame.timeLeft <= 0){
+      }
+      if(currentGame.timeLeft <= 0){
 
-            clearInterval(currentGame.timerInterval);
-            this.server.to(channelId.toString()).emit('round_end',`End of time the word was ${currentGame.secretWord}`);
-            this.server.to(channelId.toString()).emit('classement',currentGame.scores);
-            currentGame.turnTimeout = setTimeout(() =>{
-              this.handleNextTurn(channelId);
-            },5000);
-          }
-        },1000);
-      },10000);
-    }
+        clearInterval(currentGame.timerInterval);
+        this.server.to(channelId.toString()).emit('round_end',`End of time the word was ${currentGame.secretWord}`);
+        this.server.to(channelId.toString()).emit('classement',currentGame.scores);
+        currentGame.turnTimeout = setTimeout(() =>{
+          this.handleNextTurn(channelId);
+        },5000);
+      }
+    },1000);
+  }
 
     //enregistre en temps reel le dessin et le diffuse au channel 
     handleDraw(userId: number, channelId: number, drawData: any) {
@@ -571,6 +580,10 @@ async handleDisconnection(userId: number): Promise<number | null> {
     if(!game)
         return false;
       return game.currentDrawerId === userId;
+  }
+
+  getSecretWord(channelId: number): string {
+    return this.activeGames.get(channelId)?.secretWord ?? '';
   }
 
   

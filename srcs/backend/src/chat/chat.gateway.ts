@@ -8,8 +8,9 @@ import {
     WebSocketGateway,
     WebSocketServer,
 } from '@nestjs/websockets';
-import { Inject,forwardRef } from '@nestjs/common';
+import { Inject, forwardRef, ValidationPipe } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
+import { JoinChannelDto, ChannelIdDto, SendMessageDto, SendDmDto } from './dto/ws-chat.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 
@@ -29,79 +30,43 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         console.log('ChatGateway initialized');
     }
 
+    async handleConnection(client: Socket) {
+        try {
+            const token = (client.handshake.auth as { token?: string })?.token?.replace('Bearer ', '');
+            if (!token) { 
+                client.disconnect(); 
+                return; 
+            }
 
-    // async handleConnection(client: Socket) {
-    //     try {
-    //         const token = (client.handshake.auth as { token?: string })?.token?.replace('Bearer ', '');
-    //         if (!token) { 
-    //             client.disconnect(); 
-    //             return; 
-    //         }
+            const payload = this.jwtService.verify<{ sub: number }>(token);
+            socketUserMap.set(client.id, payload.sub);
 
-    //         const payload = this.jwtService.verify<{ sub: number }>(token);
-    //         socketUserMap.set(client.id, payload.sub);
+            const isGameMode = client.handshake.query?.mode === 'game';
+            const targetChannelId = client.handshake.query?.channelId;
 
-    //         const general = await this.chatService.ensureGeneralChannel();
-    //         await this.chatService.joinChannel(payload.sub, general.id).catch(() => {});
-    //         void client.join(`channel_${general.id}`);
+            if (isGameMode && targetChannelId) {
+                void client.join(`channel_${targetChannelId}`);
+                void client.join(targetChannelId.toString()); 
+                
+                console.log(`User ${payload.sub} connecté au CHAT DU JEU (salon #${targetChannelId})`);
+                return;
+            }
 
-    //         const myChannels = await this.chatService.getMyChannels(payload.sub);
-    //         for (const ch of myChannels) {
-    //             void client.join(`channel_${ch.id}`);
-    //         }
+            const general = await this.chatService.ensureGeneralChannel();
+            await this.chatService.joinChannel(payload.sub, general.id).catch(() => {});
+            void client.join(`channel_${general.id}`);
 
-    //         client.emit('ready', { generalChannelId: general.id });
-    //         this.server.emit('presenceChanged');
-    //         console.log(`User ${payload.sub} connected (socket ${client.id})`);
-    //     } catch {
-    //         client.disconnect();
-    //     }
-    // }
+            const myChannels = await this.chatService.getMyChannels(payload.sub);
+            for (const ch of myChannels) {
+                void client.join(`channel_${ch.id}`);
+            }
 
-async handleConnection(client: Socket) {
-    try {
-        const token = (client.handshake.auth as { token?: string })?.token?.replace('Bearer ', '');
-        if (!token) { 
-            client.disconnect(); 
-            return; 
+            client.emit('ready', { generalChannelId: general.id });
+            this.server.emit('presenceChanged');
+            console.log(`User ${payload.sub} connected (socket ${client.id})`);
+        } catch {
+            client.disconnect();
         }
-
-        const payload = this.jwtService.verify<{ sub: number }>(token);
-        socketUserMap.set(client.id, payload.sub);
-
-        // 🚀 LA CORRECTION NINJA EST ICI :
-        // On regarde si le front-end nous a dit qu'on se connectait en MODE JEU !
-        const isGameMode = client.handshake.query?.mode === 'game';
-        const targetChannelId = client.handshake.query?.channelId;
-
-        if (isGameMode && targetChannelId) {
-            // SI ON EST SUR LA PAGE DE JEU : 
-            // 1. On rejoint UNIQUEMENT la room de la partie pour ne pas surcharger le serveur
-            void client.join(`channel_${targetChannelId}`);
-            // 2. On rejoint aussi au cas où sans le préfixe selon votre standard
-            void client.join(targetChannelId.toString()); 
-            
-            console.log(`🎮 User ${payload.sub} connecté au CHAT DU JEU (salon #${targetChannelId})`);
-            return; // 👈 ET SURTOUT ON S'ARRÊTE LÀ ! On n'inscrit pas le joueur dans le salon Général !
-        }
-
-        // --- TOUT LE RESTE DE SON CODE ACTUEL NE BOUGE PAS ---
-        // (Il ne s'exécutera que si le joueur est sur le Dashboard normal)
-        const general = await this.chatService.ensureGeneralChannel();
-        await this.chatService.joinChannel(payload.sub, general.id).catch(() => {});
-        void client.join(`channel_${general.id}`);
-
-        const myChannels = await this.chatService.getMyChannels(payload.sub);
-        for (const ch of myChannels) {
-            void client.join(`channel_${ch.id}`);
-        }
-
-        client.emit('ready', { generalChannelId: general.id });
-        this.server.emit('presenceChanged');
-        console.log(`User ${payload.sub} connected (socket ${client.id})`);
-    } catch {
-        client.disconnect();
-    }
 }
 
     handleDisconnect(client: Socket) {
@@ -114,7 +79,7 @@ async handleConnection(client: Socket) {
     // ── Événements reçus depuis le frontend ──────────────────────────────────
 
     @SubscribeMessage('joinChannel')
-    async onJoinChannel(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number; password?: string }) {
+    async onJoinChannel(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: JoinChannelDto) {
         const userId = socketUserMap.get(client.id);
         if (!userId)
             return;
@@ -128,7 +93,7 @@ async handleConnection(client: Socket) {
     }
 
     @SubscribeMessage('leaveChannel')
-    async onLeaveChannel(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number } ) {
+    async onLeaveChannel(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
         const userId = socketUserMap.get(client.id);
         if (!userId)
             return;
@@ -142,7 +107,7 @@ async handleConnection(client: Socket) {
     }
 
     @SubscribeMessage('sendMessage')
-    async onSendMessage( @ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number; content: string } ) {
+    async onSendMessage(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: SendMessageDto) {
         const userId = socketUserMap.get(client.id);
         if (!userId) 
             return;
@@ -156,7 +121,7 @@ async handleConnection(client: Socket) {
     }
 
     private emitToUser(userId: number, event: string, payload: any) {
-        for (const [socketId, uid] of socketUserMap.entries()) { // transforme la map en une liste [key, value], extrait la cle dans socket id
+        for (const [socketId, uid] of socketUserMap.entries()) {
             if (uid === userId) {
                 this.server.to(socketId).emit(event, payload);
             }
@@ -164,7 +129,7 @@ async handleConnection(client: Socket) {
     }
 
     @SubscribeMessage('sendDm')
-    async onSendDm( @ConnectedSocket() client: Socket, @MessageBody() data: { targetUserId: number; content: string } ) {
+    async onSendDm(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: SendDmDto) {
         const userId = socketUserMap.get(client.id); 
         if (!userId) 
             return;
@@ -186,7 +151,7 @@ async handleConnection(client: Socket) {
     }
 
     @SubscribeMessage('typing')
-    onTyping( @ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number } ) {
+    onTyping(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
         const userId = socketUserMap.get(client.id);
         if (!userId)
             return;

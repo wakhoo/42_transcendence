@@ -142,13 +142,18 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
     @SubscribeMessage('start_game')
     async handleGame(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number}) {
 
-      const userId = gameSocketUserMap.get(client.id); 
+      const userId = gameSocketUserMap.get(client.id);
       if(!userId) {
 
         client.emit('error', {message: 'User non identify'});
         return;
       }
-      await this.gameService.startGame(userId, data.channelId);
+      // corrigé : startGame retourne 'not_admin' si l'utilisateur n'est pas le créateur
+      // on émet l'erreur uniquement à client (pas à toute la room)
+      const result = await this.gameService.startGame(userId, data.channelId);
+      if (result === 'not_admin') {
+        client.emit('error', {message: 'Only the room creator can start the game'});
+      }
     }
 
 
