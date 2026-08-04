@@ -81,7 +81,22 @@ export default function DashboardPage() {
                 setTimeout(() => setError(''), 5000);
             });
 
-            socket.on('connect_error', () => navigate('/login'));
+            // connect_error fires on any transient connectivity failure (server restart,
+            // network blip, etc.) — not just auth rejection — so it must NOT force a logout;
+            // socket.io already retries automatically on this event.
+            socket.on('connect_error', () => {
+                console.warn('Chat socket connection error, will retry automatically');
+            });
+
+            // The server only calls disconnect() itself (reason "io server disconnect")
+            // when the handshake auth actually failed (bad/expired token). Any other reason
+            // (transport close, ping timeout, ...) is a network hiccup socket.io recovers from
+            // on its own, so only this specific reason should send the user back to login.
+            socket.on('disconnect', (reason: string) => {
+                if (reason === 'io server disconnect') {
+                    navigate('/login');
+                }
+            });
 
             socket.on('userTyping', ({ userId }: { userId: number }) => {
                 setUsers(prev => {
