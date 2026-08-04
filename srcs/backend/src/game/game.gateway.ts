@@ -3,7 +3,8 @@ import { Server, Socket } from 'socket.io';
 import { GameService } from './game.service';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from '../chat/chat.service';
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, ValidationPipe } from '@nestjs/common';
+import { CreateRoomDto, ChannelIdDto, DrawDto } from './dto/ws-game.dto';
 
 
 
@@ -78,7 +79,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
   // modifié : le front envoie maintenant un 'name' au lieu d'un 'channelId' aléatoire
   // createGameSession crée un vrai Channel en base et retourne la session avec le vrai ID
 @SubscribeMessage('create_room')
-  async handleRoom(@ConnectedSocket() client: Socket, @MessageBody() data: { name: string }) {
+  async handleRoom(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: CreateRoomDto) {
     const userId = gameSocketUserMap.get(client.id);
     if (!userId) {
       return;
@@ -100,7 +101,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
 
   // fait joindre un inivtee
     @SubscribeMessage('join_room')
-    async handleJoinRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelId: number}) {
+    async handleJoinRoom(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
 
       const userId = gameSocketUserMap.get(client.id);
       if(!userId) {
@@ -143,7 +144,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
 
     //debut de manche 
     @SubscribeMessage('start_game')
-    async handleGame(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number}) {
+    async handleGame(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
 
       const userId = gameSocketUserMap.get(client.id);
       if(!userId) {
@@ -162,8 +163,8 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
 
     // donee du tracee a tout les joeuur du salon
     @SubscribeMessage('draw')
-    async handleDrawing(@ConnectedSocket() client: Socket, 
-            @MessageBody() data: {channelId: number, drawData: any}){
+    async handleDrawing(@ConnectedSocket() client: Socket,
+            @MessageBody(new ValidationPipe()) data: DrawDto){
 
 
       const userId = gameSocketUserMap.get(client.id);
@@ -181,7 +182,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
 
 
     @SubscribeMessage('leave_room')
-    async handleLeaveRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelId: number}) {
+    async handleLeaveRoom(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
 
       const userId = gameSocketUserMap.get(client.id);
       if(!userId)
@@ -192,7 +193,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
 
 
     @SubscribeMessage('clear_canvas')
-    async handleClearCanvas(@ConnectedSocket() client: Socket, @MessageBody() data: { channelId: number}) {
+    async handleClearCanvas(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
 
       const userId = gameSocketUserMap.get(client.id);
       if(!userId)
