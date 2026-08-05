@@ -147,9 +147,10 @@ export class ChatController {
     }
 
     @Get('join-public-game')
-    async joinPublicGame(@Req() req: any) {
+    async joinPublicGame(@CurrentUser() user: JwtPayload) {
 
-        const channelId = await this.gameService.findPublicRoom();
+        const userId = user.sub;
+        const channelId = await this.gameService.findPublicRoom(userId);
         if(!channelId)
             throw new NotFoundException('No public room yet you can create one !');
         return {channelId};

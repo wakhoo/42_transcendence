@@ -160,10 +160,15 @@ export class ChatService implements OnModuleInit {
 
     async kickMember(adminId: number, channelId: number, targetUserId: number): Promise<void> {
         await this.requireAdmin(adminId, channelId);
-        const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
-        if (!target) throw new NotFoundException('Target user is not in this channel');
-        await this.memberRepo.remove(target);
+        this.gameService.banUserFromChannel(channelId, targetUserId);
         await this.gameService.forcedRemovePlayer(channelId, targetUserId);
+        const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
+       if (target) {
+            await this.memberRepo.remove(target);
+            console.log(`[TEST KICK] Le joueur ${targetUserId} a bien été retiré de la base SQL.`);
+        } else {
+            console.log(`[TEST KICK] Le joueur ${targetUserId} n'était PAS dans la base SQL, mais a été banni de la RAM.`);
+        }
     }
 
     async inviteUser(adminId: number, channelId: number, targetUserId: number): Promise<ChannelMember> {

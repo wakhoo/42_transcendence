@@ -20,6 +20,7 @@ export default function GamePage() {
   const [message, setMessage] = useState<any>(null);
   const [endGame ,setEndGame] = useState<any>(null);
   const [isGameStarted, setIsGameStarted] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(true);
   
 
  // const queryParam = new URLSearchParams(window.location.search);
@@ -103,7 +104,8 @@ export default function GamePage() {
         handlePlayAgain();
         setDrawerInfo(null);
         setTempsRestant(0);
-        window.location.href = "/dashboard";
+        setIsGameStarted(false)
+       // window.location.href = "/dashboard";
 
       };
 
@@ -223,13 +225,25 @@ export default function GamePage() {
 
     socket.on('game_closed' , () => {
 
-      //alert("The admin has closed the channel");
       window.location.href = '/dashboard';
 
     });
 
+    
+    socket.on('new_admin', ( data : {adminId: number }) => {
+
+   
+        if(data.adminId === myId)
+          setIsAdmin(true);
+        else 
+          setIsAdmin(false);
+    });
+
+
     socket.on('game_cancelled', handleGameCancelled);
     })();
+
+    
 
 
     return () => {
@@ -264,6 +278,7 @@ export default function GamePage() {
         socketInstance.off('game_closed');
         socketInstance.off('kicked_from_game');
         socketInstance.off('game_invite');
+        socketInstance.off('new_admin');
         socketInstance.removeAllListeners();
       }
      // socketInstance.disconnect();
@@ -407,7 +422,7 @@ export default function GamePage() {
         >
           Leave Room
         </button>
-        {!isGameStarted && (
+        {!isGameStarted && isAdmin && (
           <button
             onClick={handleStartGame}
             className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold px-6 py-2.5 rounded-lg shadow transition-all whitespace-nowrap"

@@ -61,6 +61,21 @@ export default function GameChat({ channelId }: GameChatProps) {
         setMessages((prev) => [...prev, msg]);
       });
 
+     socket.on('presenceChanged', () => {
+    authHeaders().then(headers =>
+      fetch('/api/user', { headers })
+        .then(r => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setUsers(data);
+          } else {
+            console.error("Erreur API /user, ce n'est pas un tableau :", data);
+          }
+        })
+        .catch(() => console.log("Erreur maj joueurs"))
+      );
+    });
+      
       socket.on('error', (err: { message: string }) => {
         setError(err.message);
         setTimeout(() => setError(''), 5000);
@@ -80,11 +95,14 @@ export default function GameChat({ channelId }: GameChatProps) {
       if (!token || !channelId) return;
       fetch('/api/user', { headers: await authHeaders() })
         .then(r => r.json())
-        .then((data: UserProfile[]) => setUsers(data))
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setUsers(data);
+          }
+        })
         .catch(() => {});
     })();
   }, [channelId]);
-
   // 2. Scroll automatique tout en bas
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -184,103 +202,3 @@ export default function GameChat({ channelId }: GameChatProps) {
     </div>
   );
 }
-
-// import { useState, useEffect, useRef } from 'react';
-
-// // On reprend le contrat simple : on reçoit la socket déjà connectée de GamePage !
-// interface GameChatProps {
-//   socket: any;
-//   channelId: number;
-// }
-
-// export default function GameChat({ socket, channelId }: GameChatProps) {
-//   const [messages, setMessages] = useState<any[]>([]);
-//   const [input, setInput] = useState('');
-//   const bottomRef = useRef<HTMLDivElement>(null);
-
-//   useEffect(() => {
-//     if (!socket) return;
-
-//     // 📡 On écoute les messages envoyés par le serveur sur la socket existante
-//     const handleNewMessage = (msg: any) => {
-//       setMessages((prev) => [...prev, msg]);
-//     };
-
-//     socket.on('game_message', handleNewMessage);
-//     socket.on('newMessage', handleNewMessage);
-
-//     return () => {
-//       socket.off('game_message', handleNewMessage);
-//       socket.off('newMessage', handleNewMessage);
-//     };
-//   }, [socket]);
-
-//   // Scroll automatique tout en bas dès qu'un message arrive
-//   useEffect(() => {
-//     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-//   }, [messages]);
-
-//   // Envoi de la proposition via la socket de jeu
-//   const sendMessage = (e: React.FormEvent) => {
-//     e.preventDefault();
-//     if (!input.trim() || !socket) return;
-
-//     // On envoie la proposition au serveur (qui vérifiera si c'est le mot secret !)
-//     socket.emit('send_game_message', { 
-//       channelId: Number(channelId), 
-//       content: input.trim() 
-//     });
-    
-//     // Si ton backend écoute 'sendMessage' au lieu de 'send_game_message', décommente la ligne en bas :
-//     // socket.emit('sendMessage', { channelId: Number(channelId), content: input.trim() });
-    
-//     setInput('');
-//   };
-
-//   return (
-//     <div className="flex flex-col h-full bg-slate-900 rounded-xl border border-slate-800 text-white overflow-hidden">
-      
-//       {/* 1. EN-TÊTE DU CHAT */}
-//       <div className="px-4 py-3 bg-black rounded-t-xl border-b border-slate-800 shrink-0">
-//         <span className="text-slate-400 text-sm font-semibold"># salon_de_jeu_{channelId}</span>
-//       </div>
-
-//       {/* 2. ZONE DES MESSAGES */}
-//       <div className="flex-1 p-3 overflow-y-auto space-y-2 text-sm">
-//         {messages.length === 0 ? (
-//           <p className="text-center text-slate-500 italic text-xs mt-4">
-//             Tape ta réponse ci-dessous !
-//           </p>
-//         ) : (
-//           messages.map((msg, idx) => (
-//             <div key={idx} className="bg-slate-800 p-2 rounded shadow-sm border border-slate-700 break-words flex gap-2 items-baseline">
-//               <span className="font-bold text-indigo-400 shrink-0">
-//                 {msg.username || msg.sender?.username || 'Joueur'} :
-//               </span>
-//               <span className="text-slate-200">{msg.content}</span>
-//             </div>
-//           ))
-//         )}
-//         <div ref={bottomRef} />
-//       </div>
-
-//       {/* 3. BARRE D'INPUT */}
-//       <form onSubmit={sendMessage} className="p-3 bg-slate-900 border-t border-slate-800 flex gap-2 shrink-0">
-//         <input
-//           type="text"
-//           value={input}
-//           onChange={(e) => setInput(e.target.value)}
-//           placeholder="Devine le mot ici..."
-//           className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-medium"
-//         />
-//         <button 
-//           type="submit" 
-//           disabled={!input.trim()}
-//           className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-bold transition-colors shadow-sm shrink-0"
-//         >
-//           ↵
-//         </button>
-//       </form>
-//     </div>
-//   );
-// }

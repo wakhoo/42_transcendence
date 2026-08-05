@@ -1,4 +1,4 @@
-import { Injectable, Inject, forwardRef, OnModuleInit} from '@nestjs/common';
+import { Injectable, Inject, forwardRef, OnModuleInit, ForbiddenException} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Server } from 'socket.io';
@@ -40,6 +40,7 @@ export class GameService implements OnModuleInit {
 
   public server!: Server; 
 	private activeGames = new Map<number, GameSession> ();
+  private bannedUser = new Map<number, Set<number>>();
 
 	constructor(	
 			@InjectRepository(Word)
@@ -197,7 +198,7 @@ export class GameService implements OnModuleInit {
 			this.activeGames.set(channelId, session);
 		}
 
-    //j'ai ajoute cette condition pour que seul l'admin pouisse lancer le jeu
+    //j'ai ajoute cette condition pour que seul l'admin puisse lancer le jeu
     if(session && userId !== session.creatorId){
       return 'not_admin';
     }
@@ -350,7 +351,6 @@ export class GameService implements OnModuleInit {
         //setTimeout(() => {
         this.server.to(socketId).emit('secret_word', currentGame.secretWord);
         //}, 5000);
-        break;
       }
     }
     // j'ai enleve le timer de 10sec avant le timer, c'etait bizarre et je ne voit pas l'interet, on aurait dit un bug volontaire
@@ -425,8 +425,10 @@ async handleDisconnection(userId: number): Promise<number | null> {
       const remainingPlayerIds = Object.keys(currentGame.scores).map(Number);
       const remainingCount = remainingPlayerIds.length;
 
-      if (isCreator && remainingCount > 0)
+      if (isCreator && remainingCount > 0){
         currentGame.creatorId = remainingPlayerIds[0];
+        this.server.to(channelID.toString()).emit('new_admin', { adminId: currentGame.creatorId });
+      }
        //SI LA ROOM EST TOTALEMENT VIDE: ON SUPPRIME TOUT !
       if (remainingCount === 0) {
         if (currentGame.timerInterval) clearInterval(currentGame.timerInterval);
@@ -539,16 +541,27 @@ async handleDisconnection(userId: number): Promise<number | null> {
   }
 
   
-  async findPublicRoom(): Promise<number | null> {
+  async findPublicRoom(userId: number): Promise<number | null> {
+
+     let kicked = false;
 
      for (const [channelID, currentGame] of this.activeGames.entries()) {
       
+
+      if(this.isUserKick(channelID, userId)){
+        kicked = true;
+        continue;
+      }
+
       const currentMembers = await this.chatService.getChannelMember(channelID);
-        if(currentGame.type === 'public' && currentMembers.length < 8){
-            return channelID;
+      if(currentGame.type === 'public' && currentMembers.length > 0 && currentMembers.length < 8){
+          return channelID;
         }
       }
-       return null;
+      if(kicked)
+          throw new ForbiddenException("You have been kicked from this channel ");
+
+      return null;
   }
 
   async forcedRemovePlayer(channelId: number, kickedUserId: number) {
@@ -558,6 +571,22 @@ async handleDisconnection(userId: number): Promise<number | null> {
         this.server.to(channelId.toString()).emit('kicked_from_game', {userId: kickedUserId})
 
     await this.handleDisconnection(kickedUserId);
+  }
+
+  banUserFromChannel(channelId: number, userId: number) {
+
+    if(!this.bannedUser.has(channelId))
+      this.bannedUser.set(channelId, new Set());
+
+    this.bannedUser.get(channelId)!.add(userId);
+
+  }
+
+  isUserKick(channelId: number , userId: number): boolean {
+
+    const kicked = this.bannedUser.get(channelId);
+    return kicked ? kicked.has(userId) : false;
+
   }
 
   async forceCloseGame(channelId: number) {

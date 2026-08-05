@@ -222,8 +222,8 @@ export default function DashboardPage() {
                             navigate(`/game?channelId=${data.channelId}&action=join`);
 
                         } catch (error: any) {
-                            console.error("Erreur pour rejoindre :", error);
-                            alert(error.message || "Impossible de rejoindre un salon public.");
+                            console.error("Error to join :", error);
+                            alert(error.message || "Impossible to join public room.");
                         }
                     }}
                     className="relative [transform-style:preserve-3d] px-32 py-8 rounded-2xl text-blue-900 text-xl font-semibold

@@ -129,14 +129,21 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
         client.emit('error', {message: 'User non identify'});
         return;
       }
+
+      if(this.gameService.isUserKick(data.channelId, userId)) {
+
+        client.emit('error', { message: 'You have been kicked from the channel !' });
+        client.emit('kicked_from_game', { userId: userId });
+        return;
+      }
      
       const roomName = data.channelId.toString();
       client.join(roomName);
       try {
         await this.chatService.joinChannel(userId, data.channelId);
       }
-      catch (e)
-      {}
+      catch (e) {
+      }
 
       // Pour que handleDisconnection sache que ce joueur fait partie du salon
       // (sinon son depart n'est jamais traite et le salon ne peut jamais etre nettoye)
