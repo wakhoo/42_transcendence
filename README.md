@@ -14,7 +14,7 @@
 
 ### Key Features
 - Real-time drawing & guessing game: one player gets a keyword and draws it, others guess in the chat
-- Multiplayer support with remote players (3+) and live reconnection
+- Multiplayer support with remote players (2+) and live reconnection
 - Secure authentication: email/password (bcrypt), OAuth 2.0, and 2FA (TOTP)
 - Social features: chat, profile, friends list, and online status
 - Hardened infrastructure: Docker network isolation, HTTPS/TLS 1.3, WAF/ModSecurity

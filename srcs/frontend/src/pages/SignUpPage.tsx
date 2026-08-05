@@ -1,5 +1,6 @@
 import { useState, type SubmitEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { saveSession } from '../lib/session';
 
 function SignUp() {
     const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ function SignUp() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const [showPassword, setShowPassword] = useState(false);
+    const [agreedToTerms, setAgreedToTerms] = useState(false);
 
     async function handleSubmit(e: SubmitEvent) {
         e.preventDefault();
@@ -30,8 +32,7 @@ function SignUp() {
                 return;
             }
 
-            sessionStorage.setItem('token', data.accessToken);
-            sessionStorage.setItem('refreshToken', data.refreshToken);
+            saveSession(data.accessToken, data.refreshToken);
             navigate('/2fa/prompt');
         } catch {
             setError('Unable to contact the server');
@@ -43,7 +44,7 @@ function SignUp() {
     const usernameValide = username.length > 0 && username.length <= 20;
     const passwordValide = password.length >= 8 && password.length <= 128;
     const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
-    const formValide = emailValide && usernameValide && passwordValide && passwordsMatch;
+    const formValide = emailValide && usernameValide && passwordValide && passwordsMatch && agreedToTerms;
 
     console.log({ emailValide, usernameValide, passwordValide, passwordsMatch });
     return (
@@ -88,6 +89,34 @@ function SignUp() {
                         placeholder="Confirm password"
                         className="border border-white bg-transparent text-white px-6 py-2 rounded outline-none placeholder-gray-500"
                     />
+                    <label className="flex items-start gap-2 text-gray-400 text-sm cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={agreedToTerms}
+                            onChange={(e) => setAgreedToTerms(e.target.checked)}
+                            className="mt-1"
+                        />
+                        <span>
+                            I have read and agree to the{' '}
+                            <a
+                                href="/privacy-policy"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-white underline hover:text-gray-300"
+                            >
+                                Privacy Policy
+                            </a>{' '}
+                            and{' '}
+                            <a
+                                href="/terms-of-service"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-white underline hover:text-gray-300"
+                            >
+                                Terms of Service
+                            </a>
+                        </span>
+                    </label>
                     <button
                         type="submit"
                         disabled={!formValide || loading}

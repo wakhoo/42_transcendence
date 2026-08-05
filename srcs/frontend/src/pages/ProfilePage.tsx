@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AvatarPicker } from '../components/AvatarPicker';
 import { TotpEnrollForm } from '../components/TotpEnrollForm';
+import { authHeaders, getAccessToken, clearSession } from '../lib/session';
 
 type Me = {
     id: number;
@@ -33,11 +34,6 @@ type Friendship = {
     requester: FriendUser; 
     addressee: FriendUser; 
 };
-
-function authHeaders() {
-    const token = sessionStorage.getItem('token');
-    return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }; //vu qu'on envoie une requette avec un body faut mettre dans le header que c'est un json
-}
 
 export function ProfileContent({ userId }: { userId?: number }) {
     const [me, setMe]             = useState<Me | null>(null);
@@ -78,17 +74,18 @@ export function ProfileContent({ userId }: { userId?: number }) {
     const [passwordError, setPasswordError]     = useState('');
 
     async function loadAll() {
-        const token = sessionStorage.getItem('token');
+        const token = await getAccessToken();
         if (!token) {
             navigate('/login');
-            return; 
+            return;
         }
 
+        const headers = await authHeaders();
         const [meRes, usersRes, friendsRes, pendingRes] = await Promise.all([ //ici je lance les requetes en meme temps (multi threading) et j'attends qu'elles aient toutes repondues
-            fetch('/api/user/me',               { headers: authHeaders() }),
-            fetch('/api/user',                  { headers: authHeaders() }),
-            fetch('/api/chat/friends',          { headers: authHeaders() }),
-            fetch('/api/chat/friends/pending',  { headers: authHeaders() }),
+            fetch('/api/user/me',               { headers }),
+            fetch('/api/user',                  { headers }),
+            fetch('/api/chat/friends',          { headers }),
+            fetch('/api/chat/friends/pending',  { headers }),
         ]);
 
         if (!meRes.ok) { //utile si token expire ou si le back ne repond pas
@@ -120,7 +117,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
 
         const res = await fetch('/api/user/me', {
             method: 'PATCH',
-            headers: authHeaders(),
+            headers: await authHeaders(),
             body: JSON.stringify(code ? { username, email, code } : { username, email }),
         }); //stringify c'est pour transformer en json
         const data = await res.json();
@@ -144,14 +141,14 @@ export function ProfileContent({ userId }: { userId?: number }) {
         setDeleteError('');
         const res = await fetch('/api/user/me', {
             method: 'DELETE',
-            headers: authHeaders(),
+            headers: await authHeaders(),
             body: JSON.stringify({
                 ...(deletePassword ? { password: deletePassword } : {}),
                 ...(deleteCode ? { code: deleteCode } : {}),
             }),
         });
         if (res.ok) {
-            sessionStorage.removeItem('token');
+            clearSession();
             navigate('/login');
             return;
         }
@@ -182,7 +179,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
 
         const res = await fetch('/api/user/me/password', {
             method: 'PATCH',
-            headers: authHeaders(),
+            headers: await authHeaders(),
             body: JSON.stringify({
                 ...(currentPassword ? { currentPassword } : {}),
                 newPassword,
@@ -208,8 +205,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
     }
 
     function handleLogout() {
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('refreshToken');
+        clearSession();
         navigate('/login');
     }
 
@@ -228,7 +224,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
         setExportError('');
         try {
             const url = code ? `/api/user/me/export?code=${encodeURIComponent(code)}` : '/api/user/me/export';
-            const res = await fetch(url, { headers: authHeaders() });
+            const res = await fetch(url, { headers: await authHeaders() });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
                 setExportError(data.message ?? 'Failed to export data');
@@ -271,7 +267,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
     }
 
     async function addFriend(userId: number) {
-        const res = await fetch(`/api/chat/friends/${userId}`, { method: 'POST', headers: authHeaders() });
+        const res = await fetch(`/api/chat/friends/${userId}`, { method: 'POST', headers: await authHeaders() });
         const data = await res.json();
         setMsg(res.ok ? 'Invitation sent' : (data.message ?? 'Error'));
         if (res.ok) 
@@ -279,19 +275,19 @@ export function ProfileContent({ userId }: { userId?: number }) {
     }
 
     async function acceptFriend(friendshipId: number) {
-        const res = await fetch(`/api/chat/friends/${friendshipId}/accept`, { method: 'PATCH', headers: authHeaders() });
+        const res = await fetch(`/api/chat/friends/${friendshipId}/accept`, { method: 'PATCH', headers: await authHeaders() });
         setMsg(res.ok ? 'Friend accepted' : 'Error');
         if (res.ok) 
             loadAll();
     }
 
     async function removeFriend(friendshipId: number) {
-        await fetch(`/api/chat/friends/${friendshipId}`, { method: 'DELETE', headers: authHeaders() });
+        await fetch(`/api/chat/friends/${friendshipId}`, { method: 'DELETE', headers: await authHeaders() });
         loadAll();
     }
 
     async function handleAvatarSelect(avatarUrl: string) {
-        const res = await fetch('/api/user/me', { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ avatarUrl }) });
+        const res = await fetch('/api/user/me', { method: 'PATCH', headers: await authHeaders(), body: JSON.stringify({ avatarUrl }) });
         const data = await res.json();
         if (res.ok) {
             setMe(data);
@@ -302,7 +298,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
     async function confirmDisable2fa(e: FormEvent) {
         e.preventDefault();
         setTotpError('');
-        const res = await fetch('/api/auth/2fa/disable', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ code: totpCode }) });
+        const res = await fetch('/api/auth/2fa/disable', { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ code: totpCode }) });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
             setTotpError(data.message ?? 'Invalid code');

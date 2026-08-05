@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
+import { useState, useEffect, useRef } from 'react';
+import { io, Socket } from 'socket.io-client';
 import GameChat from './GameChat';
 import { useNavigate } from 'react-router-dom';
 import GameCanvas from './GameCanvas';
+import { getAccessToken } from '../lib/session';
 export default function GamePage() {
 
   const [myId, setMyId] = useState<number | null>(null);
+  const myIdRef = useRef<number | null>(null);
   const [tempsRestant, setTempsRestant] = useState(60);
   const [socket, setSocket] = useState<any>(null);
   const [drawerInfo, setDrawerInfo] = useState<any>(null);
@@ -17,6 +19,7 @@ export default function GamePage() {
   const [scores, setScores] = useState<Record< number, number>>({});
   const [message, setMessage] = useState<any>(null);
   const [endGame ,setEndGame] = useState<any>(null);
+  const [isGameStarted, setIsGameStarted] = useState(false);
   
 
  // const queryParam = new URLSearchParams(window.location.search);
@@ -34,6 +37,13 @@ export default function GamePage() {
   const navigate                  = useNavigate();
 
 
+  const handleLeave = () => {
+
+      if (socket)
+        socket.emit('leave_room', {channelId: reelChannelId});
+      window.location.href = '/dashboard';
+    };
+
   useEffect(() => {
 
     if(!socket)
@@ -42,8 +52,10 @@ export default function GamePage() {
 
         socket.emit('get_my_id', (response : {userId : number}) => {
 
-            if(response && response.userId)
+            if(response && response.userId){
                 setMyId(response.userId);
+              myIdRef.current = response.userId;
+            }
   
         });
     });
@@ -52,33 +64,37 @@ export default function GamePage() {
 
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token');
+    let socketInstance: Socket | null = null;
+    let cancelled = false;
+
+    (async () => {
+    const token = await getAccessToken();
     if(!token || !reelChannelId){
       navigate('/dashboard', {replace: true});
       return;
     }
 
-    window.history.replaceState(null, '', '/game');
-    
+    if (cancelled) return;
 
-    const socketInstance = io(`${window.location.origin}/game`, {
+    const socket = io(`${window.location.origin}/game`, {
       auth: { token: token }, transports: ['websocket']
     });
+    socketInstance = socket;
 
-    setSocket(socketInstance);
+    setSocket(socket);
 
-    socketInstance.on('connect', () => {
+    socket.on('connect', () => {
       console.log("Connecté au GameGateway !");
 
      // const action = queryParam.get('action');
       if (actionType === 'create') {
         console.log(`Ordre reçu : Création de la room #${reelChannelId}...`);
-        socketInstance.emit('create_room', { name: `Salon de ${sessionStorage.getItem('username') || 'Game'}` });
+        socket.emit('create_room', { name: `Salon de ${sessionStorage.getItem('username') || 'Game'}` });
       } else {
         console.log(` Ordre reçu : Rejoindre la room #${reelChannelId}...`);
-        socketInstance.emit('join_room', { channelId: reelChannelId });
+        socket.emit('join_room', { channelId: reelChannelId });
       }
-      
+
     });
 
      const handleGameCancelled = () => {
@@ -87,38 +103,52 @@ export default function GamePage() {
         handlePlayAgain();
         setDrawerInfo(null);
         setTempsRestant(0);
-        //setDrawerInfo(null);
-       // setSecretWord(null);
-        //setWordHint(null);
-        //setTempsRestant(0);
-       // setScores({});
-        //setRoundEndMsg(null);
-        //setEndGame(null);
+        window.location.href = "/dashboard";
 
       };
 
-    socketInstance.on('room_created' , (data) => {
+       
+    
+    socket.on('room_created' , (data) => {
 
       const reelId = data.channelId;
       window.history.replaceState(null, '', `/game?channelId=${reelId}&action=join`);
-      socketInstance.emit('join_room', { channelId: Number(reelId) });
+      socket.emit('join_room', { channelId: Number(reelId) });
 
     });
 
-    socketInstance.on('update_players', (listeVenantDuBack) => {
+    socket.on('update_players', (listeVenantDuBack) => {
 
       console.log(" Liste des joueurs reçue du serveur :", listeVenantDuBack);
       setListeJoueurs(listeVenantDuBack);
     });
 
-    socketInstance.on('timer_update', (nouveauTemps) => {
+    // Reçu quand on (re)rejoint un salon dans lequel une partie est déjà en cours
+    // (typiquement après un refresh de page) : on restaure l'état local
+    socket.on('game_state_sync', (data) => {
+
+      setIsGameStarted(true);
+      setDrawerInfo({ drawerId: data.drawerId, drawerName: data.drawerName });
+      setTempsRestant(data.timeLeft);
+      setWordHint({ hint: data.hint, length: data.hintLength });
+      setScores(data.scores);
+      setRoundEndMsg(null);
+      setEndGame(null);
+      if (data.secretWord)
+        setSecretWord(data.secretWord);
+    });
+
+    socket.on('timer_update', (nouveauTemps) => {
       setTempsRestant(nouveauTemps);
     });
 
-    socketInstance.on('round_start', (data) => {
+    socket.on('round_start', (data) => {
+      setIsGameStarted(true);
       setDrawerInfo(data);
       setSecretWord(null);
       setTempsRestant(60);
+      setEndGame(null);
+      setRoundEndMsg(null);
       setShowMsg(true);
       setTimeout(() => {
         setShowMsg(false);
@@ -126,7 +156,7 @@ export default function GamePage() {
 
     });
 
-    socketInstance.on('message_channel', (data) => {
+    socket.on('message_channel', (data) => {
       setMessage(data);
       setTimeout(() => {
       setMessage(null);
@@ -134,15 +164,15 @@ export default function GamePage() {
     });
 
 
-    socketInstance.on('word_hint', (data) => {
+    socket.on('word_hint', (data) => {
       setWordHint(data);
     });
 
-    socketInstance.on('secret_word', (data) => {
+    socket.on('secret_word', (data) => {
       setSecretWord(data);
     });
 
-    socketInstance.on('round_end', (data) => {
+    socket.on('round_end', (data) => {
       setRoundEndMsg(data);
       setSecretWord(null);
       setTempsRestant(0);
@@ -151,14 +181,15 @@ export default function GamePage() {
             },5000);
     });
 
-    socketInstance.on('classement', (data) => {
+    socket.on('classement', (data) => {
 
       setScores(data);
     });
 
-    
-    socketInstance.on('game_over', (data) => {
 
+    socket.on('game_over', (data) => {
+
+      setIsGameStarted(false);
       setEndGame(data);
       setWordHint(null);
       setSecretWord(null);
@@ -166,16 +197,46 @@ export default function GamePage() {
       setTempsRestant(0);
     });
 
-    socketInstance.on('error', (err: any) => {
+    socket.on('error', (err: any) => {
       alert("Erreur renvoyée par le serveur : " + (err.message || JSON.stringify(err)));
     });
 
-    socketInstance.on('game_cancelled', handleGameCancelled);
+
+    socket.on('kicked_from_game', (data: { userId: number }) => {
+
+      if(Number(data.userId) === Number(myIdRef.current)){
+       // alert("You have been kicked from the channel by admin");
+        window.location.href = '/dashboard';
+      }
+
+    });
+
+    socket.on('game_invite', (data: { targetUserId: number, channelId: number, inviterName: string }) => {
+
+      if(data.targetUserId == myId){
+        const accept = window.confirm(`${data.inviterName} is inviting you to join a game , do you want to join ?`);
+
+        if(accept)
+          window.location.href = `/dashboard?joinRoom=${data.channelId}`;
+      }
+    });
+
+    socket.on('game_closed' , () => {
+
+      //alert("The admin has closed the channel");
+      window.location.href = '/dashboard';
+
+    });
+
+    socket.on('game_cancelled', handleGameCancelled);
+    })();
+
 
     return () => {
+      cancelled = true;
 
      if (socketInstance && socketInstance.connected) {
-  
+
         socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
         setTimeout(() => {
           if (socketInstance) {
@@ -184,24 +245,30 @@ export default function GamePage() {
         }, 100);
       }
 
-      socketInstance.off('connect');
-      socketInstance.off('update_players');
-      socketInstance.off('timer_update');
-      socketInstance.off('round_start');
-      socketInstance.off('word_hint');
-      socketInstance.off('error');
-      socketInstance.off('exception');
-      socketInstance.off('secret_word');
-      socketInstance.off('round_end');
-      socketInstance.off('room_created');
-      socketInstance.off('classement');
-      socketInstance.off('message_channel');
-      socketInstance.off('game_over');
-      socketInstance.off('game_cancelled');
-      socketInstance.removeAllListeners();
+      if (socketInstance) {
+        socketInstance.off('connect');
+        socketInstance.off('update_players');
+        socketInstance.off('game_state_sync');
+        socketInstance.off('timer_update');
+        socketInstance.off('round_start');
+        socketInstance.off('word_hint');
+        socketInstance.off('error');
+        socketInstance.off('exception');
+        socketInstance.off('secret_word');
+        socketInstance.off('round_end');
+        socketInstance.off('room_created');
+        socketInstance.off('classement');
+        socketInstance.off('message_channel');
+        socketInstance.off('game_over');
+        socketInstance.off('game_cancelled');
+        socketInstance.off('game_closed');
+        socketInstance.off('kicked_from_game');
+        socketInstance.off('game_invite');
+        socketInstance.removeAllListeners();
+      }
      // socketInstance.disconnect();
     };
-  
+
   }, []);
 
   const isMeTheDrawer = Number(drawerInfo?.drawerId) === Number(myId);
@@ -233,7 +300,7 @@ export default function GamePage() {
   .sort((a: any, b: any) => b.score - a.score)
   : [];
 
- 
+
 
   const wordDisplay = () => {
 
@@ -335,11 +402,19 @@ export default function GamePage() {
           {wordDisplay()}
         </div>
         <button
-          onClick={handleStartGame}
-          className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold px-6 py-2.5 rounded-lg shadow transition-all whitespace-nowrap"
+          onClick={handleLeave}
+          className="bg-red-500 hover:bg-red-600 active:scale-95 text-white font-bold px-6 py-2.5 rounded-lg shadow transition-all whitespace-nowrap"
         >
-          Start Game
+          Leave Room
         </button>
+        {!isGameStarted && (
+          <button
+            onClick={handleStartGame}
+            className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold px-6 py-2.5 rounded-lg shadow transition-all whitespace-nowrap"
+          >
+            Start Game
+          </button>
+        )}
       </header>
 
 
@@ -394,7 +469,7 @@ export default function GamePage() {
           
           {showMsg && drawerInfo &&  !endGame && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium z-10 animate-bounce">
-              🎨 It's <span className="font-bold underline">{drawerInfo.drawerName}</span> turn to draw !
+               It's <span className="font-bold underline">{drawerInfo.drawerName}</span> turn to draw !
             </div>
             )}
             {endGame ? (
@@ -423,7 +498,7 @@ export default function GamePage() {
                           : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
                       }`}
                     >
-                      {/* GAUCHE : Médaille + Pseudo */}
+                      {/* Médaille + Pseudo */}
                       <div className="flex items-center gap-3.5">
                         <span className={`font-black w-7 text-center ${index > 2 ? "text-slate-500 text-xs font-mono" : "text-2xl"}`}>
                           {medaille}
@@ -433,7 +508,6 @@ export default function GamePage() {
                         </span>
                       </div>
 
-                      {/* DROITE : Les Points */}
                       <div className="flex items-center gap-1.5 bg-slate-950/80 px-3 py-1 rounded-lg border border-slate-800">
                         <span className={`font-mono font-bold ${isWinner ? "text-amber-400 text-lg" : "text-emerald-400 text-sm"}`}>
                           {joueur.score}
@@ -448,7 +522,6 @@ export default function GamePage() {
               {/* BOUTON RETOUR AU LOBBY */}
               <button
                 onClick={() => {
-                  // Tu peux mettre ici ton routing pour quitter ou recharger
                   window.location.href = "/dashboard";
                 }}
                 className="mt-8 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black px-8 py-3.5 rounded-xl shadow-xl hover:shadow-indigo-500/20 transition-all flex items-center gap-2 text-sm uppercase tracking-wider"

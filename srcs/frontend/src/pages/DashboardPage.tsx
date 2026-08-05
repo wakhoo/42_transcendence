@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import { ProfileContent } from './ProfilePage';
+import { useChatCommands } from '../hooks/useChatCommands';
+import { getAccessToken, authHeaders, clearSession } from '../lib/session';
+import Footer from '../components/Footer';
 
 type Message = {
     id: number;
@@ -24,11 +27,10 @@ export default function DashboardPage() {
     const [users, setUsers]         = useState<UserProfile[]>([]);
     const [messages, setMessages]   = useState<Message[]>([]);
     const [input, setInput]         = useState('');
-    const [error, setError]         = useState('');
     const [channelId, setChannelId] = useState<number | null>(null);
     const [typing, setTyping]       = useState('');
-    const [cmdMsg, setCmdMsg]       = useState('');
     const socketRef                 = useRef<Socket | null>(null);
+    const { handleCommand, cmdMsg, error, setError } = useChatCommands(channelId, users, socketRef);
     const bottomRef                 = useRef<HTMLDivElement>(null);
     const typingTimer               = useRef<ReturnType<typeof setTimeout> | null>(null);
     const navigate                  = useNavigate();
@@ -38,70 +40,97 @@ export default function DashboardPage() {
     const [showUsers, setShowUsers] = useState<boolean>(false);
  
     useEffect(() => {
-        const token = sessionStorage.getItem('token');
-        if (!token) {
-            navigate('/login');
-            return;
-        }
+        (async () => {
+            const token = await getAccessToken();
+            if (!token) {
+                navigate('/login');
+                return;
+            }
 
-        fetch('/api/user', { headers: { Authorization: `Bearer ${token}` }})
-            .then(r => r.json())
-            .then((data: UserProfile[]) => setUsers(data));
+            fetch('/api/user', { headers: await authHeaders() })
+                .then(r => {
+                    if (r.status === 401) {
+                        clearSession();
+                        navigate('/login');
+                        return null;
+                    }
+                    return r.json();
+                })
+                .then((data: UserProfile[] | null) => {
+                    if (data) setUsers(data);
+                });
+        })();
     }, [])
 
     useEffect(() => {
-        const token = sessionStorage.getItem('token');
-        if (!token) {
-            navigate('/login');
-            return;
-        }
+        let socket: Socket | null = null;
 
-        const socket = io(`${window.location.origin}/chat`, { auth: { token } });
-        socketRef.current = socket;
+        (async () => {
+            const token = await getAccessToken();
+            if (!token) {
+                navigate('/login');
+                return;
+            }
 
-        socket.on('ready', ({ generalChannelId, onlineUserIds }: { generalChannelId: number, onlineUserIds: number[] }) => {
-            setChannelId(generalChannelId);
-            setOnlineUserId(new Set(onlineUserIds));
+            socket = io(`${window.location.origin}/chat`, { auth: { token } });
+            socketRef.current = socket;
 
-            fetch(`/api/chat/channels/${generalChannelId}/messages`, {headers: { Authorization: `Bearer ${token}` }})
-            .then(r => r.json())
-            .then((data: Message[]) => setMessages(data.reverse()));
-        });
+            socket.on('ready', ({ generalChannelId, onlineUserIds }: { generalChannelId: number, onlineUserIds: number[] }) => {
+                setChannelId(generalChannelId);
+                setOnlineUserId(new Set(onlineUserIds));
 
-        socket.on('newMessage', (msg: Message) => {
-            setMessages((prev: Message[]) => [...prev, msg]);
-        });
-
-        socket.on('error', (err: { message: string }) => {
-            setError(err.message);
-            setTimeout(() => setError(''), 5000);
-        });
-
-        socket.on('connect_error', () => navigate('/login'));
-
-        socket.on('userTyping', ({ userId }: { userId: number }) => {
-            setUsers(prev => {
-                const user = prev.find(u => u.id === userId);
-                if (user)
-                    setTyping(`${user.username} is writing...`);
-                return prev;
+                authHeaders().then(headers =>
+                    fetch(`/api/chat/channels/${generalChannelId}/messages`, { headers })
+                        .then(r => r.json())
+                        .then((data: Message[]) => setMessages(data.reverse()))
+                );
             });
-            if (typingTimer.current)
-                clearTimeout(typingTimer.current);
-            typingTimer.current = setTimeout(() => setTyping(''), 3000);
-        });
 
-        socket.on('presenceChanged', (data: { userId: number; status: 'online' | 'offline' }) => {
-            setOnlineUserId(prev => {
-                const next = new Set(prev);
-                if (data.status === 'online') next.add(data.userId);
-                else next.delete(data.userId);
-                return next;
+            socket.on('newMessage', (msg: Message) => {
+                setMessages((prev: Message[]) => [...prev, msg]);
             });
-            fetch('/api/user', { headers: { Authorization: `Bearer ${token}` } })
-                .then(r => r.json())
-                .then((data: UserProfile[]) => setUsers(data));
-         });
+
+            socket.on('error', (err: { message: string }) => {
+                setError(err.message);
+                setTimeout(() => setError(''), 5000);
+            });
+
+            socket.on('connect_error', () => {
+                console.warn('Chat socket connection error, will retry automatically');
+            });
+
+            socket.on('disconnect', (reason: string) => {
+                if (reason === 'io server disconnect') {
+                    navigate('/login');
+                }
+            });
+
+            socket.on('userTyping', ({ userId }: { userId: number }) => {
+                setUsers(prev => {
+                    const user = prev.find(u => u.id === userId);
+                    if (user)
+                        setTyping(`${user.username} is writing...`);
+                    return prev;
+                });
+                if (typingTimer.current)
+                    clearTimeout(typingTimer.current);
+                typingTimer.current = setTimeout(() => setTyping(''), 3000);
+            });
+
+            socket.on('presenceChanged', (data: { userId: number; status: 'online' | 'offline' }) => {
+                setOnlineUserId(prev => {
+                    const next = new Set(prev);
+                    if (data.status === 'online') next.add(data.userId);
+                    else next.delete(data.userId);
+                    return next;
+                });
+                authHeaders().then(headers =>
+                    fetch('/api/user', { headers })
+                        .then(r => r.json())
+                        .then((data: UserProfile[]) => setUsers(data))
+                );
+            });
+        })();
 
         return (() => { socketRef.current?.disconnect(); });
     }, [navigate]);
@@ -112,141 +141,6 @@ export default function DashboardPage() {
     }, [messages]);
 
 
-    function findUser(username: string): UserProfile | undefined {
-        return users.find(u => u.username.toLowerCase() === username.toLowerCase());
-    }
-
-    async function handleCommand(raw: string) {
-        const parts   = raw.slice(1).trim().split(' '); //slice c'est pour retourner la variable apres n elements
-        const cmd     = parts[0].toLowerCase();
-        const args    = parts.slice(1);
-        const token   = sessionStorage.getItem('token');
-        if (!token || channelId === null) 
-            return;
-        const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-
-        function ok(msg: string) { //function declare les fonctions sans les executer
-            setCmdMsg(msg);   
-            setTimeout(() => setCmdMsg(''), 5000); 
-        }
-
-        function err(msg: string) { 
-            setError(msg);    
-            setTimeout(() => setError(''), 5000);  
-        }
-
-        async function api(url: string, method: string, body?: object) {
-            const res  = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
-            const data = await res.json().catch(() => ({})); //sert a intercepter les exceptions des reponses valides avec un json vide 
-            return { ok: res.ok, msg: data.message ?? '' }; //on peut retourner un objet et ensuite acceder avec res.ok ou res.msg
-        }
-
-        if (cmd === 'help') {
-            ok('Admin: /kick <user>  /mute <user> [min]  /pass <password>  /close  /(un)private\nUser:  /msg <user> <message>  /invite <user>  /add <user>  /block <user>');
-            return;
-        }
-
-        if (cmd === 'kick') {
-            const target = findUser(args[0]);
-            if (!target) { 
-                err(`User "${args[0]}" not found`); 
-                return; 
-            }
-            const r = await api(`/api/chat/channels/${channelId}/kick/${target.id}`, 'DELETE');
-            r.ok ? ok(`${target.username} has been kicked`) : err(r.msg || 'Error');
-            return;
-        }
-
-        if (cmd === 'mute') {
-            const target  = findUser(args[0]);
-            if (!target) { 
-                err(`User "${args[0]}" not found`); 
-                return; 
-            }
-            const minutes = parseInt(args[1]) || 5; //l'equivalent de stoi en TS, si non defini on part sur 5min
-            const r = await api(`/api/chat/channels/${channelId}/mute/${target.id}`, 'PATCH', { minutes });
-            r.ok ? ok(`${target.username} muted for ${minutes} min`) : err(r.msg || 'Error');
-            return;
-        }
-
-        if (cmd === 'pass') { //juste faire /pass enleve le mdp
-            const password = args[0] ?? null;
-            const r = await api(`/api/chat/channels/${channelId}/password`, 'PATCH', { password });
-            r.ok ? ok(password ? 'Password set' : 'Password removed') : err(r.msg || 'Error');
-            return;
-        }
-
-        if (cmd === 'close') {
-            const r = await api(`/api/chat/channels/${channelId}`, 'DELETE');
-            r.ok ? ok('Channel closed') : err(r.msg || 'Error');
-            return;
-        }
-
-        if (cmd === 'private') {
-            const r = await api(`/api/chat/channels/${channelId}/privacy`, 'PATCH', { isPrivate: true });
-            r.ok ? ok('Channel set to private') : err(r.msg || 'Error');
-            return;
-        }
-
-        if (cmd === 'unprivate') {
-            const r = await api(`/api/chat/channels/${channelId}/privacy`, 'PATCH', { isPrivate: false });
-            r.ok ? ok('Channel set to public') : err(r.msg || 'Error');
-            return;
-        }
-
-        if (cmd === 'msg') {
-            const target  = findUser(args[0]);
-            if (!target) { 
-                err(`User "${args[0]}" not found`); 
-                return; 
-            }
-            const content = args.slice(1).join(' '); //vu que j'ai split(' ') avant je dois recoller les morceaux pour faire la string content
-            if (!content) { 
-                err('Usage: /msg <user> <message>'); 
-                return; 
-            }
-            if (!socketRef.current) 
-                return;
-            socketRef.current.emit('sendDm', { targetUserId: target.id, content });
-            ok(`DM sent to ${target.username}`);
-            return;
-        }
-
-        if (cmd === 'invite') {
-            const target = findUser(args[0]);
-            if (!target) { 
-                err(`User "${args[0]}" not found`); 
-                return; 
-            }
-            const r = await api(`/api/chat/channels/${channelId}/invite/${target.id}`, 'POST');
-            r.ok ? ok(`${target.username} invited`) : err(r.msg || 'Error');
-            return;
-        }
-
-        if (cmd === 'add') {
-            const target = findUser(args[0]);
-            if (!target) { 
-                err(`User "${args[0]}" not found`); 
-                return; 
-            }
-            const r = await api(`/api/chat/friends/${target.id}`, 'POST');
-            r.ok ? ok(`Friend request sent to ${target.username}`) : err(r.msg || 'Error');
-            return;
-        }
-
-        if (cmd === 'block') {
-            const target = findUser(args[0]);
-            if (!target) { 
-                err(`User "${args[0]}" not found`); 
-                return; 
-            }
-            const r = await api(`/api/chat/block/${target.id}`, 'POST');
-            r.ok ? ok(`${target.username} blocked`) : err(r.msg || 'Error');
-            return;
-        }
-
-        err(`Unknown command: /${cmd}. Type /help for the list.`);
-    }
 
     function sendMessage() {
         if (!input.trim() || channelId === null || !socketRef.current)
@@ -262,7 +156,8 @@ export default function DashboardPage() {
 
 
     return (
-        <div className="h-screen overflow-hidden flex flex-col relative lg:h-auto lg:min-h-screen lg:overflow-visible bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)]">
+        <div className="min-h-screen bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)] flex flex-col">
+        <div className="h-screen overflow-hidden flex flex-col relative lg:h-auto lg:min-h-screen lg:overflow-visible">
             <div className="lg:hidden shrink-0 flex items-center justify-between px-4 py-3">
                 <h1 className="text-white text-lg font-bold">Transcendence</h1>
                 <div className="flex items-center gap-2">
@@ -314,10 +209,7 @@ export default function DashboardPage() {
                         try {
                             const response = await fetch(`${window.location.origin}/api/chat/join-public-game`, {
                                 method: 'GET',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-                                }
+                                headers: await authHeaders()
                             });
 
                             if (!response.ok) {
@@ -355,10 +247,7 @@ export default function DashboardPage() {
                         
                                         const response = await fetch(`${window.location.origin}/api/chat/create-game`, {
                                             method: 'POST',
-                                            headers: {
-                                                'Content-Type': 'application/json',
-                                                'Authorization': `Bearer ${sessionStorage.getItem('token')}`
-                                            },
+                                            headers: await authHeaders(),
                                             body: JSON.stringify({ name: `Public Game #${Math.floor(Math.random() * 10000)}`})
                                         });
 
@@ -502,6 +391,8 @@ export default function DashboardPage() {
                         </div>
                     </div>
                 )}
+        </div>
+        <Footer className="bg-gray-800" />
         </div>
     );
 }

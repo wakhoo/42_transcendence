@@ -163,6 +163,7 @@ export class ChatService implements OnModuleInit {
         const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
         if (!target) throw new NotFoundException('Target user is not in this channel');
         await this.memberRepo.remove(target);
+        await this.gameService.forcedRemovePlayer(channelId, targetUserId);
     }
 
     async inviteUser(adminId: number, channelId: number, targetUserId: number): Promise<ChannelMember> {
@@ -174,6 +175,7 @@ export class ChatService implements OnModuleInit {
             channel: { id: channelId },
             role: 'member',
         });
+        await this.gameService.sendInviteNotif(targetUserId, channelId,"Admin");
         return this.memberRepo.save(membership);
     }
 
@@ -206,6 +208,23 @@ export class ChatService implements OnModuleInit {
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
         if (!channel) throw new NotFoundException('Channel not found');
         if (channel.type === 'general') throw new ForbiddenException('Cannot delete the general channel');
+
+        await this.gameService.forceCloseGame(channelId);
+        await this.channelRepo.remove(channel);
+    }
+
+    // Nettoyage automatique (pas une action admin) : supprime le salon si plus
+    // personne n'y est reellement (verifie en base, pas juste en memoire), pour
+    // que les salons publics abandonnes ne restent pas trainer indefiniment.
+    async deleteChannelIfEmpty(channelId: number): Promise<void> {
+        const channel = await this.channelRepo.findOne({ where: { id: channelId } });
+        if (!channel) return;
+        if (channel.type === 'general') return;
+
+        const memberCount = await this.memberRepo.count({ where: { channel: { id: channelId } } });
+        if (memberCount > 0) return;
+
+        await this.gameService.forceCloseGame(channelId);
         await this.channelRepo.remove(channel);
     }
 
@@ -244,12 +263,16 @@ export class ChatService implements OnModuleInit {
          if (membership.channel.type === 'game'){
 
             const isdrawer = this.gameService.isCurrentDrawer(channelId, userId);
-            const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
 
-            if (isWord && isdrawer)
-                 throw new ForbiddenException(`Your the drawer don't write the word.`);
-            if(!isdrawer && isWord)
-             content = `🎉 has found the word !`;
+            if (isdrawer) {
+                const secretWord = this.gameService.getSecretWord(channelId);
+                if (secretWord && content.toLowerCase().includes(secretWord.toLowerCase()))
+                    throw new ForbiddenException(`You are the drawer, don't write the secret word.`);
+            } else {
+                const isWord = await this.gameService.checkGuess(userId, channelId, content, membership.role);
+                if (isWord)
+                    content = ` has found the word !`;
+            }
          }
 
         const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
@@ -318,6 +341,13 @@ export class ChatService implements OnModuleInit {
         if (!friendship) throw new NotFoundException('Friend request not found');
         if (friendship.addressee.id !== userId) throw new ForbiddenException('Not your request');
         await this.friendshipRepo.remove(friendship);
+    }
+
+    async unblockUser(userId: number, targetUserId: number): Promise<void> {
+        // correction : on ne cherche que dans le sens userId=requester pour que seul le bloqueur puisse débloquer
+        const block = await this.friendshipRepo.findOne({ where: { requester: { id: userId }, addressee: { id: targetUserId }, status: 'blocked' } });
+        if (!block) throw new NotFoundException('No block found with this user');
+        await this.friendshipRepo.remove(block);
     }
 
     async blockUser(userId: number, targetUserId: number): Promise<Friendship> {

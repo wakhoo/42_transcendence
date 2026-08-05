@@ -131,6 +131,11 @@ export class ChatController {
         return this.chatService.blockUser(user.sub, targetUserId);
     }
 
+    @Delete('block/:userId')
+    unblockUser( @CurrentUser() user: JwtPayload, @Param('userId', ParseIntPipe) targetUserId: number) {
+        return this.chatService.unblockUser(user.sub, targetUserId);
+    }
+
     @Post('create-game')
     async createGameRoom(@Req() req: any, @Body() body: { name?: string }) {
 

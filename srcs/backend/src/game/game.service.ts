@@ -30,7 +30,8 @@ export interface GameSession {
   currentRound: number;
   maxRound: number;
   historicDraw: any[];
-  isDrawing: boolean
+  isDrawing: boolean;
+  currentHint: string;
 }
 
 
@@ -83,7 +84,8 @@ export class GameService implements OnModuleInit {
         maxRound: 1,
         historicDraw: [],
         isDrawing: false,
-      }   
+        currentHint: '',
+      }
       this.activeGames.set(channel.id, newGameSession);
       console.log(`Room #${channel.id} created by player #${creatorId}`);
       return newGameSession;
@@ -110,6 +112,19 @@ export class GameService implements OnModuleInit {
     this.server.to(channelId.toString()).emit('message_channel', `${members.length} player(s) in the room`);
     return session;
 
+  }
+
+  // Enregistre un joueur qui rejoint via le socket 'join_room' dans le suivi de session
+  // (sans quoi handleDisconnection ne le reconnait ni comme createur ni comme membre du
+  // salon, ne l'enleve jamais correctement, et le salon ne peut jamais etre detecte comme vide).
+  // On ne touche pas au score si le joueur est deja suivi (reconnexion en plein milieu d'une manche).
+  registerPlayer(channelId: number, userId: number): void {
+
+    const session = this.activeGames.get(channelId);
+    if (!session)
+        return;
+    if (session.scores[userId] === undefined)
+        session.scores[userId] = 0;
   }
 
       
@@ -160,24 +175,6 @@ export class GameService implements OnModuleInit {
 	async startGame(userId: number, channelId: number) {
 
 
-    const sessionCheck = this.activeGames.get(channelId);
-    if(sessionCheck){
-      if (sessionCheck.timerInterval) {
-            clearInterval(sessionCheck.timerInterval);
-            sessionCheck.timerInterval = undefined;
-        }
-        if (sessionCheck.turnTimeout) {
-            clearTimeout(sessionCheck.turnTimeout);
-            sessionCheck.turnTimeout = undefined;
-        }
-    }
-    // recuperatio ndes membres via chatservice
-		const members = await this.chatService.getChannelMember(channelId);
-    const playerIds = members.map(m => m.user.id);
-    if(playerIds.length < 2){
-      	this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
-        return;
-    }
     let session = this.activeGames.get(channelId);
 		if (!session ) {
 
@@ -191,13 +188,38 @@ export class GameService implements OnModuleInit {
         guessedUsers: [],
         useWords: [],
         currentRound: 1,
-        maxRound: 3, 
+        maxRound: 3,
         historicDraw: [],
-        isDrawing: false
+        isDrawing: false,
+        currentHint: '',
       };
 		
 			this.activeGames.set(channelId, session);
 		}
+
+    //j'ai ajoute cette condition pour que seul l'admin pouisse lancer le jeu
+    if(session && userId !== session.creatorId){
+      return 'not_admin';
+    }
+
+    if(session){
+      if (session.timerInterval) {
+            clearInterval(session.timerInterval);
+            session.timerInterval = undefined;
+        }
+        if (session.turnTimeout) {
+            clearTimeout(session.turnTimeout);
+            session.turnTimeout = undefined;
+        }
+    }
+    // recuperatio ndes membres via chatservice
+		const members = await this.chatService.getChannelMember(channelId);
+    const playerIds = members ? members.map(m=> m.user.id) : [];
+    if(playerIds.length < 2){
+      	this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
+        return;
+    }
+   
 	
     session.timeLeft = 60;
     session.scores = {};
@@ -206,11 +228,11 @@ export class GameService implements OnModuleInit {
     session.currentRound = 1;
     session.historicDraw = [];
     session.currentDrawerId = -1;
+    session.currentHint = '';
 
     playerIds.forEach((id) => {
         session.scores[id] = 0;
     });
-
     await this.handleNextTurn(channelId);
   }
 
@@ -225,6 +247,10 @@ export class GameService implements OnModuleInit {
     
     if(!currentGame.isDrawing)
         return false;
+
+    if(userId === currentGame.currentDrawerId && content.toLowerCase().includes(currentGame.secretWord.toLowerCase()))
+        return true;
+
     if(content.toLowerCase() === currentGame?.secretWord.toLowerCase()){
 
       if(userId === currentGame?.currentDrawerId)
@@ -283,8 +309,8 @@ export class GameService implements OnModuleInit {
     //fin de partie sauvgarde dans mariadb
    
     //changement de dessinateur
-    const members = await this.chatService.getChannelMember(channelId);
-    const playerIds = members.map(m => m.user.id);
+   // const members = await this.chatService.getChannelMember(channelId);
+    const playerIds = Object.keys(currentGame.scores).map(Number);
      let position = playerIds.indexOf(currentGame.currentDrawerId);
      position++;
       if (position >= playerIds.length){
@@ -314,6 +340,7 @@ export class GameService implements OnModuleInit {
     this.server.to(channelId.toString()).emit('round_start', {drawerName: pseudo, drawerId: currentGame.currentDrawerId });
 
 		const hintLetter = "-".repeat(currentGame.secretWord.length);
+		currentGame.currentHint = hintLetter;
 		this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
     for(const[socketId, id] of gameSocketUserMap.entries()) {
 
@@ -326,41 +353,42 @@ export class GameService implements OnModuleInit {
         break;
       }
     }
-		currentGame.turnTimeout = setTimeout(() =>{
-          currentGame.timerInterval = setInterval(() => {
-          currentGame.isDrawing = true;  
-          currentGame.timeLeft -= 1;
-          this.server.to(channelId.toString()).emit('timer_update',currentGame.timeLeft);
-          if(currentGame.timeLeft == 45){
+    // j'ai enleve le timer de 10sec avant le timer, c'etait bizarre et je ne voit pas l'interet, on aurait dit un bug volontaire
+    currentGame.isDrawing = true;
+    currentGame.timerInterval = setInterval(() => {
+      currentGame.timeLeft -= 1;
+      this.server.to(channelId.toString()).emit('timer_update',currentGame.timeLeft);
+      if(currentGame.timeLeft == 45){
 
-            const firstLetter = currentGame.secretWord[0];
-            const newHint = "-".repeat(currentGame.secretWord.length-1);
-            const hintLetter = firstLetter + newHint;
-            this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
+        const firstLetter = currentGame.secretWord[0];
+        const newHint = "-".repeat(currentGame.secretWord.length-1);
+        const hintLetter = firstLetter + newHint;
+        currentGame.currentHint = hintLetter;
+        this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
 
-          }
-          else if (currentGame.timeLeft == 25){
+      }
+      else if (currentGame.timeLeft == 25){
 
-            let hintArray = Array(currentGame.secretWord.length).fill("-");
-            hintArray[0] = currentGame.secretWord[0];
-            const random  = Math.floor(Math.random() * (currentGame.secretWord.length - 1) + 1);
-            hintArray[random] = currentGame.secretWord[random];
-            const hintLetter = hintArray.join("");
-            this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
+        let hintArray = Array(currentGame.secretWord.length).fill("-");
+        hintArray[0] = currentGame.secretWord[0];
+        const random  = Math.floor(Math.random() * (currentGame.secretWord.length - 1) + 1);
+        hintArray[random] = currentGame.secretWord[random];
+        const hintLetter = hintArray.join("");
+        currentGame.currentHint = hintLetter;
+        this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
 
-          }
-          if(currentGame.timeLeft <= 0){
+      }
+      if(currentGame.timeLeft <= 0){
 
-            clearInterval(currentGame.timerInterval);
-            this.server.to(channelId.toString()).emit('round_end',`End of time the word was ${currentGame.secretWord}`);
-            this.server.to(channelId.toString()).emit('classement',currentGame.scores);
-            currentGame.turnTimeout = setTimeout(() =>{
-              this.handleNextTurn(channelId);
-            },5000);
-          }
-        },1000);
-      },10000);
-    }
+        clearInterval(currentGame.timerInterval);
+        this.server.to(channelId.toString()).emit('round_end',`End of time the word was ${currentGame.secretWord}`);
+        this.server.to(channelId.toString()).emit('classement',currentGame.scores);
+        currentGame.turnTimeout = setTimeout(() =>{
+          this.handleNextTurn(channelId);
+        },5000);
+      }
+    },1000);
+  }
 
     //enregistre en temps reel le dessin et le diffuse au channel 
     handleDraw(userId: number, channelId: number, drawData: any) {
@@ -375,104 +403,6 @@ export class GameService implements OnModuleInit {
       }
     }
 
-
-
-  
-  //   async handleDisconnection(userId: number): Promise<number | null> {
-  //   for (const [channelID, currentGame] of this.activeGames.entries()) {
-  //     const isCreator = currentGame.creatorId === userId;
-  //     const isInScore = currentGame.scores && currentGame.scores[userId] != undefined;
-      
-  //     if (!isCreator && !isInScore) {
-  //       continue;
-  //     }
-
-  //     // 🚀 1. On vérifie combien de joueurs sont présents AVANT le départ
-  //     const currentMembers = await this.chatService.getChannelMember(channelID);
-
-
-  //     if (currentMembers.length <= 2) {
-  //       if (currentGame.timerInterval) {
-  //         clearInterval(currentGame.timerInterval);
-  //         currentGame.timerInterval = undefined;
-
-  //       }
-  //       if (currentGame.turnTimeout) {
-  //         clearTimeout(currentGame.turnTimeout);
-  //         currentGame.turnTimeout = undefined;
-  //       }
-
-  //       currentGame.isDrawing = false;
-  //       currentGame.currentRound = 0;
-  //       currentGame.currentDrawerId = 0;
-  //       currentGame.secretWord = '';
-  //       currentGame.guessedUsers = [];
-  //       currentGame.timeLeft = 60;
-  //       if (this.server) {
-  //         this.server.to(channelID.toString()).emit('game_cancelled', { reason: 'not_enough_players' });
-  //       }
-
-  //       try {
-  //         // Le créateur n'a pas encore fait "leaveChannel", donc la sécurité requireAdmin de ton mate RÉUSSIT !
-  //         await this.chatService.leaveChannel(userId, channelID);
-  //       } catch (error) {
-  //         //console.error("Erreur lors de la suppression SQL du salon :", error);
-  //       }
-
-  //       if (this.server) {
-  //         const newPlayerList = await this.getUserName(channelID);
-  //         this.server.to(channelID.toString()).emit('update_players', newPlayerList);
-  //       }
-  //       if (currentMembers.length - 1 <= 0) {
-
-  //         if (currentGame.timerInterval) 
-  //           clearInterval(currentGame.timerInterval);
-  //         if (currentGame.turnTimeout) 
-  //           clearTimeout(currentGame.turnTimeout);
-
-  //       this.activeGames.delete(channelID);
-  //         try {
-  //           await this.chatService.deleteChannel(currentGame.creatorId, channelID);
-  //         }
-  //         catch{}
-
-  //       }
-
-  //       return null;
-  //     }
-
-  //     try {
-  //       await this.chatService.leaveChannel(userId, channelID);
-  //     } catch {
-  //       console.log(`Le joueur #${userId} était déjà parti du salon SQL #${channelID}`);
-  //     }
-  //     delete currentGame.scores[userId];
-
-  //     const remaining = await this.chatService.getChannelMember(channelID);
-  //     const newPlayerList = await this.getUserName(channelID);
-      
-  //     if (this.server) {
-  //       this.server.to(channelID.toString()).emit('update_players', newPlayerList);
-  //     }
-
-  //     // SI LE DESSINATEUR A QUITTÉ EN PLEINE MANCHE :
-  //     if (userId === currentGame.currentDrawerId) {
-  //       if (currentGame.timerInterval) clearInterval(currentGame.timerInterval);
-  //       if (currentGame.turnTimeout) clearTimeout(currentGame.turnTimeout);
-
-  //       if (this.server) {
-  //         this.server.to(channelID.toString()).emit('drawer_left', { drawerLeftId: userId });
-  //       }
-  //       setTimeout(() => {
-  //         if (this.activeGames.has(channelID)) {
-  //           this.handleNextTurn(channelID);
-  //         }
-  //       }, 5000);
-  //     }
-  //     return channelID;
-  //   }
-  //   return null;
-  // }  
 
 async handleDisconnection(userId: number): Promise<number | null> {
     for (const [channelID, currentGame] of this.activeGames.entries()) {
@@ -492,17 +422,23 @@ async handleDisconnection(userId: number): Promise<number | null> {
       delete currentGame.scores[userId];
 
       //ON REGARDE COMBIEN DE JOUEURS IL RESTE VRAIMENT MAINTENANT
-      const remainingMembers = await this.chatService.getChannelMember(channelID);
-      const remainingCount = remainingMembers.length;
+      const remainingPlayerIds = Object.keys(currentGame.scores).map(Number);
+      const remainingCount = remainingPlayerIds.length;
 
-       //SI LA ROOM EST TOTALEMENT VIDE (0 JOUEUR) : ON SUPPRIME TOUT !
+      if (isCreator && remainingCount > 0)
+        currentGame.creatorId = remainingPlayerIds[0];
+       //SI LA ROOM EST TOTALEMENT VIDE: ON SUPPRIME TOUT !
       if (remainingCount === 0) {
         if (currentGame.timerInterval) clearInterval(currentGame.timerInterval);
         if (currentGame.turnTimeout) clearTimeout(currentGame.turnTimeout);
         
         this.activeGames.delete(channelID);
         try {
-          await this.chatService.deleteChannel(currentGame.creatorId, channelID);
+          // deleteChannel exige que currentGame.creatorId soit encore admin en base,
+          // hors on vient de retirer sa propre ligne juste au dessus (leaveChannel) :
+          // on utilise donc le nettoyage automatique, qui verifie juste que le salon
+          // est vraiment vide en base plutot que de dependre d'un check admin
+          await this.chatService.deleteChannelIfEmpty(channelID);
         } catch {}
         return null;
       }
@@ -531,6 +467,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
         currentGame.secretWord = '';
         currentGame.guessedUsers = [];
         currentGame.timeLeft = 60;
+        currentGame.currentHint = '';
 
         if (this.server) {
           this.server.to(channelID.toString()).emit('game_cancelled', { reason: 'not_enough_players' });
@@ -573,6 +510,34 @@ async handleDisconnection(userId: number): Promise<number | null> {
       return game.currentDrawerId === userId;
   }
 
+  // Reconstitue l'etat courant d'une partie deja en cours pour un joueur qui
+  // (re)rejoint le salon (ex: refresh de page en plein milieu d'une manche),
+  // pour qu'il retrouve son chrono, le dessin deja fait et ses outils si c'est lui qui dessine.
+  async getGameStateSnapshot(channelId: number, userId: number) {
+
+    const currentGame = this.activeGames.get(channelId);
+    if (!currentGame || !currentGame.isDrawing)
+        return null;
+
+    const drawer = await this.userService.findById(currentGame.currentDrawerId);
+    const drawerName = drawer ? drawer.username : `Player #${currentGame.currentDrawerId}`;
+
+    return {
+      drawerId: currentGame.currentDrawerId,
+      drawerName: drawerName,
+      timeLeft: currentGame.timeLeft,
+      hint: currentGame.currentHint,
+      hintLength: currentGame.secretWord.length,
+      historicDraw: currentGame.historicDraw,
+      scores: currentGame.scores,
+      secretWord: userId === currentGame.currentDrawerId ? currentGame.secretWord : undefined,
+    };
+  }
+
+  getSecretWord(channelId: number): string {
+    return this.activeGames.get(channelId)?.secretWord ?? '';
+  }
+
   
   async findPublicRoom(): Promise<number | null> {
 
@@ -586,5 +551,37 @@ async handleDisconnection(userId: number): Promise<number | null> {
        return null;
   }
 
- 
+  async forcedRemovePlayer(channelId: number, kickedUserId: number) {
+
+
+    if (this.server)
+        this.server.to(channelId.toString()).emit('kicked_from_game', {userId: kickedUserId})
+
+    await this.handleDisconnection(kickedUserId);
+  }
+
+  async forceCloseGame(channelId: number) {
+
+
+    if(this.server)
+        this.server.to(channelId.toString()).emit('game_closed');
+
+    this.activeGames.delete(channelId);
+  }
+
+  async sendInviteNotif(targetUserId: number, channelId: number, inviterName: String){
+
+      if(this.server){
+
+        this.server.emit('game_invite', {
+
+          targetUserId: targetUserId,
+          channelId: channelId,
+          inviterName: inviterName
+        });
+      }
+  }
+
 }
+
+

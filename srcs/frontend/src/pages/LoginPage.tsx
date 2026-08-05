@@ -1,6 +1,8 @@
-import { useState, type SubmitEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OtpVerifyForm } from '../components/OtpVerifyForm';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { saveSession, getAccessToken } from '../lib/session';
 
 function LoginPage() {
     const [email, setEmail] = useState('');
@@ -10,6 +12,18 @@ function LoginPage() {
 
     const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
     const [partialToken, setPartialToken] = useState('');
+    const [checkingSession, setCheckingSession] = useState(true);
+
+    useEffect(() => {
+        (async () => {
+            const token = await getAccessToken();
+            if (token) {
+                navigate('/dashboard', { replace: true });
+                return;
+            }
+            setCheckingSession(false);
+        })();
+    }, [navigate]);
 
     const emailValide = email.includes('@') && email.includes('.');
     const formValide = emailValide && password.length > 0;
@@ -35,7 +49,7 @@ function LoginPage() {
                     return;
                 }
 
-                sessionStorage.setItem('token', data.accessToken);
+                saveSession(data.accessToken, data.refreshToken);
                 navigate('/dashboard');
             }
 
@@ -49,6 +63,9 @@ function LoginPage() {
         setPartialToken('');
         setError('');
     }
+
+    if (checkingSession)
+        return null;
 
     return (
         <div className="min-h-screen bg-black flex items-center justify-center">
@@ -82,6 +99,7 @@ function LoginPage() {
                                 Log in
                             </button>
                         </form>
+                        <GoogleSignInButton />
                         <button
                             onClick={() => navigate(-1)}
                             className="text-gray-500 text-sm text-center hover:text-white transition-colors">
@@ -92,7 +110,7 @@ function LoginPage() {
                     <OtpVerifyForm
                         partialToken={partialToken}
                         onVerified={(tokens) => {
-                            sessionStorage.setItem('token', tokens.accessToken);
+                            saveSession(tokens.accessToken, tokens.refreshToken);
                             navigate('/dashboard');
                         }}
                         onCancel={cancelOtp}

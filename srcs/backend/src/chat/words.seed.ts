@@ -18,7 +18,3 @@ export const BAD_WORDS = [
     // Albanais
     'trap', 'budalla',
 ];
-
-//export const WORDS = [
- //   'pomme', 'television', 'parachute', 'voiture', 'Dorian', 'harmonica', 'guitare' ,'montagne', 'chat', 'biche'
-//];
