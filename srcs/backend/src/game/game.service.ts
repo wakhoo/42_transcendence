@@ -30,7 +30,8 @@ export interface GameSession {
   currentRound: number;
   maxRound: number;
   historicDraw: any[];
-  isDrawing: boolean
+  isDrawing: boolean;
+  currentHint: string;
 }
 
 
@@ -83,7 +84,8 @@ export class GameService implements OnModuleInit {
         maxRound: 1,
         historicDraw: [],
         isDrawing: false,
-      }   
+        currentHint: '',
+      }
       this.activeGames.set(channel.id, newGameSession);
       console.log(`Room #${channel.id} created by player #${creatorId}`);
       return newGameSession;
@@ -110,6 +112,19 @@ export class GameService implements OnModuleInit {
     this.server.to(channelId.toString()).emit('message_channel', `${members.length} player(s) in the room`);
     return session;
 
+  }
+
+  // Enregistre un joueur qui rejoint via le socket 'join_room' dans le suivi de session
+  // (sans quoi handleDisconnection ne le reconnait ni comme createur ni comme membre du
+  // salon, ne l'enleve jamais correctement, et le salon ne peut jamais etre detecte comme vide).
+  // On ne touche pas au score si le joueur est deja suivi (reconnexion en plein milieu d'une manche).
+  registerPlayer(channelId: number, userId: number): void {
+
+    const session = this.activeGames.get(channelId);
+    if (!session)
+        return;
+    if (session.scores[userId] === undefined)
+        session.scores[userId] = 0;
   }
 
       
@@ -173,9 +188,10 @@ export class GameService implements OnModuleInit {
         guessedUsers: [],
         useWords: [],
         currentRound: 1,
-        maxRound: 3, 
+        maxRound: 3,
         historicDraw: [],
-        isDrawing: false
+        isDrawing: false,
+        currentHint: '',
       };
 		
 			this.activeGames.set(channelId, session);
@@ -212,6 +228,7 @@ export class GameService implements OnModuleInit {
     session.currentRound = 1;
     session.historicDraw = [];
     session.currentDrawerId = -1;
+    session.currentHint = '';
 
     playerIds.forEach((id) => {
         session.scores[id] = 0;
@@ -323,6 +340,7 @@ export class GameService implements OnModuleInit {
     this.server.to(channelId.toString()).emit('round_start', {drawerName: pseudo, drawerId: currentGame.currentDrawerId });
 
 		const hintLetter = "-".repeat(currentGame.secretWord.length);
+		currentGame.currentHint = hintLetter;
 		this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
     for(const[socketId, id] of gameSocketUserMap.entries()) {
 
@@ -345,6 +363,7 @@ export class GameService implements OnModuleInit {
         const firstLetter = currentGame.secretWord[0];
         const newHint = "-".repeat(currentGame.secretWord.length-1);
         const hintLetter = firstLetter + newHint;
+        currentGame.currentHint = hintLetter;
         this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
 
       }
@@ -355,6 +374,7 @@ export class GameService implements OnModuleInit {
         const random  = Math.floor(Math.random() * (currentGame.secretWord.length - 1) + 1);
         hintArray[random] = currentGame.secretWord[random];
         const hintLetter = hintArray.join("");
+        currentGame.currentHint = hintLetter;
         this.server.to(channelId.toString()).emit('word_hint', {hint: hintLetter , length: currentGame.secretWord.length} );
 
       }
@@ -414,7 +434,11 @@ async handleDisconnection(userId: number): Promise<number | null> {
         
         this.activeGames.delete(channelID);
         try {
-          await this.chatService.deleteChannel(currentGame.creatorId, channelID);
+          // deleteChannel exige que currentGame.creatorId soit encore admin en base,
+          // hors on vient de retirer sa propre ligne juste au dessus (leaveChannel) :
+          // on utilise donc le nettoyage automatique, qui verifie juste que le salon
+          // est vraiment vide en base plutot que de dependre d'un check admin
+          await this.chatService.deleteChannelIfEmpty(channelID);
         } catch {}
         return null;
       }
@@ -443,6 +467,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
         currentGame.secretWord = '';
         currentGame.guessedUsers = [];
         currentGame.timeLeft = 60;
+        currentGame.currentHint = '';
 
         if (this.server) {
           this.server.to(channelID.toString()).emit('game_cancelled', { reason: 'not_enough_players' });
@@ -483,6 +508,30 @@ async handleDisconnection(userId: number): Promise<number | null> {
     if(!game)
         return false;
       return game.currentDrawerId === userId;
+  }
+
+  // Reconstitue l'etat courant d'une partie deja en cours pour un joueur qui
+  // (re)rejoint le salon (ex: refresh de page en plein milieu d'une manche),
+  // pour qu'il retrouve son chrono, le dessin deja fait et ses outils si c'est lui qui dessine.
+  async getGameStateSnapshot(channelId: number, userId: number) {
+
+    const currentGame = this.activeGames.get(channelId);
+    if (!currentGame || !currentGame.isDrawing)
+        return null;
+
+    const drawer = await this.userService.findById(currentGame.currentDrawerId);
+    const drawerName = drawer ? drawer.username : `Player #${currentGame.currentDrawerId}`;
+
+    return {
+      drawerId: currentGame.currentDrawerId,
+      drawerName: drawerName,
+      timeLeft: currentGame.timeLeft,
+      hint: currentGame.currentHint,
+      hintLength: currentGame.secretWord.length,
+      historicDraw: currentGame.historicDraw,
+      scores: currentGame.scores,
+      secretWord: userId === currentGame.currentDrawerId ? currentGame.secretWord : undefined,
+    };
   }
 
   getSecretWord(channelId: number): string {

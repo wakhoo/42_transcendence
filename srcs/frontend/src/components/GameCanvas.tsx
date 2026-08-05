@@ -198,6 +198,29 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		};
 	}, [socket]);
 
+	// Rejoue le dessin deja fait quand on (re)rejoint une partie en cours (ex: refresh de page),
+	// pour que le canvas ne reparte pas vide
+	useEffect(() => {
+
+		if(!socket)
+			return;
+
+		const handleStateSync = (data: any) => {
+
+			if(!Array.isArray(data?.historicDraw))
+				return;
+			clearCanvas();
+			data.historicDraw.forEach((stroke: any) => {
+				drawSegment(stroke.prevX, stroke.prevY, stroke.currentX, stroke.currentY,
+					stroke.color, stroke.lineWidth, stroke.tool || 'pencil');
+			});
+		};
+		socket.on('game_state_sync', handleStateSync);
+		return () => {
+			socket.off('game_state_sync', handleStateSync);
+		};
+	}, [socket]);
+
 	return (
     <div className="flex justify-center items-center p-4 bg-slate-100 rounded-lg">
 		{isDrawer && (
