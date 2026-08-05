@@ -10,11 +10,12 @@ import { ChatController } from './chat.controller';
 import { ChatGateway } from './chat.gateway';
 import { AuthModule } from '../auth/auth.module';
 import { GameModule } from '../game/game.module';
+import { UserModule } from '../user/user.module';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([Channel, ChannelMember, Message, Friendship, BadWord]),
-        AuthModule, forwardRef(() => GameModule),
+        AuthModule, UserModule, forwardRef(() => GameModule),
     ],
     controllers: [ChatController],
     providers: [ChatService, ChatGateway],

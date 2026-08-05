@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ChatService } from '../chat/chat.service';
 import { Injectable, Inject, forwardRef, ValidationPipe } from '@nestjs/common';
 import { CreateRoomDto, ChannelIdDto, DrawDto } from './dto/ws-game.dto';
+import { UserService } from '../user/user.service';
 
 
 
@@ -21,7 +22,8 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
     server!: Server;
   
     constructor(@Inject(forwardRef(() => GameService)) private readonly gameService: GameService,
-    private readonly jwtService: JwtService, @Inject(forwardRef(() => ChatService)) private readonly chatService: ChatService) {}
+    private readonly jwtService: JwtService, @Inject(forwardRef(() => ChatService)) private readonly chatService: ChatService,
+    private readonly userService: UserService) {}
 
 
     // partage du serveur gateway avec service pour emettre les alertes
@@ -61,6 +63,14 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect, OnGatewa
       }
 
       if (payload.pending2fa) {
+        client.disconnect();
+        return;
+      }
+
+      // Signature-only verification would still accept tokens for users deleted
+      // after the token was issued, so the subject must still exist in the DB.
+      const user = await this.userService.findById(userId);
+      if (!user) {
         client.disconnect();
         return;
       }
