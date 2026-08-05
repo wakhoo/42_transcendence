@@ -76,9 +76,6 @@ export default function GamePage() {
 
     if (cancelled) return;
 
-    window.history.replaceState(null, '', '/game');
-
-
     const socket = io(`${window.location.origin}/game`, {
       auth: { token: token }, transports: ['websocket']
     });
@@ -124,6 +121,21 @@ export default function GamePage() {
 
       console.log(" Liste des joueurs reçue du serveur :", listeVenantDuBack);
       setListeJoueurs(listeVenantDuBack);
+    });
+
+    // Reçu quand on (re)rejoint un salon dans lequel une partie est déjà en cours
+    // (typiquement après un refresh de page) : on restaure l'état local
+    socket.on('game_state_sync', (data) => {
+
+      setIsGameStarted(true);
+      setDrawerInfo({ drawerId: data.drawerId, drawerName: data.drawerName });
+      setTempsRestant(data.timeLeft);
+      setWordHint({ hint: data.hint, length: data.hintLength });
+      setScores(data.scores);
+      setRoundEndMsg(null);
+      setEndGame(null);
+      if (data.secretWord)
+        setSecretWord(data.secretWord);
     });
 
     socket.on('timer_update', (nouveauTemps) => {
@@ -236,6 +248,7 @@ export default function GamePage() {
       if (socketInstance) {
         socketInstance.off('connect');
         socketInstance.off('update_players');
+        socketInstance.off('game_state_sync');
         socketInstance.off('timer_update');
         socketInstance.off('round_start');
         socketInstance.off('word_hint');

@@ -213,6 +213,21 @@ export class ChatService implements OnModuleInit {
         await this.channelRepo.remove(channel);
     }
 
+    // Nettoyage automatique (pas une action admin) : supprime le salon si plus
+    // personne n'y est reellement (verifie en base, pas juste en memoire), pour
+    // que les salons publics abandonnes ne restent pas trainer indefiniment.
+    async deleteChannelIfEmpty(channelId: number): Promise<void> {
+        const channel = await this.channelRepo.findOne({ where: { id: channelId } });
+        if (!channel) return;
+        if (channel.type === 'general') return;
+
+        const memberCount = await this.memberRepo.count({ where: { channel: { id: channelId } } });
+        if (memberCount > 0) return;
+
+        await this.gameService.forceCloseGame(channelId);
+        await this.channelRepo.remove(channel);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MESSAGES
     // ─────────────────────────────────────────────────────────────────────────
