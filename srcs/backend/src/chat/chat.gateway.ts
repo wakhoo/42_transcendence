@@ -13,6 +13,7 @@ import { Server, Socket } from 'socket.io';
 import { JoinChannelDto, ChannelIdDto, SendMessageDto, SendDmDto } from './dto/ws-chat.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
+import { UserService } from '../user/user.service';
 
 export const socketUserMap = new Map<string, number>();
 
@@ -24,6 +25,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     constructor(
         @Inject(forwardRef(() => ChatService)) private readonly chatService: ChatService,
         private readonly jwtService: JwtService,
+        private readonly userService: UserService,
     ) {}
 
     afterInit() {
@@ -40,6 +42,15 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
             const payload = this.jwtService.verify<{ sub: number; pending2fa?: boolean }>(token);
             if (payload.pending2fa) {
+                client.disconnect();
+                return;
+            }
+
+            // Signature-only verification would still accept tokens for users deleted
+            // after the token was issued (e.g. DB reset while the access token is still
+            // within its TTL), so the subject must still exist.
+            const user = await this.userService.findById(payload.sub);
+            if (!user) {
                 client.disconnect();
                 return;
             }

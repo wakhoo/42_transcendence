@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import { ProfileContent } from './ProfilePage';
 import { useChatCommands } from '../hooks/useChatCommands';
-import { getAccessToken, authHeaders } from '../lib/session';
+import { getAccessToken, authHeaders, clearSession } from '../lib/session';
 
 type Message = {
     id: number;
@@ -44,8 +44,17 @@ export default function DashboardPage() {
             }
 
             fetch('/api/user', { headers: await authHeaders() })
-                .then(r => r.json())
-                .then((data: UserProfile[]) => setUsers(data));
+                .then(r => {
+                    if (r.status === 401) {
+                        clearSession();
+                        navigate('/login');
+                        return null;
+                    }
+                    return r.json();
+                })
+                .then((data: UserProfile[] | null) => {
+                    if (data) setUsers(data);
+                });
         })();
     }, [])
 
