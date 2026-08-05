@@ -4,331 +4,332 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Terms of Service — ft_transcendence</title>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0a0a0a;
-      --surface: #111111;
-      --border: #222222;
-      --accent: #00ff88;
-      --accent-dim: #00ff8822;
-      --text: #e8e8e8;
-      --text-muted: #666666;
-      --text-dim: #999999;
-      --mono: 'IBM Plex Mono', monospace;
-      --sans: 'IBM Plex Sans', sans-serif;
+      --canvas: #d9d9dc;
+      --paper: #ffffff;
+      --border: #c7c7ca;
+      --border-light: #e3e3e5;
+      --text: #1a1a1a;
+      --text-muted: #444444;
+      --text-faint: #6e6e70;
+      --link: #1155cc;
+      --table-head: #f2f2f2;
+      --font: Calibri, Carlito, "Segoe UI", Optima, Arial, sans-serif;
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --canvas: #0e0e10;
+        --paper: #1f2023;
+        --border: #3d3e42;
+        --border-light: #2e2f33;
+        --text: #e8e8ea;
+        --text-muted: #c6c6c9;
+        --text-faint: #97979b;
+        --link: #8ab4f8;
+        --table-head: #2a2b2f;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--canvas); }
 
     body {
-      background: var(--bg);
+      margin: 0;
+      background: var(--canvas);
       color: var(--text);
-      font-family: var(--sans);
-      font-weight: 300;
+      font-family: var(--font);
       line-height: 1.7;
-      min-height: 100vh;
-    }
-
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 0;
-      opacity: 0.4;
+      font-size: 16px;
     }
 
     .wrapper {
-      position: relative;
-      z-index: 1;
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 0 24px 80px;
+      max-width: 780px;
+      margin: 40px auto 80px;
+      background: var(--paper);
+      border: 1px solid var(--border-light);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 2px 12px rgba(0, 0, 0, 0.08);
+      padding: 72px 80px;
     }
 
     header {
-      padding: 48px 0 40px;
-      border-bottom: 1px solid var(--border);
+      text-align: center;
       margin-bottom: 40px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
     }
 
     .site-label {
-      font-family: var(--mono);
-      font-size: 11px;
-      letter-spacing: 0.2em;
-      color: var(--accent);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      margin-bottom: 12px;
+      color: var(--text-faint);
+      margin-bottom: 10px;
     }
 
     header h1 {
-      font-family: var(--mono);
-      font-size: clamp(22px, 4vw, 32px);
-      font-weight: 600;
-      color: var(--text);
-      letter-spacing: -0.02em;
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0;
     }
 
     .meta {
       margin-top: 10px;
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--text-muted);
+      font-size: 13px;
+      color: var(--text-faint);
     }
 
-    .disclaimer {
-      background: #1a0a00;
-      border: 1px solid #ff880044;
-      border-left: 3px solid #ff8800;
-      padding: 14px 18px;
+    .notice {
+      font-size: 14px;
+      font-style: italic;
+      color: var(--text-faint);
       margin-bottom: 40px;
-      font-family: var(--mono);
-      font-size: 11px;
-      letter-spacing: 0.05em;
-      color: #ff8800aa;
+      text-align: center;
     }
 
-    .section {
-      margin-bottom: 48px;
-      padding-bottom: 48px;
-      border-bottom: 1px solid var(--border);
+    nav.toc {
+      margin-bottom: 44px;
+      font-size: 15px;
     }
 
-    .section:last-of-type { border-bottom: none; }
-
-    .section-num {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--accent);
-      letter-spacing: 0.15em;
-      margin-bottom: 8px;
+    nav.toc .toc-title {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 10px;
     }
 
-    .section h2 {
-      font-family: var(--mono);
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 20px;
-      letter-spacing: -0.01em;
+    nav.toc ol {
+      margin: 0;
+      padding-left: 24px;
     }
 
-    p {
+    nav.toc li { margin-bottom: 5px; }
+
+    nav.toc a { color: var(--link); text-decoration: underline; }
+    nav.toc a:hover { text-decoration: none; }
+
+    section {
+      margin-bottom: 32px;
+      scroll-margin-top: 24px;
+    }
+
+    section h2 {
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0 0 12px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    section:first-of-type h2 { border-top: none; padding-top: 0; }
+
+    section h3 {
       font-size: 14px;
-      color: var(--text-dim);
-      margin-bottom: 14px;
+      font-weight: 700;
+      margin: 18px 0 8px;
     }
 
-    ul.legal-list {
-      list-style: none;
-      margin: 16px 0;
-    }
+    p { margin: 0 0 12px; color: var(--text-muted); text-align: justify; }
 
-    ul.legal-list li {
+    ul, ol { margin: 0 0 12px; padding-left: 24px; color: var(--text-muted); }
+    li { margin-bottom: 4px; }
+
+    a { color: var(--link); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
       font-size: 14px;
-      color: var(--text-dim);
-      padding: 6px 0 6px 20px;
-      position: relative;
-      border-bottom: 1px solid var(--border);
     }
 
-    ul.legal-list li:last-child { border-bottom: none; }
-
-    ul.legal-list li::before {
-      content: '→';
-      position: absolute;
-      left: 0;
-      font-family: var(--mono);
-      color: var(--accent);
-      font-size: 12px;
-    }
-
-    .contact-block {
-      background: var(--surface);
+    th, td {
+      text-align: left;
+      padding: 7px 12px;
       border: 1px solid var(--border);
-      padding: 20px 24px;
-      margin-top: 8px;
+      vertical-align: top;
     }
 
-    .contact-block .cb-label {
-      font-family: var(--mono);
-      font-size: 10px;
-      letter-spacing: 0.15em;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      margin-bottom: 6px;
+    th {
+      background: var(--table-head);
+      font-weight: 700;
+      color: var(--text);
     }
 
-    .contact-block .cb-value {
-      font-family: var(--mono);
-      font-size: 14px;
-      color: var(--accent);
+    td { color: var(--text-muted); }
+
+    strong { color: var(--text); font-weight: 700; }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.9em;
+      background: var(--table-head);
+      border: 1px solid var(--border-light);
+      padding: 1px 5px;
     }
 
-    strong { color: var(--text); font-weight: 500; }
+    hr {
+      border: none;
+      border-top: 1px solid var(--border-light);
+      margin: 32px 0;
+    }
 
     footer {
-      margin-top: 60px;
-      padding-top: 24px;
+      margin-top: 44px;
+      padding-top: 20px;
       border-top: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
-      align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-faint);
     }
 
-    footer span {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--text-muted);
-    }
+    footer a { color: var(--text-faint); }
 
-    footer a {
-      font-family: var(--mono);
-      font-size: 11px;
-      color: var(--accent);
-      text-decoration: none;
+    @media (max-width: 640px) {
+      .wrapper { padding: 40px 24px; margin: 0; box-shadow: none; border: none; }
+      header h1 { font-size: 22px; }
     }
-
-    footer a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 <div class="wrapper">
 
   <header>
-    <div class="site-label">ft_transcendence / legal</div>
+    <div class="site-label">DrawDraw · Legal</div>
     <h1>Terms of Service</h1>
-    <div class="meta">Last updated: [DATE] &nbsp;·&nbsp; Version 1.0</div>
+    <div class="meta">Last updated: August 2026 &nbsp;·&nbsp; Version 1.0</div>
   </header>
 
-  <div class="disclaimer">
-    ⚠ EDUCATIONAL PROJECT — This service is part of the 42 School Common Core curriculum and is provided for educational purposes only.
+  <div class="notice">
+    This service is a student project built for the 42 School Common Core curriculum and is provided for educational purposes only. It is not a commercial product and may be discontinued once academic evaluation is complete.
   </div>
 
-  <div class="section">
-    <div class="section-num">01</div>
-    <h2>Acceptance of Terms</h2>
-    <p>By creating an account or using <strong>[Project Name]</strong> ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
-    <p>This Service is a student project created as part of the <strong>42 School Common Core curriculum</strong> and is provided for educational purposes only. The project may be discontinued upon completion of the academic evaluation.</p>
-  </div>
+  <nav class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#acceptance">Acceptance of Terms</a></li>
+      <li><a href="#description">Description of Service</a></li>
+      <li><a href="#registration">Account Registration</a></li>
+      <li><a href="#conduct">Prohibited Conduct</a></li>
+      <li><a href="#content">User Content</a></li>
+      <li><a href="#termination">Account Termination</a></li>
+      <li><a href="#warranties">Disclaimer of Warranties</a></li>
+      <li><a href="#liability">Limitation of Liability</a></li>
+      <li><a href="#privacy">Privacy</a></li>
+      <li><a href="#changes">Changes to Terms</a></li>
+      <li><a href="#law">Governing Law</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+  </nav>
 
-  <div class="section">
-    <div class="section-num">02</div>
-    <h2>Description of Service</h2>
-    <p>[Project Name] is a web-based platform that provides:</p>
-    <ul class="legal-list">
-      <li>[Feature 1 — e.g., Browser-based 3D game inspired by Cub3D]</li>
-      <li>[Feature 2 — e.g., Real-time multiplayer matches]</li>
-      <li>[Feature 3 — e.g., User profiles, friend system, leaderboard]</li>
-      <li>[Feature 4 — e.g., Real-time chat]</li>
+  <section id="acceptance">
+    <h2>1. Acceptance of Terms</h2>
+    <p>By creating an account or using <strong>DrawDraw</strong> ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
+    <p>The Service is a student project created as part of the <strong>42 School Common Core curriculum</strong> and is provided for educational purposes only.</p>
+  </section>
+
+  <section id="description">
+    <h2>2. Description of Service</h2>
+    <p>DrawDraw is a web-based platform that provides:</p>
+    <ul>
+      <li>A real-time multiplayer drawing-and-guessing game — one player receives a keyword and draws it, other players guess it in the chat</li>
+      <li>Remote multiplayer matches with 2 or more players and live reconnection support</li>
+      <li>User accounts with email/password login, Google OAuth, and optional two-factor authentication (2FA)</li>
+      <li>User profiles, match history, a friends list, and online status</li>
+      <li>Real-time chat</li>
     </ul>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-num">03</div>
-    <h2>Account Registration</h2>
+  <section id="registration">
+    <h2>3. Account Registration</h2>
     <p>To use the Service, you must:</p>
-    <ul class="legal-list">
+    <ul>
       <li>Provide a valid email address</li>
       <li>Choose a unique username</li>
-      <li>Create a secure password (minimum 8 characters)</li>
+      <li>Create a password of at least 8 characters, or sign in with your Google account</li>
     </ul>
     <p>You are responsible for maintaining the confidentiality of your account credentials. You must notify us immediately of any unauthorized use of your account.</p>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-num">04</div>
-    <h2>Prohibited Conduct</h2>
+  <section id="conduct">
+    <h2>4. Prohibited Conduct</h2>
     <p>You agree <strong>not</strong> to:</p>
-    <ul class="legal-list">
+    <ul>
       <li>Use the Service for any unlawful purpose</li>
       <li>Attempt to gain unauthorized access to other accounts or systems</li>
       <li>Upload malicious code, viruses, or harmful content</li>
-      <li>Harass, threaten, or abuse other users</li>
-      <li>Use automated tools (bots) to interact with the Service</li>
+      <li>Harass, threaten, or abuse other players in chat or in-game</li>
+      <li>Use automated tools (bots) to play, draw, or interact with the Service</li>
       <li>Attempt to reverse engineer or exploit the Service</li>
-      <li>Share content that is offensive, discriminatory, or illegal</li>
+      <li>Draw or share content that is offensive, discriminatory, or illegal</li>
     </ul>
     <p>Violation of these rules may result in immediate account suspension or termination.</p>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-num">05</div>
-    <h2>User Content</h2>
-    <p>By submitting content (username, avatar, chat messages, etc.) to the Service, you grant us a limited license to display and store that content for the purpose of providing the Service.</p>
-    <p>You retain ownership of your content. We do not claim ownership over user-generated content.</p>
-  </div>
+  <section id="content">
+    <h2>5. User Content</h2>
+    <p>By submitting content to the Service — including your username, avatar, chat messages, and in-game drawings — you grant us a limited license to display and store that content for the purpose of providing the Service (for example, showing your drawing to other players in the same round).</p>
+    <p>You retain ownership of your content. We do not claim ownership over user-generated content, and in-game drawings are not retained beyond the round they were created in.</p>
+  </section>
 
-  <div class="section">
-    <div class="section-num">06</div>
-    <h2>Account Termination</h2>
+  <section id="termination">
+    <h2>6. Account Termination</h2>
     <p>We reserve the right to suspend or terminate accounts that:</p>
-    <ul class="legal-list">
+    <ul>
       <li>Violate these Terms of Service</li>
       <li>Engage in abusive behavior toward other users</li>
       <li>Attempt to compromise the security or integrity of the Service</li>
     </ul>
-    <p>You may delete your account at any time via the account settings page. Upon deletion, your data will be removed in accordance with our Privacy Policy.</p>
-  </div>
+    <p>You may delete your account at any time via the account settings page. Upon deletion, your data is removed in accordance with our Privacy Policy.</p>
+  </section>
 
-  <div class="section">
-    <div class="section-num">07</div>
-    <h2>Disclaimer of Warranties</h2>
+  <section id="warranties">
+    <h2>7. Disclaimer of Warranties</h2>
     <p>The Service is provided <strong>"as is"</strong> without warranties of any kind. As a student project, we do not guarantee:</p>
-    <ul class="legal-list">
+    <ul>
       <li>Continuous or uninterrupted availability</li>
       <li>Freedom from bugs or errors</li>
       <li>Fitness for any particular purpose</li>
     </ul>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-num">08</div>
-    <h2>Limitation of Liability</h2>
+  <section id="liability">
+    <h2>8. Limitation of Liability</h2>
     <p>To the fullest extent permitted by law, we are not liable for any indirect, incidental, or consequential damages arising from your use of the Service.</p>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-num">09</div>
-    <h2>Privacy</h2>
-    <p>Your use of the Service is also governed by our <strong>Privacy Policy</strong>, which is incorporated into these Terms by reference. Please review our <a href="/privacy-policy" style="color:var(--accent);text-decoration:none;">Privacy Policy</a> to understand our data practices.</p>
-  </div>
+  <section id="privacy">
+    <h2>9. Privacy</h2>
+    <p>Your use of the Service is also governed by our <strong>Privacy Policy</strong>, which is incorporated into these Terms by reference. Please review our <a href="/privacy-policy">Privacy Policy</a> to understand our data practices.</p>
+  </section>
 
-  <div class="section">
-    <div class="section-num">10</div>
-    <h2>Changes to Terms</h2>
+  <section id="changes">
+    <h2>10. Changes to Terms</h2>
     <p>We reserve the right to modify these Terms at any time. Continued use of the Service after changes are posted constitutes acceptance of the updated Terms.</p>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-num">11</div>
-    <h2>Governing Law</h2>
+  <section id="law">
+    <h2>11. Governing Law</h2>
     <p>These Terms are governed by the laws of the <strong>European Union</strong> and applicable local law. Any disputes shall be resolved in accordance with GDPR and applicable regulations.</p>
-  </div>
+  </section>
 
-  <div class="section">
-    <div class="section-num">12</div>
-    <h2>Contact</h2>
-    <p>For questions regarding these Terms:</p>
-    <div class="contact-block">
-      <div class="cb-label">Email</div>
-      <div class="cb-value">[contact@email.com]</div>
-    </div>
-    <div class="contact-block">
-      <div class="cb-label">Project</div>
-      <div class="cb-value">[Project Name] — 42 School Common Core</div>
-    </div>
-  </div>
+  <section id="contact">
+    <h2>12. Contact</h2>
+    <p>For questions regarding these Terms, contact the project team:</p>
+    <p><strong>Email:</strong> <a href="mailto:ft-transcendence-team@42.fr">ft-transcendence-team@42.fr</a><br>
+    <strong>Project:</strong> DrawDraw(ft_transcendence) — 42 School Common Core</p>
+  </section>
 
   <footer>
-    <span>© [Project Name] — 42 School Project</span>
+    <span>© DrawDraw — 42 School Project</span>
     <span>
-      <a href="/privacy-policy">Privacy Policy</a>
-      &nbsp;·&nbsp;
+      <a href="/privacy-policy">Privacy Policy</a> ·
       <a href="/terms-of-service">Terms of Service</a>
     </span>
   </footer>

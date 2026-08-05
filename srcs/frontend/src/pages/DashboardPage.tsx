@@ -4,6 +4,7 @@ import { io, Socket } from 'socket.io-client';
 import { ProfileContent } from './ProfilePage';
 import { useChatCommands } from '../hooks/useChatCommands';
 import { getAccessToken, authHeaders, clearSession } from '../lib/session';
+import Footer from '../components/Footer';
 
 type Message = {
     id: number;
@@ -164,7 +165,8 @@ export default function DashboardPage() {
 
 
     return (
-        <div className="min-h-screen bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)] flex relative">
+        <div className="min-h-screen bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)] flex flex-col">
+        <div className="flex-1 flex relative">
 
             <div className="absolute top-6 left-8">
                 <h1 className="text-white text-2xl font-bold">Transcendence</h1>
@@ -380,6 +382,8 @@ export default function DashboardPage() {
                     </div>
                 </div>
             )}
+        </div>
+        <Footer className="bg-gray-800" />
         </div>
     );
 }
