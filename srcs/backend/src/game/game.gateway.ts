@@ -115,6 +115,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
     client.emit('room_created', { channelId: session.channelId });
     this.server.to(session.channelId.toString()).emit('update_players', reelPlayer);
     client.emit('update_players', reelPlayer);
+    client.emit('new_admin', { adminId: session.creatorId });
   }
 
 
@@ -154,6 +155,9 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
         this.server.to(roomName).emit('update_players', realPlayer);
       }
 
+      const adminId = this.gameService.getRoomAdmin(data.channelId);
+      if(adminId)
+        client.emit('new_admin', { adminId: adminId });
       // Si une partie est deja en cours dans ce salon (ex: reconnexion apres un refresh),
       // on renvoie l'etat courant au client qui vient de rejoindre pour qu'il ne parte pas de zero
       const snapshot = await this.gameService.getGameStateSnapshot(data.channelId, userId);

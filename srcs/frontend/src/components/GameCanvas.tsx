@@ -20,7 +20,7 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 	const contextRef = useRef<CanvasRenderingContext2D | null>(null);
 	const prevPos = useRef<{ x: number; y: number } | null>(null);
 	const [activeTool, setActiveTool] = useState<DrawTool>('pencil');
-	const [color, setColor] = useState('#FFFFFF');
+	const [color, setColor] = useState('#0a0a0a');
 	const [brushSize ] = useState(4);
 
 	const [isDrawing, setIsDrawing] = useState(false);
@@ -259,7 +259,7 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 						<button
 						key={couleur}
 						onClick={() => {
-							setColor(couleur);         // 👈 Voilà ! On utilise enfin setColor !
+							setColor(couleur);         
 							setActiveTool('pencil');   // Si on clique sur une couleur, on repasse automatiquement au crayon
 						}}
 						style={{ backgroundColor: couleur }}

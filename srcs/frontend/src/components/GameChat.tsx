@@ -22,7 +22,7 @@ export default function GameChat({ channelId }: GameChatProps) {
   const [input, setInput]       = useState('');
   const [users, setUsers]       = useState<UserProfile[]>([]);
   const socketRef               = useRef<Socket | null>(null);
-  const bottomRef               = useRef<HTMLDivElement>(null);
+  const chatContainerRef        = useRef<HTMLDivElement>(null);
   const { handleCommand, cmdMsg, error, setError } = useChatCommands(channelId, users, socketRef); //ca c'est pour utiliser les commandes chat
 
   // 1. Connexion indépendante au namespace /chat exactement comme le Dashboard
@@ -61,7 +61,7 @@ export default function GameChat({ channelId }: GameChatProps) {
         setMessages((prev) => [...prev, msg]);
       });
 
-     socket.on('presenceChanged', () => {
+    socket.on('presenceChanged', () => {
     authHeaders().then(headers =>
       fetch('/api/user', { headers })
         .then(r => r.json())
@@ -69,7 +69,7 @@ export default function GameChat({ channelId }: GameChatProps) {
           if (Array.isArray(data)) {
             setUsers(data);
           } else {
-            console.error("Erreur API /user, ce n'est pas un tableau :", data);
+            console.error("Error API /user, not an array :", data);
           }
         })
         .catch(() => console.log("Erreur maj joueurs"))
@@ -105,9 +105,13 @@ export default function GameChat({ channelId }: GameChatProps) {
   }, [channelId]);
   // 2. Scroll automatique tout en bas
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
   }, [messages]);
-
   // 3. Envoi du message (qui sera analysé par checkGuess côté serveur !)
   const sendMessage = () => {
     if (!input.trim() || !socketRef.current || !channelId) return;
@@ -136,7 +140,10 @@ export default function GameChat({ channelId }: GameChatProps) {
       </div>
 
       {/* Zone des messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
+
+      <div 
+        ref={chatContainerRef}
+        className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
         {messages.length === 0 ? (
           <p className="text-gray-500 text-xs italic text-center mt-4">
             Aucun message. Tape ta réponse en bas !
@@ -162,7 +169,6 @@ export default function GameChat({ channelId }: GameChatProps) {
             </div>
           ))
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/*la c'est juste pour t'afficher le resultat de la commande chat*/}
