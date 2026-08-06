@@ -184,24 +184,28 @@ export default function GameChat({ channelId }: GameChatProps) {
       )}
 
       {/* Barre d'envoi du Dashboard */}
-      <div className="px-4 py-3 border-t border-gray-800 shrink-0 bg-gray-900">
-        <div className="flex items-center gap-1 bg-[#40414F] border border-[#2E2F3A] rounded-lg h-10 pl-3 pr-1">
+      <div className="px-4 py-3 border-t border-gray-800 shrink-0 bg-gray-900 mt-auto">
+        
+        <div className="flex flex-row items-center justify-between gap-2 bg-[#40414F] border border-[#2E2F3A] rounded-lg h-10 px-2">
+          
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
             placeholder="Propose un mot..."
-            className="flex-1 h-full bg-transparent outline-none border-none text-white placeholder-[#828E9E] text-sm text-ellipsis whitespace-nowrap overflow-hidden"
+            className="flex-1 w-full h-full bg-transparent outline-none border-none text-white placeholder-[#828E9E] text-sm text-ellipsis whitespace-nowrap overflow-hidden px-1"
           />
+          
           <button
             onClick={sendMessage}
             disabled={!input.trim()}
             className="w-8 h-8 shrink-0 flex items-center justify-center rounded-md hover:bg-black/20 disabled:cursor-not-allowed transition-colors"
           >
-            <svg className="w-[17px] h-[17px]" viewBox="0 0 512 512" fill={input.trim() ? '#ffffff' : '#6B6C7B'}>
+            <svg className="w-[17px] h-[17px] block" viewBox="0 0 512 512" fill={input.trim() ? '#ffffff' : '#6B6C7B'}>
               <path d="M481.508,210.336L68.414,38.926c-17.403-7.222-37.064-4.045-51.309,8.287C2.86,59.547-3.098,78.551,1.558,96.808 L38.327,241h180.026c8.284,0,15.001,6.716,15.001,15.001c0,8.284-6.716,15.001-15.001,15.001H38.327L1.558,415.193 c-4.656,18.258,1.301,37.262,15.547,49.595c14.274,12.357,33.937,15.495,51.31,8.287l413.094-171.409 C500.317,293.862,512,276.364,512,256.001C512,235.638,500.317,218.139,481.508,210.336z" />
             </svg>
           </button>
+          
         </div>
       </div>
 

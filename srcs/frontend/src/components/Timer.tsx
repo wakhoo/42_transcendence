@@ -622,18 +622,17 @@ export default function GamePage() {
           )}
         </section>
 
-        {/* On met la case en relative, sans lui donner de padding ni de flex */}
-        <aside className="relative bg-slate-950 rounded-xl shadow-sm border border-slate-200 w-full h-full">
+        {/* On utilise calc pour ajouter les 32px manquants au 82vh ! 👇 */}
+        <aside className="h-[90vh] w-80 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           
-          {/* C'est lui qui flotte à l'intérieur et prend EXACTEMENT 100% de la case, sans jamais déborder */}
-          <div className="absolute inset-0 p-4 flex flex-col">
-            <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 shrink-0">
-              Chat du Jeu
-            </h3>
-            <div className="flex-1 overflow-hidden">
-              <GameChat channelId={reelChannelId} />
-            </div>
+          <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 shrink-0">
+            Chat du Jeu
+          </h3>
+
+          <div className="flex-1 overflow-hidden">
+            <GameChat channelId={reelChannelId} />
           </div>
+          
         </aside>
       </main>
 
