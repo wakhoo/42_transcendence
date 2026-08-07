@@ -144,7 +144,19 @@ export class ChatService implements OnModuleInit {
     async leaveChannel(userId: number, channelId: number): Promise<void> {
         const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
         if (!membership) throw new NotFoundException('You are not a member of this channel');
+
+        const wasAdmin = membership.role === 'admin' ;
         await this.memberRepo.remove(membership);
+
+        if (wasAdmin){
+            const remainingmembers = await this.memberRepo.find({ where: {channel : { id: channelId}}});
+        
+        if(remainingmembers.length > 0) {
+            const newAdmin = remainingmembers[0];
+            newAdmin.role = 'admin';
+            await this.memberRepo.save(newAdmin);
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -266,6 +266,9 @@ export class GameService implements OnModuleInit {
     // verification du mot taper dans le chat plus attribution des points
 	async checkGuess(userId: number, channelId: number, content: string, role: string) {
 
+
+    if(typeof content !== 'string')
+        return false;
     const currentGame = this.activeGames.get(channelId);
     if(!currentGame)
         return false;
@@ -461,8 +464,20 @@ async handleDisconnection(userId: number): Promise<number | null> {
       const remainingCount = remainingPlayerIds.length;
 
       if (isCreator && remainingCount > 0){
-        currentGame.creatorId = remainingPlayerIds[0];
-        this.server.to(channelID.toString()).emit('new_admin', { adminId: currentGame.creatorId });
+        let newAdmin = remainingPlayerIds[0];
+
+        for(const playerId of remainingPlayerIds){
+
+          const role = await this.chatService.getMemberRole(playerId, channelID);
+          if(role === 'admin'){
+
+            newAdmin = playerId;
+            break;
+          }
+        }
+
+      currentGame.creatorId = newAdmin;
+      this.server.to(channelID.toString()).emit('new_admin', { adminId: currentGame.creatorId });
       }
        //SI LA ROOM EST TOTALEMENT VIDE: ON SUPPRIME TOUT !
       if (remainingCount === 0) {
