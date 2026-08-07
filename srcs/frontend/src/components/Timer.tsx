@@ -20,11 +20,12 @@ export default function GamePage() {
   const [message, setMessage] = useState<any>(null);
   const [endGame ,setEndGame] = useState<any>(null);
   const [isGameStarted, setIsGameStarted] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(true);
   const [roomType, setRoomType] = useState<'public' | 'private' | undefined>(undefined);
   const [maxMembers, setMaxmembers] = useState<number | null>(null);
   const [roomCode, setRoomCode] = useState<string | null>(null);
-
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isRoundBreak, setIsRoundBreak] = useState(false);
+  const [foundWord, setWordFound] = useState<string | null>(null);
   
 
  // const queryParam = new URLSearchParams(window.location.search);
@@ -109,6 +110,7 @@ export default function GamePage() {
         setDrawerInfo(null);
         setTempsRestant(0);
         setIsGameStarted(false)
+        setIsGameStarted(false);
        // window.location.href = "/dashboard";
 
       };
@@ -156,6 +158,8 @@ export default function GamePage() {
 
     socket.on('round_start', (data) => {
       setIsGameStarted(true);
+      setWordFound(null);
+      setIsRoundBreak(false);
       setDrawerInfo(data);
       setSecretWord(null);
       setTempsRestant(60);
@@ -184,6 +188,13 @@ export default function GamePage() {
       setSecretWord(data);
     });
 
+    socket.on('word_found', (data) => {
+      if(Number(data.userId) === Number(myIdRef.current))
+        setWordFound(data.word);
+      if(data.scores)
+          setScores(data.scores);
+    });
+
     socket.on('round_end', (data) => {
       setRoundEndMsg(data);
       setSecretWord(null);
@@ -198,6 +209,11 @@ export default function GamePage() {
       setScores(data);
     });
 
+    socket.on('round_break', (data) => {
+
+      setScores(data);
+      setIsRoundBreak(true);
+    });
 
     socket.on('game_over', (data) => {
 
@@ -243,7 +259,7 @@ export default function GamePage() {
     socket.on('new_admin', ( data : {adminId: number }) => {
 
    
-        if(data.adminId === myId)
+        if(Number(data.adminId) === Number(myIdRef.current))
           setIsAdmin(true);
         else 
           setIsAdmin(false);
@@ -289,6 +305,7 @@ export default function GamePage() {
         socketInstance.off('kicked_from_game');
         socketInstance.off('game_invite');
         socketInstance.off('new_admin');
+        socketInstance.off('round_break');
         socketInstance.removeAllListeners();
       }
      // socketInstance.disconnect();
@@ -315,15 +332,16 @@ export default function GamePage() {
     setTempsRestant(60);
   };
 
-  const finalClassement = endGame
-  ? listeJoueurs.map((joueur: any) => ({
+  const finalClassement = listeJoueurs.map((joueur: any) => {
 
+    const score = endGame ? endGame[joueur.id] : scores[joueur.id];
+
+    return{
     id: joueur.id,
     username: joueur.username || joueur.name || `Player #${joueur.id}`,
-    score: endGame[joueur.id] || 0,
-  }))
-  .sort((a: any, b: any) => b.score - a.score)
-  : [];
+    score: score || 0,
+  };
+  }).sort((a: any, b: any) => b.score - a.score);
 
 
 
@@ -360,6 +378,16 @@ export default function GamePage() {
           </p>
           <p className="text-3xl font-mono tracking-[0.2em] font-black text-emerald-600 uppercase">
             {secretWord}
+          </p>
+        </div>
+      );
+    }
+    if(foundWord)
+    {
+      return (
+        <div className="animate-bounce-short">
+          <p className="text-3xl font-mono tracking-[0.4em] font-black text-emerald-600 uppercase">
+            {foundWord}
           </p>
         </div>
       );
@@ -504,6 +532,37 @@ export default function GamePage() {
                It's <span className="font-bold underline">{drawerInfo.drawerName}</span> turn to draw !
             </div>
             )}
+            {isRoundBreak && !endGame && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+                <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 border-4 border-indigo-500 transform animate-bounce-short">
+                  
+                  <h2 className="text-3xl font-black text-center text-indigo-600 mb-2 uppercase tracking-wider">
+                    End of Round !
+                  </h2>
+                  <p className="text-center text-slate-500 font-medium mb-6">
+                    Next round starts in a few seconds...
+                  </p>
+
+                  <div className="flex flex-col gap-3">
+                    {finalClassement.map((joueur, index) => (
+                      <div 
+                        key={joueur.id} 
+                        className={`flex items-center justify-between p-4 rounded-xl font-bold text-lg
+                          ${index === 0 ? 'bg-amber-100 text-amber-600 border-2 border-amber-300' : 'bg-slate-100 text-slate-700'}
+                        `}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{index === 0 ? '👑' : `#${index + 1}`}</span>
+                          <span>{joueur.username}</span>
+                        </div>
+                        <span className="text-2xl">{joueur.score} pts</span>
+                      </div>
+                    ))}
+                  </div>
+
+                </div>
+              </div>
+            )}
             {endGame ? (
             <div className="w-full h-[82vh] bg-slate-900/95 border border-slate-800 rounded-xl flex flex-col items-center justify-center p-6 shadow-2xl relative z-30 animate-fade-in">
               
@@ -514,7 +573,6 @@ export default function GamePage() {
                 Here are the session rankings
               </p>
 
-              {/* LISTE DES JOUEURS (PODIUM) */}
               <div className="w-full max-w-md bg-slate-950 border border-slate-800/80 rounded-2xl p-4 shadow-inner flex flex-col gap-2.5 max-h-[50vh] overflow-y-auto">
                 {finalClassement.map((joueur: any, index: number) => {
                   const isWinner = index === 0;
@@ -530,7 +588,7 @@ export default function GamePage() {
                           : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
                       }`}
                     >
-                      {/* Médaille + Pseudo */}
+                    
                       <div className="flex items-center gap-3.5">
                         <span className={`font-black w-7 text-center ${index > 2 ? "text-slate-500 text-xs font-mono" : "text-2xl"}`}>
                           {medaille}
@@ -580,15 +638,17 @@ export default function GamePage() {
           )}
         </section>
 
-
-        <aside className="bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
-          <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3">
+        {/* On utilise calc pour ajouter les 32px manquants au 82vh ! 👇 */}
+        <aside className="h-[90vh] w-80 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+          
+          <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 shrink-0">
             Chat du Jeu
           </h3>
 
           <div className="flex-1 overflow-hidden">
             <GameChat channelId={reelChannelId} />
           </div>
+          
         </aside>
       </main>
 

@@ -94,7 +94,7 @@ export class GameService implements OnModuleInit {
         guessedUsers: [],
         useWords: [],
         currentRound: 0,
-        maxRound: 1,
+        maxRound: 2,
         historicDraw: [],
         isDrawing: false,
         currentHint: '',
@@ -119,6 +119,7 @@ export class GameService implements OnModuleInit {
         // Le créateur est déjà dans la BDD SQL : on ignore l'erreur et on continue tranquillement !
     }
     session.scores[userId] = 0;
+    this.server.to(channelId.toString()).emit('new_admin', { adminId: session.creatorId });
 
     // on peut chopper directement maintenant le nombre de joueurs depuis la DB
     const members = await this.chatService.getChannelMember(channelId);
@@ -277,6 +278,7 @@ export class GameService implements OnModuleInit {
 
     if(content.toLowerCase() === currentGame?.secretWord.toLowerCase()){
 
+     
       if(userId === currentGame?.currentDrawerId)
         return true;
       else if(currentGame.guessedUsers.includes(userId))
@@ -290,7 +292,7 @@ export class GameService implements OnModuleInit {
         currentGame.scores[userId] += currentGame.timeLeft *5;
         currentGame.guessedUsers.push(userId);
 
-        this.server.to(channelId.toString()).emit('word_found', {userId});
+        this.server.to(channelId.toString()).emit('word_found', {userId: userId, word: currentGame.secretWord, scores: currentGame.scores});
 
         const members = await this.chatService.getChannelMember(channelId);
         if(currentGame.guessedUsers.length === members.length - 1)
@@ -334,13 +336,13 @@ export class GameService implements OnModuleInit {
    
     //changement de dessinateur
    // const members = await this.chatService.getChannelMember(channelId);
-    const playerIds = Object.keys(currentGame.scores).map(Number);
+     const playerIds = Object.keys(currentGame.scores).map(Number);
      let position = playerIds.indexOf(currentGame.currentDrawerId);
      position++;
       if (position >= playerIds.length){
           position = 0;
           currentGame.currentRound += 1;
-           if (currentGame.currentRound > currentGame.maxRound)
+          if (currentGame.currentRound > currentGame.maxRound)
           {
             this.server.to(channelId.toString()).emit('game_over',currentGame.scores);
             const matchHistory = this.match.create({
@@ -350,6 +352,16 @@ export class GameService implements OnModuleInit {
             await this.match.save(matchHistory);
            // this.activeGames.delete(channelId);
             return;
+          }
+          else{
+
+            this.server.to(channelId.toString()).emit('round_break',currentGame.scores);
+            currentGame.turnTimeout = setTimeout(() =>{
+              currentGame.currentDrawerId = playerIds[position];
+              this.handleNextTurn(channelId);
+            },10000);
+            return;
+
           }
       }
       currentGame.currentDrawerId = playerIds[position];
@@ -474,7 +486,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
         this.server.to(channelID.toString()).emit('update_players', newPlayerList);
       }
 
-      // S'IL NE RESTE QU'UN SEUL JOUEUR (OU MOINS DE 2), ON ANNULE LA PARTIE !
+      // S'IL NE RESTE QU'UN SEUL JOUEUR , ON ANNULE LA PARTIE !
       if (remainingCount < 2) {
         if (currentGame.timerInterval) {
           clearInterval(currentGame.timerInterval);
@@ -634,6 +646,13 @@ async handleDisconnection(userId: number): Promise<number | null> {
       }
   }
 
+
+  getRoomAdmin(channelId: number): number | null {
+
+    const session = this.activeGames.get(channelId);
+    return session ? session.creatorId : null;
+
+  }
 }
 
 
