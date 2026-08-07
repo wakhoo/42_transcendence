@@ -17,7 +17,7 @@ import { channel } from 'diagnostics_channel';
 export interface GameSession {
 
   channelId: number;
-  type?: 'public' | 'private',
+  type?: 'public' | 'private';
   creatorId: number;
   secretWord: string;
   currentDrawerId: number;
@@ -32,6 +32,8 @@ export interface GameSession {
   historicDraw: any[];
   isDrawing: boolean;
   currentHint: string;
+  maxMembers?: number | null;
+  code?: string;
 }
 
 
@@ -66,14 +68,24 @@ export class GameService implements OnModuleInit {
     }
   }
 
-   async createGameSession(creatorId: number, name: string): Promise<GameSession> {
+      private generateUniqueCode(): string {
+      let code: string;
+      do {
+        code = Math.floor(10000 + Math.random() * 90000).toString();
+      } while ([...this.activeGames.values()].some(session => session.code === code));
+      return code;
+    }
+
+   async createGameSession(creatorId: number, name: string, isPrivate: boolean = false, maxMembers?: number): Promise<GameSession> {
 
 
-    const channel = await this.chatService.createChannel(creatorId, name, 'game', false);
+    const channel = await this.chatService.createChannel(creatorId, name, 'game', isPrivate, undefined, maxMembers);
     const newGameSession : GameSession = {
 
         channelId: channel.id,
-        type: 'public',
+        type: isPrivate ? 'private' : 'public',
+        maxMembers: channel.maxMembers,
+        code: isPrivate ? this.generateUniqueCode() : undefined,
         creatorId: creatorId,
         secretWord: '',
         currentDrawerId: 0,
@@ -113,6 +125,17 @@ export class GameService implements OnModuleInit {
     this.server.to(channelId.toString()).emit('message_channel', `${members.length} player(s) in the room`);
     return session;
 
+  }
+
+  getSession(channelId: number): GameSession | undefined {
+      return this.activeGames.get(channelId);
+  }
+
+  findRoomByCode(code: string): number | null {
+    for (const [channelId, session] of this.activeGames.entries()) {
+      if (session.code === code) return channelId;
+    }
+    return null;
   }
 
   // Enregistre un joueur qui rejoint via le socket 'join_room' dans le suivi de session

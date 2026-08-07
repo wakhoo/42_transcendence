@@ -21,6 +21,10 @@ export default function GamePage() {
   const [endGame ,setEndGame] = useState<any>(null);
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [isAdmin, setIsAdmin] = useState(true);
+  const [roomType, setRoomType] = useState<'public' | 'private' | undefined>(undefined);
+  const [maxMembers, setMaxmembers] = useState<number | null>(null);
+  const [roomCode, setRoomCode] = useState<string | null>(null);
+
   
 
  // const queryParam = new URLSearchParams(window.location.search);
@@ -123,6 +127,12 @@ export default function GamePage() {
 
       console.log(" Liste des joueurs reçue du serveur :", listeVenantDuBack);
       setListeJoueurs(listeVenantDuBack);
+    });
+
+    socket.on('room_info', (data: { type: 'public' | 'private', maxMembers: number | null, code?: string }) => {
+      setRoomType(data.type);
+      setMaxmembers(data.maxMembers);
+      setRoomCode(data.code ?? null);
     });
 
     // Reçu quand on (re)rejoint un salon dans lequel une partie est déjà en cours
@@ -411,6 +421,13 @@ export default function GamePage() {
             <span>{tempsRestant}s</span>
           </div>
         </div>
+
+          {roomType === 'private' && (
+            <div className="flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg bg-violet-950 border border-violet-500 text-violet-300">
+              <span> code: <strong>{roomCode}</strong></span>
+              {maxMembers != null && <span>. Max {maxMembers} joueurs</span>}
+            </div>
+          )}
 
         {/* 👉 SECTION CENTRALE : Le Mot Secret / Indice */}
         <div className="text-center flex-1">

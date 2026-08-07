@@ -60,6 +60,13 @@ export class ChatController {
         return this.chatService.getMessages(channelId);
     }
 
+    @Get('find-private-game/:code')
+    async findPrivateGame(@Param('code') code: string) {
+        const channelId = this.gameService.findRoomByCode(code);
+        if (!channelId) throw new NotFoundException('Invalid code or room closed');
+        return { channelId };
+    }
+
     // ── Actions admin ─────────────────────────────────────────────────────────
 
     @Delete('channels/:id/kick/:userId')
@@ -137,11 +144,16 @@ export class ChatController {
     }
 
     @Post('create-game')
-    async createGameRoom(@Req() req: any, @Body() body: { name?: string }) {
+    async createGameRoom(@Req() req: any, @Body() body: { name?: string; isPrivate?: boolean; maxMembers?: number }) {
 
         const creatorId = Number(req.user.sub || req.user.id || req.user.userId) ;
         const roomName = body.name || `Game Room ${Math.floor(Math.random() * 1000)}`;
-        const session = await this.gameService.createGameSession(creatorId, roomName);
+        const session = await this.gameService.createGameSession(
+            creatorId,
+            roomName,
+            body.isPrivate ?? false,
+            body.maxMembers
+        );
 
         return session;
     }

@@ -12,7 +12,6 @@ import { UserService } from '../user/user.service';
 // creation d'une map pour lier le socket a l'user via token et mariadb
 export const gameSocketUserMap = new Map<string, number>();
 
-
 // point d'entree reseau 
 @WebSocketGateway({ cors: true, namespace: '/game'})
 
@@ -123,9 +122,10 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
     @SubscribeMessage('join_room')
     async handleJoinRoom(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
 
+      
       const userId = gameSocketUserMap.get(client.id);
       if(!userId) {
-
+        
         client.emit('error', {message: 'User non identify'});
         return;
       }
@@ -143,6 +143,11 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
         await this.chatService.joinChannel(userId, data.channelId);
       }
       catch (e) {
+      }
+
+      const session = this.gameService.getSession(data.channelId);
+      if (session) {
+        client.emit('room_info', { type: session.type, maxMembers: session.maxMembers, code: session.code });
       }
 
       // Pour que handleDisconnection sache que ce joueur fait partie du salon

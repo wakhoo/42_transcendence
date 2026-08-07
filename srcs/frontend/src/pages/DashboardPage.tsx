@@ -38,6 +38,8 @@ export default function DashboardPage() {
     const [onlineUserIds, setOnlineUserId] = useState<Set<number>>(new Set());
     const [showMyProfile, setShowMyProfile] = useState<boolean>(false);
     const [showUsers, setShowUsers] = useState<boolean>(false);
+    const [showJoinModal, setShowJoinModal] = useState(false);
+    const [joinCode, setJoinCode] = useState('');
  
     useEffect(() => {
         (async () => {
@@ -154,6 +156,21 @@ export default function DashboardPage() {
         setInput('');
     }
 
+    async function handleJoinPrivateRoom() {
+        try {
+            const response = await fetch(`${window.location.origin}/api/chat/find-private-game/${joinCode}`,{
+                headers: await authHeaders(),
+            });
+            if (!response.ok) { alert("Invalid Code"); return; }
+            const {channelId } = await response.json();
+            setShowJoinModal(false);
+            navigate(`/game?channelId=${channelId}`);
+        }
+        catch (error: any) {
+            console.error("Join error :", error);
+            alert("unable to join the room");
+        }
+    }
 
     return (
         <div className="min-h-screen bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)] flex flex-col">
@@ -257,10 +274,7 @@ export default function DashboardPage() {
                                             throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
                                         }
 
-                                        const newSession = await response.json();
-
-                                        //  Le serveur nous renvoie la session avec le VRAI channelId officiel !
-                        
+                                        const newSession = await response.json();                        
                                         navigate(`/game?channelId=${newSession.channelId}`);
 
                                     } catch (error) {
@@ -285,7 +299,31 @@ export default function DashboardPage() {
                         </button>
 
                     <button
-                        onClick={() => navigate('/game')}
+                    onClick={async () => {
+                        try {
+                            const response = await fetch(`${window.location.origin}/api/chat/create-game`, {
+                                method: 'POST',
+                                headers: await authHeaders(),
+                                body: JSON.stringify({
+                                    name: `Private Game #${Math.floor(Math.random() * 10000)}`,
+                                    isPrivate: true,
+                                    maxMembers: 4
+                                })
+                            });
+
+                            if (!response.ok) {
+                                const errorData = await response.json().catch(() => ({ message: "Erreur inconnue" }));
+                                throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
+                            }
+
+                            const newSession = await response.json();
+                            navigate(`/game?channelId=${newSession.channelId}`);
+
+                        } catch (error: any) {
+                            console.error("Erreur de création :", error);
+                            alert(error.message || "Impossible de créer le salon privé.");
+                        }
+                    }}
                         className="relative [transform-style:preserve-3d] px-8 py-4 sm:px-16 sm:py-6 lg:px-32 lg:py-8 rounded-2xl text-violet-900 text-base sm:text-lg lg:text-xl font-semibold
                             border-2 border-violet-400 bg-violet-100
                             transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
@@ -301,7 +339,49 @@ export default function DashboardPage() {
                             active:before:[transform:translate3d(0,0,-1em)]">
                         Create new private room
                     </button>
+
+                    <button
+                        onClick={() => setShowJoinModal(true)}
+                        className="relative [transform-style:preserve-3d] px-8 py-4 sm:px-16 sm:py-6 lg:px-32 lg:py-8 rounded-2xl text-rose-900 text-base sm:text-lg lg:text-xl font-semibold
+                            border-2 border-rose-400 bg-rose-100
+                            transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                            hover:bg-rose-200 hover:[transform:translate(0,0.25em)]
+                            active:bg-rose-200 active:[transform:translate(0,0.75em)]
+                            before:content-[''] before:absolute before:inset-0 before:rounded-2xl before:bg-rose-200
+                            before:shadow-[0_0_0_2px_#fb7185,0_0.625em_0_0_#ffe4e6]
+                            before:[transform:translate3d(0,0.75em,-1em)]
+                            before:transition-transform before:duration-150 before:[transition-timing-function:cubic-bezier(0,0,0.58,1)]
+                            hover:before:shadow-[0_0_0_2px_#fb7185,0_0.5em_0_0_#ffe4e6]
+                            hover:before:[transform:translate3d(0,0.5em,-1em)]
+                            active:before:shadow-[0_0_0_2px_#fb7185,0_0_#ffe4e6]
+                            active:before:[transform:translate3d(0,0,-1em)]">
+                        Join private room
+                    </button>
                 </div>
+                {showJoinModal && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-2xl p-6 w-80 flex flex-col gap-4">
+                            <h2 className="text-lg font-semibold">Join private room</h2>
+
+                            <input
+                                className="border rounded px-2 py-1"
+                                value={joinCode}
+                                onChange={(e) => setJoinCode(e.target.value)}
+                                placeholder="Code à 5 chiffres"
+                                maxLength={5}
+                            />
+
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setShowJoinModal(false)} className="px-3 py-1 rounded text-gray-600">
+                                    Annuler
+                                </button>
+                                <button onClick={handleJoinPrivateRoom} className="px-3 py-1 rounded bg-rose-500 text-white">
+                                    Rejoindre
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             <div className="flex-1 min-h-0 flex flex-col bg-gray-900 border-t border-gray-800 lg:flex-none lg:absolute lg:right-4 lg:top-4 lg:bottom-4 lg:w-80 lg:border lg:rounded-xl">
