@@ -24,6 +24,7 @@ export default function GameChat({ channelId, isSpectator }: GameChatProps) {
   const [users, setUsers]       = useState<UserProfile[]>([]);
   const socketRef               = useRef<Socket | null>(null);
   const chatContainerRef        = useRef<HTMLDivElement>(null);
+  const [roomName, setRoomName] = useState(`Game ${channelId}`);
   const { handleCommand, cmdMsg, error, setError } = useChatCommands(channelId, users, socketRef); //ca c'est pour utiliser les commandes chat
 
   // 1. Connexion indépendante au namespace /chat exactement comme le Dashboard
@@ -57,6 +58,19 @@ export default function GameChat({ channelId, isSpectator }: GameChatProps) {
         })
         .catch(() => console.log("Aucun historique pour ce salon"));
 
+      fetch(`/api/chat/game-rooms`, {headers: await authHeaders()})
+      .then(r => r.json())
+      .then((rooms) => {
+
+        if(Array.isArray(rooms)){
+
+          const myRoom = rooms.find((room: any) => room.id === Number(channelId))
+
+          if(myRoom && myRoom.name)
+            setRoomName(myRoom.name);
+        }
+      })
+      .catch(() => console.log("can't recover name of the room"));
       // Écouter les nouveaux messages en direct
       socket.on('newMessage', (msg: Message) => {
         setMessages((prev) => [...prev, msg]);
@@ -137,7 +151,7 @@ export default function GameChat({ channelId, isSpectator }: GameChatProps) {
       
       {/* En-tête du chat */}
       <div className="px-4 py-3 bg-black rounded-t-xl border-b border-gray-800 shrink-0">
-        <span className="text-gray-400 text-sm font-semibold"># salon_de_jeu_{channelId}</span>
+        <span className="text-gray-400 text-sm font-semibold">{roomName}</span>
       </div>
 
       {/* Zone des messages */}

@@ -5,6 +5,9 @@ import { useNavigate } from 'react-router-dom';
 import GameCanvas from './GameCanvas';
 import { getAccessToken } from '../lib/session';
 import { ProfileContent } from '../pages/ProfilePage';
+import DrawDrawLogo from './DrawDraw';
+
+
 export default function GamePage() {
 
   const [myId, setMyId] = useState<number | null>(null);
@@ -443,7 +446,7 @@ export default function GamePage() {
         {/* 👉 SECTION GAUCHE : Le Logo ET le Timer bien alignés côte à côte */}
         <div className="flex items-center gap-6">
           <h1 className="text-2xl font-black tracking-wider text-indigo-600 flex items-center gap-2">
-            <span>FT_SKRIBBL</span>
+            <DrawDrawLogo className="text-2xl" />
           </h1>
 
           {/* Le Timer (Fini la position absolute !) */}
@@ -463,7 +466,7 @@ export default function GamePage() {
 
           {isSpectator && (
             <div className="flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-500 text-slate-300">
-              <span>👁 Spectateur</span>
+              <span>👁 Spectator</span>
             </div>
           )}
 
@@ -492,7 +495,7 @@ export default function GamePage() {
 
         <aside className="bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 flex items-center justify-between">
-            <span>👥 Joueurs</span>
+            <span>👥 Players</span>
             <span className="bg-slate-950 text-slate-600 text-xs py-1 px-2 rounded-full">{listeJoueurs.length}</span>
           </h3>
 
@@ -655,7 +658,7 @@ export default function GamePage() {
         <aside className="h-[90vh] w-80 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           
           <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 shrink-0">
-            Chat du Jeu
+            Chat Game
           </h3>
 
           <div className="flex-1 overflow-hidden">

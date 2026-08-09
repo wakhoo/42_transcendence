@@ -50,7 +50,7 @@ function SignUp() {
     return (
         <div className="min-h-screen bg-black flex items-center justify-center">
             <div className="bg-gray-900 p-10 rounded-xl flex flex-col gap-4">
-                <h1 className="text-white text-3xl font-bold text-center">Transcendence</h1>
+                <h1 className="text-white text-3xl font-bold text-center">DrawDraw</h1>
                 {error && <p className="text-red-500 text-sm text-center">{error}</p>}
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     <input

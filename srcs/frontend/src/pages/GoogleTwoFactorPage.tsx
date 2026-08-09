@@ -23,7 +23,7 @@ function GoogleTwoFactorPage() {
     return (
         <div className="min-h-screen bg-black flex items-center justify-center">
             <div className="bg-gray-900 p-10 rounded-xl flex flex-col gap-4">
-                <h1 className="text-white text-3xl font-bold text-center">Ft_Skribbl</h1>
+                <h1 className="text-white text-3xl font-bold text-center">DrawDraw</h1>
                 <OtpVerifyForm
                     partialToken={partialToken}
                     onVerified={(tokens) => {

@@ -5,6 +5,7 @@ import { ProfileContent } from './ProfilePage';
 import { useChatCommands } from '../hooks/useChatCommands';
 import { getAccessToken, authHeaders, clearSession } from '../lib/session';
 import Footer from '../components/Footer';
+import DrawDrawLogo from '../components/DrawDraw';
 
 type Message = {
     id: number;
@@ -82,7 +83,7 @@ export default function DashboardPage() {
                     return r.json();
                 })
                 .then((data: UserProfile[] | null) => {
-                    if (data) setUsers(data);
+                    if (Array.isArray(data)) setUsers(data);
                 });
         })();
     }, [])
@@ -132,6 +133,8 @@ export default function DashboardPage() {
 
             socket.on('userTyping', ({ userId }: { userId: number }) => {
                 setUsers(prev => {
+                    if(!Array.isArray(prev))
+                            return prev;
                     const user = prev.find(u => u.id === userId);
                     if (user)
                         setTyping(`${user.username} is writing...`);
@@ -155,6 +158,13 @@ export default function DashboardPage() {
                         .then((data: UserProfile[]) => setUsers(data))
                 );
             });
+
+            socket.on('channel_deleted', (data: {channelId: number}) => {
+
+                setGameRooms(prevRoom => prevRoom.filter(room => room.id !== data.channelId));
+
+
+            })
         })();
 
         return (() => { socketRef.current?.disconnect(); });
@@ -230,7 +240,7 @@ export default function DashboardPage() {
         <div className="min-h-screen bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)] flex flex-col">
         <div className="h-screen overflow-hidden flex flex-col relative lg:h-auto lg:min-h-screen lg:overflow-visible">
             <div className="lg:hidden shrink-0 flex items-center justify-between px-4 py-3">
-                <h1 className="text-white text-lg font-bold">Transcendence</h1>
+                <h1 className="text-white text-lg font-bold">DrawDraw</h1>
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setShowUsers(true)}
@@ -247,13 +257,13 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            <div className={`${showUsers ? 'flex fixed inset-0 z-40' : 'hidden'} lg:flex lg:absolute lg:inset-auto lg:left-4 lg:top-4 lg:bottom-4 lg:w-64 flex-col bg-gray-900 lg:rounded-xl border border-gray-800`}>
+            <div className={`${showUsers ? 'flex fixed inset-0 z-40' : 'hidden'} lg:flex lg:absolute lg:z-10 lg:inset-auto lg:left-4 lg:top-4 lg:bottom-4 lg:w-64 flex-col bg-gray-900 lg:rounded-xl border border-gray-800`}>
                 <div className="px-4 py-3 bg-black lg:rounded-t-xl border-b border-gray-800 flex items-center justify-between">
                     <span className="text-gray-400 text-sm">Joueurs</span>
                     <button onClick={() => setShowUsers(false)} className="text-gray-400 hover:text-white lg:hidden">✕</button>
                 </div>
                 <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
-                    {users.map(user => (
+                    {Array.isArray(users) ? users.map(user => (
                     <div
                         key={user.id} 
                         onClick={() => setOpenProfileId(user.id)}
@@ -269,12 +279,22 @@ export default function DashboardPage() {
                             {onlineUserIds.has(user.id) ? 'online' : 'offline'}
                         </span>
                     </div>
-                ))}
+                )) : null}
                 </div>
             </div>
 
-            <div className="shrink-0 flex items-center justify-center px-4 py-6 lg:flex-1 lg:py-4">
-                <div className="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full max-w-xs sm:max-w-sm">
+           {/* 1. On rajoute "relative" ici pour que le logo absolu reste dans ce cadre */}
+            <div className="shrink-0 flex items-center justify-center px-4 py-6 lg:flex-1 lg:py-4 relative">
+                
+                {/* 2. LE LOGO : Placé tout en haut (top-12) et décalé à gauche (-ml-16) */}
+                <div className="absolute top-8 lg:top-12 lg:-ml-16">
+                    {/* (Utilise text-6xl si c'est le logo texte que je t'ai donné, ou w-80 si c'est une image SVG) */}
+                    <DrawDrawLogo className="text-5xl lg:text-7xl" />
+                </div>
+
+                {/* 3. TES BOUTONS : On ne touche à rien, ils restent parfaitement au centre ! 
+                    (J'ai juste ajouté mt-32 lg:mt-0 pour éviter que le logo n'écrase les boutons sur téléphone) */}
+                <div className="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full max-w-xs sm:max-w-sm mt-32 lg:mt-0">
                     {/* Bouton "Join public room" remplacé par la liste des parties ci-dessous
                     <button
                        onClick={async () => {

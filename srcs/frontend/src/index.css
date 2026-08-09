@@ -103,3 +103,105 @@
   background-color: #303030;
   opacity: 8%;
 }
+
+.drawdraw-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.drawdraw-text {
+  stroke: currentColor;
+  stroke-width: 0.7px;
+  paint-order: stroke fill;
+  animation: drawdraw-wiggle 3s ease-in-out infinite;
+}
+
+.drawdraw-underline {
+  stroke-dasharray: 220;
+  stroke-dashoffset: 220;
+  animation: drawdraw-line 1.5s ease forwards;
+}
+
+.drawdraw-character {
+  transform-origin: 25px 45px;
+  animation: drawdraw-bounce 2s ease-in-out infinite;
+}
+
+.drawdraw-pencil {
+  transform-origin: 45px 30px;
+  animation: drawdraw-pencil 1.4s ease-in-out infinite;
+}
+
+.drawdraw-spark {
+  transform-origin: center;
+  animation: drawdraw-spark 1.8s ease-in-out infinite;
+}
+
+.drawdraw-dot {
+  animation: drawdraw-dot 2s ease-in-out infinite;
+}
+
+@keyframes drawdraw-line {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes drawdraw-bounce {
+  0%,
+  100% {
+    transform: rotate(0deg) translateY(0);
+  }
+
+  50% {
+    transform: rotate(-3deg) translateY(-3px);
+  }
+}
+
+@keyframes drawdraw-pencil {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(-8deg);
+  }
+}
+
+@keyframes drawdraw-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(-1deg);
+  }
+}
+
+@keyframes drawdraw-spark {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8) rotate(0deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15) rotate(15deg);
+  }
+}
+
+@keyframes drawdraw-dot {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}

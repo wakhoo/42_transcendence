@@ -252,6 +252,7 @@ export class ChatService implements OnModuleInit {
 
         await this.gameService.forceCloseGame(channelId);
         await this.channelRepo.remove(channel);
+        this.gameService.server.emit('channel_deleted', {channelId: channelId});
     }
 
     // ─────────────────────────────────────────────────────────────────────────

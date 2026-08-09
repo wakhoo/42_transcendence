@@ -151,15 +151,3 @@ function App() {
     </BrowserRouter>
   );
 }
-
-// // On importe notre  Timer depuis components
-// import Timer from './components/Timer';
-
-// export default function App() {
-//   return (
-//     <div>
-//       <h1>ft_skribbl</h1>
-//       <Timer />
-//     </div>
-//   );
-// }
