@@ -17,7 +17,6 @@ import { Friendship } from './entities/friendship.entity';
 import { BadWord } from './entities/bad-word.entity';
 import { BAD_WORDS } from './words.seed';
 import { GameService } from '../game/game.service';
-//import { WORD } from './../word.seed';
 
 @Injectable()
 export class ChatService implements OnModuleInit {
@@ -67,8 +66,9 @@ export class ChatService implements OnModuleInit {
     // CHANNELS : creation + getters
     // ─────────────────────────────────────────────────────────────────────────
 
-    async getPublicChannels(): Promise<Channel[]> {
-        return this.channelRepo.find({ where: { isPrivate: false } });
+    async getGameChannels(userId: number): Promise<(Channel & { isUserMember: boolean; isUserKicked: boolean; maxRound?: number })[]> {
+        const channels = await this.channelRepo.find({ where: { type: 'game' }, relations: { members: { user: true } } });
+        return channels.map(channel => ({...channel, isUserMember: channel.members.some(m => m.user?.id === userId), isUserKicked: this.gameService.isUserKick(channel.id, userId), maxRound: this.gameService.getSession(channel.id)?.maxRound}));
     }
 
     async getMyChannels(userId: number): Promise<Channel[]> {
@@ -110,7 +110,6 @@ export class ChatService implements OnModuleInit {
 
 
     async getChannelMember(channelId: number): Promise<ChannelMember[]>  {
-
         return this.memberRepo.find({ where: { channel: { id: channelId } } });
     }
 
@@ -118,6 +117,15 @@ export class ChatService implements OnModuleInit {
     async joinChannel(userId: number, channelId: number, password?: string): Promise<ChannelMember> {
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
         if (!channel) throw new NotFoundException('Channel not found');
+
+        const existing = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
+        if (existing) 
+            return existing;
+
+        if (channel.type === 'game' && this.gameService.isUserKick(channelId, userId))
+            throw new ForbiddenException('You have been kicked from this room');
+
+        if (channel.isPrivate) throw new ForbiddenException('This room is private (invitation only)');
 
         if (channel.passwordHash) {
             if (!password) throw new ForbiddenException('This channel requires a password');
@@ -129,9 +137,6 @@ export class ChatService implements OnModuleInit {
             const count = await this.memberRepo.count({ where: { channel: { id: channelId } } });
             if (count >= channel.maxMembers) throw new ForbiddenException('Channel is full');
         }
-
-        const existing = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
-        if (existing) throw new BadRequestException('Already a member of this channel');
 
         const membership = this.memberRepo.create({
             user: { id: userId },
@@ -160,7 +165,7 @@ export class ChatService implements OnModuleInit {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // CHANNELS — actions admin (kick, invite, mute, password, suppression)
+    // CHANNELS — actions admin (kick, invite, mute, password, limit, suppression)
     // ─────────────────────────────────────────────────────────────────────────
 
     private async requireAdmin(userId: number, channelId: number): Promise<void> {
@@ -175,12 +180,8 @@ export class ChatService implements OnModuleInit {
         this.gameService.banUserFromChannel(channelId, targetUserId);
         await this.gameService.forcedRemovePlayer(channelId, targetUserId);
         const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
-       if (target) {
+        if (target)
             await this.memberRepo.remove(target);
-            console.log(`[TEST KICK] Le joueur ${targetUserId} a bien été retiré de la base SQL.`);
-        } else {
-            console.log(`[TEST KICK] Le joueur ${targetUserId} n'était PAS dans la base SQL, mais a été banni de la RAM.`);
-        }
     }
 
     async inviteUser(adminId: number, channelId: number, targetUserId: number): Promise<ChannelMember> {
@@ -220,6 +221,14 @@ export class ChatService implements OnModuleInit {
         await this.channelRepo.save(channel);
     }
 
+    async setMaxMember(adminId: number, channelId: number, maxMembers: number): Promise<void> {
+        await this.requireAdmin(adminId, channelId);
+        const channel = await this.channelRepo.findOne({ where: { id: channelId } });
+        if (!channel) throw new NotFoundException('Channel not found');
+        channel.maxMembers = maxMembers;
+        await this.channelRepo.save(channel);
+    }   
+
     async deleteChannel(adminId: number, channelId: number): Promise<void> {
         await this.requireAdmin(adminId, channelId);
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
@@ -230,16 +239,16 @@ export class ChatService implements OnModuleInit {
         await this.channelRepo.remove(channel);
     }
 
-    // Nettoyage automatique (pas une action admin) : supprime le salon si plus
-    // personne n'y est reellement (verifie en base, pas juste en memoire), pour
-    // que les salons publics abandonnes ne restent pas trainer indefiniment.
     async deleteChannelIfEmpty(channelId: number): Promise<void> {
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
-        if (!channel) return;
-        if (channel.type === 'general') return;
+        if (!channel) 
+            return;
+        if (channel.type === 'general') 
+            return;
 
         const memberCount = await this.memberRepo.count({ where: { channel: { id: channelId } } });
-        if (memberCount > 0) return;
+        if (memberCount > 0) 
+            return;
 
         await this.gameService.forceCloseGame(channelId);
         await this.channelRepo.remove(channel);
@@ -258,13 +267,15 @@ export class ChatService implements OnModuleInit {
         }
 
         const badWords = await this.badWordRepo.find();
-        const lower = content.toLowerCase();
-        const found = badWords.find((bw) => lower.includes(bw.word));
+        const lower = ' ' + content.toLowerCase() + ' ';
+        const found = badWords.find((bw) => lower.includes(' ' + bw.word + ' '));
         if (found) {
             membership.warnings += 1;
             if (membership.warnings >= 2) {
                 if (membership.channel.type === 'game') {
                     await this.memberRepo.remove(membership);
+                    this.gameService.banUserFromChannel(channelId, userId);
+                    await this.gameService.forcedRemovePlayer(channelId, userId);
                     throw new ForbiddenException('You were kicked from the game channel for repeated inappropriate messages.');
                 } else {
                     membership.mutedUntil = new Date(Date.now() + 5 * 60000);
@@ -310,9 +321,7 @@ export class ChatService implements OnModuleInit {
 
         let channel = await this.channelRepo.findOne({ where: { name: dmName } });
         if (!channel) {
-            channel = await this.channelRepo.save(
-                this.channelRepo.create({ name: dmName, type: 'dm', isPrivate: true }),
-            );
+            channel = await this.channelRepo.save(this.channelRepo.create({ name: dmName, type: 'dm', isPrivate: true }));
             await this.memberRepo.save([
                 this.memberRepo.create({ user: { id: userId }, channel: { id: channel.id }, role: 'member' }),
                 this.memberRepo.create({ user: { id: targetUserId }, channel: { id: channel.id }, role: 'member' }),
@@ -393,5 +402,9 @@ export class ChatService implements OnModuleInit {
     async getMemberRole(userId: number, channelId: number): Promise<'admin' | 'member' | 'spec' | 'drawer' | null> {
         const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } } });
         return membership?.role ?? null;
+    }
+
+    async getChannel(channelId: number): Promise<Channel | null> {
+        return this.channelRepo.findOne({ where: { id: channelId } });
     }
 }

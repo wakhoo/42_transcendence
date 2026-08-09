@@ -23,23 +23,46 @@ type UserProfile = {
     avatarUrl: string | null;
 };
 
+//ajout
+type GameRoom = {
+    id: number;
+    name: string;
+    type: string;
+    isPrivate: boolean;
+    passwordHash: string | null;
+    maxMembers: number | null;
+    members: any[];
+    isUserMember: boolean;
+    isUserKicked: boolean;
+    maxRound?: number;
+};
+
 export default function DashboardPage() {
-    const [users, setUsers]         = useState<UserProfile[]>([]);
-    const [messages, setMessages]   = useState<Message[]>([]);
-    const [input, setInput]         = useState('');
-    const [channelId, setChannelId] = useState<number | null>(null);
-    const [typing, setTyping]       = useState('');
-    const socketRef                 = useRef<Socket | null>(null);
-    const { handleCommand, cmdMsg, error, setError } = useChatCommands(channelId, users, socketRef);
-    const bottomRef                 = useRef<HTMLDivElement>(null);
-    const typingTimer               = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const navigate                  = useNavigate();
-    const [openProfileId, setOpenProfileId] = useState<number | null>(null);
-    const [onlineUserIds, setOnlineUserId] = useState<Set<number>>(new Set());
-    const [showMyProfile, setShowMyProfile] = useState<boolean>(false);
-    const [showUsers, setShowUsers] = useState<boolean>(false);
-    const [showJoinModal, setShowJoinModal] = useState(false);
-    const [joinCode, setJoinCode] = useState('');
+    const [users, setUsers]                             = useState<UserProfile[]>([]);
+    const [messages, setMessages]                       = useState<Message[]>([]);
+    const [input, setInput]                             = useState('');
+    const [channelId, setChannelId]                     = useState<number | null>(null);
+    const [typing, setTyping]                           = useState('');
+    const socketRef                                     = useRef<Socket | null>(null);
+    const { handleCommand, cmdMsg, error, setError }    = useChatCommands(channelId, users, socketRef);
+    const bottomRef                                     = useRef<HTMLDivElement>(null);
+    const typingTimer                                   = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const navigate                                      = useNavigate();
+    const [openProfileId, setOpenProfileId]             = useState<number | null>(null);
+    const [onlineUserIds, setOnlineUserId]              = useState<Set<number>>(new Set());
+    const [showMyProfile, setShowMyProfile]             = useState<boolean>(false);
+    const [showUsers, setShowUsers]                     = useState<boolean>(false);
+//    const [showJoinModal, setShowJoinModal] = useState(false);
+//    const [joinCode, setJoinCode] = useState('');
+    // A partir de la que des ajouts
+    const [showCreateModal, setShowCreateModal]         = useState(false);
+    const [createMaxPlayers, setCreateMaxPlayers]       = useState('');
+    const [createPassword, setCreatePassword]           = useState('');
+    const [createPrivate, setCreatePrivate]             = useState(false);
+    const [createRounds, setCreateRounds]               = useState(''); // nombre de manches (vide = 3 par défaut)
+    const [gameRooms, setGameRooms]                     = useState<GameRoom[]>([]);
+    const [joinPwdRoomId, setJoinPwdRoomId]             = useState<number | null>(null);
+    const [joinPwdInput, setJoinPwdInput]               = useState('');
  
     useEffect(() => {
         (async () => {
@@ -142,7 +165,37 @@ export default function DashboardPage() {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
+    // Rafraîchit la liste des parties toutes les 5sec
+    useEffect(() => {
+        const load = async () => {
+            const res = await fetch('/api/chat/game-rooms', { headers: await authHeaders() });
+            const data = await res.json();
+            if (Array.isArray(data))
+                setGameRooms(data);
+        };
+        load();
+        const interval = setInterval(load, 5000);
+        return () => clearInterval(interval);
+    }, []);
 
+    async function handleJoinRoom(roomId: number, password?: string) {
+        try {
+            const response = await fetch(`${window.location.origin}/api/chat/channels/${roomId}/join`, {
+                method: 'POST',
+                headers: await authHeaders(),
+                body: JSON.stringify({ password: password ?? '' })
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({ message: 'Error' }));
+                alert(err.message || 'Unable to join room');
+                return;
+            }
+            setJoinPwdRoomId(null);
+            navigate(`/game?channelId=${roomId}&action=join`);
+        } catch (e: any) {
+            alert(e.message || 'Network error');
+        }
+    }
 
     function sendMessage() {
         if (!input.trim() || channelId === null || !socketRef.current)
@@ -156,21 +209,22 @@ export default function DashboardPage() {
         setInput('');
     }
 
-    async function handleJoinPrivateRoom() {
-        try {
-            const response = await fetch(`${window.location.origin}/api/chat/find-private-game/${joinCode}`,{
-                headers: await authHeaders(),
-            });
-            if (!response.ok) { alert("Invalid Code"); return; }
-            const {channelId } = await response.json();
-            setShowJoinModal(false);
-            navigate(`/game?channelId=${channelId}`);
-        }
-        catch (error: any) {
-            console.error("Join error :", error);
-            alert("unable to join the room");
-        }
-    }
+    // j'ai degage la l'ancienne gestion du bouton join private
+    // async function handleJoinPrivateRoom() {
+    //     try {
+    //         const response = await fetch(`${window.location.origin}/api/chat/find-private-game/${joinCode}`,{
+    //             headers: await authHeaders(),
+    //         });
+    //         if (!response.ok) { alert("Invalid Code"); return; }
+    //         const {channelId } = await response.json();
+    //         setShowJoinModal(false);
+    //         navigate(`/game?channelId=${channelId}`);
+    //     }
+    //     catch (error: any) {
+    //         console.error("Join error :", error);
+    //         alert("unable to join the room");
+    //     }
+    // }
 
     return (
         <div className="min-h-screen bg-[linear-gradient(135deg,#29323C,#2B5876,#4E4376)] flex flex-col">
@@ -221,6 +275,7 @@ export default function DashboardPage() {
 
             <div className="shrink-0 flex items-center justify-center px-4 py-6 lg:flex-1 lg:py-4">
                 <div className="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full max-w-xs sm:max-w-sm">
+                    {/* Bouton "Join public room" remplacé par la liste des parties ci-dessous
                     <button
                        onClick={async () => {
                         try {
@@ -258,30 +313,96 @@ export default function DashboardPage() {
                         active:before:[transform:translate3d(0,0,-1em)]">
                     Join public room
                     </button>
+                    */}
+
+                    {/* liste des parties en cours */}
+                    <div className="flex flex-col gap-3 w-full">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-white text-sm font-bold tracking-wide">Game Rooms</span>
+                                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-400/10 border border-emerald-400/25 px-1.5 py-0.5 rounded-full">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                    LIVE
+                                </span>
+                            </div>
+                            <span className="text-gray-600 text-xs">{gameRooms.length} room{gameRooms.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        {gameRooms.length === 0 ? (
+                            <div className="flex flex-col items-center gap-2 py-8 rounded-xl border border-dashed border-gray-700 bg-gray-900/40">
+                                <span className="text-3xl opacity-30">🎮</span>
+                                <p className="text-gray-500 text-xs italic">No rooms yet. Create one below!</p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto pr-0.5">
+                                {gameRooms.map(room => {
+                                    const memberCount = room.members?.length ?? 0;
+                                    const max = room.maxMembers;
+                                    const isFull = max !== null && memberCount >= max;
+                                    const blocked = isFull && !room.isUserMember;
+                                    const hasPassword = !!room.passwordHash;
+                                    return (
+                                        <button
+                                            key={room.id}
+                                            onClick={() => {
+                                                if (blocked)
+                                                    return;
+                                                if (room.isPrivate && !room.isUserMember) {
+                                                    alert('This room is private (invitation only)');
+                                                    return;
+                                                }
+                                                if (hasPassword && !room.isUserMember) {
+                                                    setJoinPwdRoomId(room.id);
+                                                    setJoinPwdInput('');
+                                                    return;
+                                                }
+                                                handleJoinRoom(room.id);
+                                            }}
+                                            className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm text-left w-full transition-all duration-150
+                                                ${blocked
+                                                    ? 'opacity-40 cursor-not-allowed border-gray-700 bg-gray-900/60 text-gray-500'
+                                                    : 'border-gray-700/60 bg-gray-800/60 hover:bg-gray-700/80 hover:border-gray-600 text-white'}`}>
+                                            <span className="flex items-center gap-2 min-w-0">
+                                                <span className="font-semibold text-sm truncate">{room.name}</span>
+                                            </span>
+                                            <span className="flex items-center gap-2 shrink-0 ml-2">
+                                                {room.isPrivate && (
+                                                    <span
+                                                        title={room.isUserMember ? 'Invited' : 'Private'}
+                                                        className={`shrink-0 w-2 h-2 rounded-full ${room.isUserMember ? 'bg-green-400' : 'bg-red-500'}`}
+                                                    />
+                                                )}
+                                                {hasPassword && !room.isUserMember && <span title="Password required" className="text-amber-400">🔒</span>}
+                                                {room.maxRound != null && (
+                                                    <span className="text-[10px] font-semibold text-indigo-300 bg-indigo-500/15 border border-indigo-500/20 px-1.5 py-0.5 rounded-full">
+                                                        {room.maxRound}rds
+                                                    </span>
+                                                )}
+                                                <span className={`text-[11px] font-semibold ${isFull ? 'text-red-400' : 'text-gray-400'}`}>
+                                                    {memberCount}/{max ?? '∞'}
+                                                </span>
+                                                {/* bouton oeil pour rejoindre en spec sauf si kick*/}
+                                                <span
+                                                    role="button"
+                                                    title="Watch as spectator"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (room.isUserKicked) { alert('You have been kicked from this room'); return; }
+                                                        navigate(`/game?channelId=${room.id}&action=spec`);
+                                                    }}
+                                                    className="opacity-40 hover:opacity-100 transition-opacity cursor-pointer"
+                                                >
+                                                    👁
+                                                </span>
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                        {/* Ouvre la modale au lieu de créer directement */}
                         <button
-                            onClick={ async () => {
-                                            try {
-                        
-                                        const response = await fetch(`${window.location.origin}/api/chat/create-game`, {
-                                            method: 'POST',
-                                            headers: await authHeaders(),
-                                            body: JSON.stringify({ name: `Public Game #${Math.floor(Math.random() * 10000)}`})
-                                        });
-
-                                        if (!response.ok) {
-                                            const errorData = await response.json().catch(() => ({ message: "Erreur inconnue" }));
-                                            console.error("Détail de l'erreur NestJS :", errorData);
-                                            throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
-                                        }
-
-                                        const newSession = await response.json();                        
-                                        navigate(`/game?channelId=${newSession.channelId}`);
-
-                                    } catch (error) {
-                                        console.error("Erreur de création :", error);
-                                        alert("Impossible de créer le salon de jeu.");
-                                    }
-                                }}
+                            onClick={() => setShowCreateModal(true)}
                             className="relative [transform-style:preserve-3d] px-8 py-4 sm:px-16 sm:py-6 lg:px-32 lg:py-8 rounded-2xl text-emerald-900 text-base sm:text-lg lg:text-xl font-semibold
                                 border-2 border-emerald-400 bg-emerald-100
                                 transition-transform duration-150 [transition-timing-function:cubic-bezier(0,0,0.58,1)]
@@ -295,9 +416,10 @@ export default function DashboardPage() {
                                 hover:before:[transform:translate3d(0,0.5em,-1em)]
                                 active:before:shadow-[0_0_0_2px_#34d399,0_0_#d1fae5]
                                 active:before:[transform:translate3d(0,0,-1em)]">
-                            Create new public room
+                            Create a new room
                         </button>
 
+                    {/* J'ai tej ca aussi
                     <button
                     onClick={async () => {
                         try {
@@ -339,7 +461,9 @@ export default function DashboardPage() {
                             active:before:[transform:translate3d(0,0,-1em)]">
                         Create new private room
                     </button>
+                    */}
 
+                    {/* Plus besoin non plus de ce bouton
                     <button
                         onClick={() => setShowJoinModal(true)}
                         className="relative [transform-style:preserve-3d] px-8 py-4 sm:px-16 sm:py-6 lg:px-32 lg:py-8 rounded-2xl text-rose-900 text-base sm:text-lg lg:text-xl font-semibold
@@ -357,7 +481,9 @@ export default function DashboardPage() {
                             active:before:[transform:translate3d(0,0,-1em)]">
                         Join private room
                     </button>
+                    */}
                 </div>
+                {/* Ni de ca haha
                 {showJoinModal && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                         <div className="bg-white rounded-2xl p-6 w-80 flex flex-col gap-4">
@@ -377,6 +503,150 @@ export default function DashboardPage() {
                                 </button>
                                 <button onClick={handleJoinPrivateRoom} className="px-3 py-1 rounded bg-rose-500 text-white">
                                     Rejoindre
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                */}
+
+                {/* Modale de mot de passe pour rejoindre une room protégée */}
+                {joinPwdRoomId !== null && (
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+                        <div className="bg-white rounded-2xl p-6 w-80 flex flex-col gap-4 text-gray-800">
+                            <h2 className="text-lg font-semibold">Room password</h2>
+                            <input
+                                type="password"
+                                className="border rounded px-2 py-1"
+                                value={joinPwdInput}
+                                onChange={(e) => setJoinPwdInput(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom(joinPwdRoomId, joinPwdInput)}
+                                placeholder="Password"
+                                autoFocus
+                            />
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setJoinPwdRoomId(null)} className="px-3 py-1 rounded text-gray-600">
+                                    Cancel
+                                </button>
+                                <button onClick={() => handleJoinRoom(joinPwdRoomId, joinPwdInput)} className="px-3 py-1 rounded bg-emerald-500 text-white">
+                                    Join
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modale de création d'une room — remplace le bouton "Create new private room" */}
+                {showCreateModal && (
+                    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+                        <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-80 flex flex-col gap-4 shadow-2xl">
+                            <div className="flex items-center gap-2 border-b border-gray-800 pb-3">
+                                <span className="text-lg">🎮</span>
+                                <h2 className="text-base font-bold text-white">Create a room</h2>
+                            </div>
+
+                            <label className="flex flex-col gap-1.5 text-sm">
+                                <span className="text-gray-400 font-medium text-xs uppercase tracking-wider">Max players</span>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    className={`bg-gray-800 border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:ring-2 transition-all
+                                        ${createMaxPlayers !== '' && !(Number(createMaxPlayers) >= 2)
+                                            ? 'border-red-500 focus:ring-red-500/30'
+                                            : 'border-gray-700 focus:ring-indigo-500/40 focus:border-indigo-500/60'}`}
+                                    value={createMaxPlayers}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        if (v === '' || /^\d+$/.test(v)) setCreateMaxPlayers(v); // uniquement vide ou des chiffres
+                                    }}
+                                    placeholder="No limit"
+                                />
+                                {createMaxPlayers !== '' && !(Number(createMaxPlayers) >= 2) && (
+                                    <span className="text-red-400 text-xs">Must be 2 or more</span>
+                                )}
+                            </label>
+
+                            <label className="flex flex-col gap-1.5 text-sm">
+                                <span className="text-gray-400 font-medium text-xs uppercase tracking-wider">Rounds</span>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    className={`bg-gray-800 border rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:ring-2 transition-all
+                                        ${createRounds !== '' && !(Number(createRounds) >= 1)
+                                            ? 'border-red-500 focus:ring-red-500/30'
+                                            : 'border-gray-700 focus:ring-indigo-500/40 focus:border-indigo-500/60'}`}
+                                    value={createRounds}
+                                    onChange={(e) => {
+                                        const v = e.target.value;
+                                        if (v === '' || /^\d+$/.test(v)) setCreateRounds(v);
+                                    }}
+                                    placeholder="Default: 3"
+                                />
+                                {createRounds !== '' && !(Number(createRounds) >= 1) && (
+                                    <span className="text-red-400 text-xs">Must be 1 or more</span>
+                                )}
+                            </label>
+
+                            <label className="flex flex-col gap-1.5 text-sm">
+                                <span className="text-gray-400 font-medium text-xs uppercase tracking-wider">Password (optional)</span>
+                                <input
+                                    type="text"
+                                    className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/60 transition-all"
+                                    value={createPassword}
+                                    onChange={(e) => setCreatePassword(e.target.value)}
+                                    placeholder="Leave empty for none"
+                                />
+                            </label>
+
+                            <label className="flex items-center justify-between cursor-pointer bg-gray-800 border border-gray-700 rounded-lg px-3 py-2.5">
+                                <span className="text-sm text-gray-300">Private <span className="text-gray-600 text-xs">(invitation only)</span></span>
+                                <input type="checkbox" checked={createPrivate} onChange={(e) => setCreatePrivate(e.target.checked)} className="sr-only" />
+                                <div className={`relative w-9 h-5 rounded-full transition-colors duration-200 pointer-events-none ${createPrivate ? 'bg-indigo-500' : 'bg-gray-600'}`}>
+                                    <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200 ${createPrivate ? 'translate-x-4' : 'translate-x-0'}`} />
+                                </div>
+                            </label>
+
+                            {/* Rappel des commandes admin disponibles une fois dans le salon */}
+                            <div className="text-xs text-gray-600 bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2">
+                                <span className="font-semibold text-gray-500">Admin commands (in chat):</span><br />
+                                <span className="font-mono text-gray-600">/limit · /pass · /kick · /mute · /private · /close</span>
+                            </div>
+
+                            <div className="flex gap-2 justify-end pt-1">
+                                <button
+                                    onClick={() => { setShowCreateModal(false); setCreateMaxPlayers(''); setCreatePassword(''); setCreatePrivate(false); setCreateRounds(''); }}
+                                    className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-all">
+                                    Cancel
+                                </button>
+                                <button
+                                    disabled={(createMaxPlayers !== '' && !(Number(createMaxPlayers) >= 2)) || (createRounds !== '' && !(Number(createRounds) >= 1))}
+                                    onClick={async () => {
+                                        try {
+                                            const response = await fetch(`${window.location.origin}/api/chat/create-game`, {
+                                                method: 'POST',
+                                                headers: await authHeaders(),
+                                                body: JSON.stringify({
+                                                    name: `Game #${Math.floor(Math.random() * 10000)}`,
+                                                    isPrivate: createPrivate,
+                                                    ...(createMaxPlayers ? { maxMembers: parseInt(createMaxPlayers) } : {}),
+                                                    ...(createPassword    ? { password: createPassword }              : {}),
+                                                    ...(createRounds      ? { rounds: parseInt(createRounds) }        : {}),
+                                                })
+                                            });
+                                            if (!response.ok) {
+                                                const errorData = await response.json().catch(() => ({ message: "Erreur inconnue" }));
+                                                throw new Error(errorData.message || `Erreur HTTP ${response.status}`);
+                                            }
+                                            const newSession = await response.json();
+                                            setShowCreateModal(false);
+                                            navigate(`/game?channelId=${newSession.channelId}`);
+                                        } catch (error: any) {
+                                            console.error("Erreur de création :", error);
+                                            alert(error.message || "Impossible de créer le salon.");
+                                        }
+                                    }}
+                                    className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow">
+                                    Create
                                 </button>
                             </div>
                         </div>

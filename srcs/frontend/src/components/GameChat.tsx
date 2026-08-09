@@ -15,9 +15,10 @@ type UserProfile = { id: number; username: string; profileColor: string };
 
 interface GameChatProps {
   channelId: number;
+  isSpectator?: boolean;
 }
 
-export default function GameChat({ channelId }: GameChatProps) {
+export default function GameChat({ channelId, isSpectator }: GameChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput]       = useState('');
   const [users, setUsers]       = useState<UserProfile[]>([]);
@@ -146,7 +147,7 @@ export default function GameChat({ channelId }: GameChatProps) {
         className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-2">
         {messages.length === 0 ? (
           <p className="text-gray-500 text-xs italic text-center mt-4">
-            Aucun message. Tape ta réponse en bas !
+            {isSpectator ? 'No message for now' : 'No message, write your answer bellow'}
           </p>
         ) : (
           messages.map((msg, idx) => (
@@ -183,11 +184,13 @@ export default function GameChat({ channelId }: GameChatProps) {
         </div>
       )}
 
-      {/* Barre d'envoi du Dashboard */}
+      {/* on desactive la possibilite de parler au spec ici */}
       <div className="px-4 py-3 border-t border-gray-800 shrink-0 bg-gray-900 mt-auto">
-        
+        {isSpectator ? (
+          <p className="text-gray-500 text-xs italic text-center py-1">Spectator mod, sending disabled</p>
+        ) : (
         <div className="flex flex-row items-center justify-between gap-2 bg-[#40414F] border border-[#2E2F3A] rounded-lg h-10 px-2">
-          
+
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -195,7 +198,7 @@ export default function GameChat({ channelId }: GameChatProps) {
             placeholder="Propose un mot..."
             className="flex-1 w-full h-full bg-transparent outline-none border-none text-white placeholder-[#828E9E] text-sm text-ellipsis whitespace-nowrap overflow-hidden px-1"
           />
-          
+
           <button
             onClick={sendMessage}
             disabled={!input.trim()}
@@ -205,8 +208,9 @@ export default function GameChat({ channelId }: GameChatProps) {
               <path d="M481.508,210.336L68.414,38.926c-17.403-7.222-37.064-4.045-51.309,8.287C2.86,59.547-3.098,78.551,1.558,96.808 L38.327,241h180.026c8.284,0,15.001,6.716,15.001,15.001c0,8.284-6.716,15.001-15.001,15.001H38.327L1.558,415.193 c-4.656,18.258,1.301,37.262,15.547,49.595c14.274,12.357,33.937,15.495,51.31,8.287l413.094-171.409 C500.317,293.862,512,276.364,512,256.001C512,235.638,500.317,218.139,481.508,210.336z" />
             </svg>
           </button>
-          
+
         </div>
+        )}
       </div>
 
     </div>

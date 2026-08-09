@@ -171,6 +171,41 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       }
     }
 
+    // ici on rejoint le jeu sans rejoindre le chat, c'est la facon la plus simple de gerer le spec
+    @SubscribeMessage('join_room_as_spec')
+    async handleJoinRoomAsSpec(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
+
+      const userId = gameSocketUserMap.get(client.id);
+      if (!userId) {
+        client.emit('error', { message: 'User non identify' });
+        return;
+      }
+
+      if (this.gameService.isUserKick(data.channelId, userId)) {
+        client.emit('error', { message: 'You have been kicked from the channel!' });
+        client.emit('kicked_from_game', { userId });
+        return;
+      }
+
+      client.join(data.channelId.toString());
+
+      const session = this.gameService.getSession(data.channelId);
+      if (session) {
+        client.emit('room_info', { type: session.type, maxMembers: session.maxMembers, isSpectator: true });
+      }
+
+      const adminId = this.gameService.getRoomAdmin(data.channelId);
+      if (adminId) client.emit('new_admin', { adminId });
+
+      // Envoyer la liste des joueurs au spec (sinon elle reste vide)
+      const realPlayer = await this.gameService.getUserName(data.channelId);
+      if (realPlayer) client.emit('update_players', realPlayer);
+
+      // Si une partie est en cours, synchroniser l'état (dessin, scores, timer)
+      const snapshot = await this.gameService.getGameStateSnapshot(data.channelId, userId);
+      if (snapshot) client.emit('game_state_sync', snapshot);
+    }
+
     // @SubscribeMessage('join_public_room')
     // async handleJoinPublicRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelId: number}) {
 

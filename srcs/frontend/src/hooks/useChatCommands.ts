@@ -35,7 +35,7 @@ export function useChatCommands(
         }
 
         if (cmd === 'help') {
-            ok('Admin: /kick <user>  /mute <user> [min]  /pass <password>  /close  /(un)private\nUser:  /msg <user> <message>  /invite <user>  /add <user>  /(un)block <user>');
+            ok('Admin: /kick <user>  /mute <user> [min]  /pass <password>  /close  /(un)private  /limit <n>\nUser:  /msg <user> <message>  /invite <user>  /add <user>  /(un)block <user>');
             return;
         }
 
@@ -121,6 +121,17 @@ export function useChatCommands(
             if (!target) { err(`User "${args[0]}" not found`); return; }
             const r = await api(`/api/chat/block/${target.id}`, 'DELETE');
             r.ok ? ok(`${target.username} unblocked`) : err(r.msg || 'Error');
+            return;
+        }
+
+        if (cmd === 'limit') {
+            const n = parseInt(args[0]);
+            if (isNaN(n) || n < 2) { 
+                err('Usage: /limit <number> (min 2)'); 
+                return; 
+            }
+            const r = await api(`/api/chat/channels/${channelId}/max-members`, 'PATCH', { maxMembers: n });
+            r.ok ? ok(`Max players : ${n}`) : err(r.msg || 'Error');
             return;
         }
 

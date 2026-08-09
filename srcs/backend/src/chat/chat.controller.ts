@@ -30,10 +30,6 @@ export class ChatController {
 
     // ── Channels ──────────────────────────────────────────────────────────────
 
-    @Get('channels')
-    getPublicChannels() {
-        return this.chatService.getPublicChannels();
-    }
 
     @Get('channels/mine')
     getMyChannels(@CurrentUser() user: JwtPayload) {
@@ -94,6 +90,11 @@ export class ChatController {
         return this.chatService.setChannelPrivacy(user.sub, channelId, isPrivate);
     }
 
+    @Patch('channels/:id/max-members')
+    setMaxMembers( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Body('maxMembers') maxMembers: number) {
+        return this.chatService.setMaxMember(user.sub, channelId, maxMembers);
+    }
+
     @Delete('channels/:id')
     deleteChannel( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number) {
         return this.chatService.deleteChannel(user.sub, channelId);
@@ -143,18 +144,17 @@ export class ChatController {
         return this.chatService.unblockUser(user.sub, targetUserId);
     }
 
+    @Get('game-rooms')
+    getGameRooms(@CurrentUser() user: JwtPayload) {
+        return this.chatService.getGameChannels(user.sub);
+    }
+
     @Post('create-game')
-    async createGameRoom(@Req() req: any, @Body() body: { name?: string; isPrivate?: boolean; maxMembers?: number }) {
+    async createGameRoom(@Req() req: any, @Body() body: { name?: string; isPrivate?: boolean; maxMembers?: number; password?: string; rounds?: number }) {
 
         const creatorId = Number(req.user.sub || req.user.id || req.user.userId) ;
         const roomName = body.name || `Game Room ${Math.floor(Math.random() * 1000)}`;
-        const session = await this.gameService.createGameSession(
-            creatorId,
-            roomName,
-            body.isPrivate ?? false,
-            body.maxMembers
-        );
-
+        const session = await this.gameService.createGameSession(creatorId, roomName, body.isPrivate ?? false, body.maxMembers, body.password, body.rounds);
         return session;
     }
 

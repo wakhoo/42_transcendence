@@ -34,6 +34,8 @@ export interface GameSession {
   currentHint: string;
   maxMembers?: number | null;
   code?: string;
+  // mutex pour eviter deux appels handleNextTurn simultanement (race condition sur les await DB)
+  isHandlingTurn?: boolean;
 }
 
 
@@ -76,10 +78,11 @@ export class GameService implements OnModuleInit {
       return code;
     }
 
-   async createGameSession(creatorId: number, name: string, isPrivate: boolean = false, maxMembers?: number): Promise<GameSession> {
+    //j'ai rajoute le nbr de rounds en argument, ce sera 3 par defaut
+   async createGameSession(creatorId: number, name: string, isPrivate: boolean = false, maxMembers?: number, password?: string, maxRound?: number): Promise<GameSession> {
 
 
-    const channel = await this.chatService.createChannel(creatorId, name, 'game', isPrivate, undefined, maxMembers);
+    const channel = await this.chatService.createChannel(creatorId, name, 'game', isPrivate, password, maxMembers);
     const newGameSession : GameSession = {
 
         channelId: channel.id,
@@ -94,7 +97,7 @@ export class GameService implements OnModuleInit {
         guessedUsers: [],
         useWords: [],
         currentRound: 0,
-        maxRound: 2,
+        maxRound: maxRound ?? 3,
         historicDraw: [],
         isDrawing: false,
         currentHint: '',
@@ -319,12 +322,20 @@ export class GameService implements OnModuleInit {
 	}
 
 
-  // passer a la manche suivante 
+  // passer a la manche suivante
 	async handleNextTurn(channelId: number) {
 
     const currentGame = this.activeGames.get(channelId);
     if (!currentGame)
         return false;
+
+   // j'ai utilise ca comme un mutex pour eviter deux appels concurrents pendant un await DB
+    // le deuxieme appel effacerait le timerInterval du premier sans en demarrer un nouveau et ca arrete le chrono
+    if (currentGame.isHandlingTurn)
+        return false;
+    currentGame.isHandlingTurn = true;
+
+    try {
     if(currentGame.timerInterval){
       clearInterval(currentGame.timerInterval);
       currentGame.timerInterval = undefined;
@@ -360,7 +371,8 @@ export class GameService implements OnModuleInit {
 
             this.server.to(channelId.toString()).emit('round_break',currentGame.scores);
             currentGame.turnTimeout = setTimeout(() =>{
-              currentGame.currentDrawerId = playerIds[position];
+              // j'ai mis a -1 sinon ca sautait le premier joueur
+              currentGame.currentDrawerId = -1;
               this.handleNextTurn(channelId);
             },10000);
             return;
@@ -426,6 +438,10 @@ export class GameService implements OnModuleInit {
         },5000);
       }
     },1000);
+    } finally {
+      // relache le verrou meme si une exception est lancee
+      currentGame.isHandlingTurn = false;
+    }
   }
 
     //enregistre en temps reel le dessin et le diffuse au channel 
@@ -446,7 +462,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
     for (const [channelID, currentGame] of this.activeGames.entries()) {
       const isCreator = currentGame.creatorId === userId;
       const isInScore = currentGame.scores && currentGame.scores[userId] != undefined;
-      
+
       if (!isCreator && !isInScore) {
         continue;
       }

@@ -4,6 +4,7 @@ import GameChat from './GameChat';
 import { useNavigate } from 'react-router-dom';
 import GameCanvas from './GameCanvas';
 import { getAccessToken } from '../lib/session';
+import { ProfileContent } from '../pages/ProfilePage';
 export default function GamePage() {
 
   const [myId, setMyId] = useState<number | null>(null);
@@ -22,10 +23,10 @@ export default function GamePage() {
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [roomType, setRoomType] = useState<'public' | 'private' | undefined>(undefined);
   const [maxMembers, setMaxmembers] = useState<number | null>(null);
-  const [roomCode, setRoomCode] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isRoundBreak, setIsRoundBreak] = useState(false);
   const [foundWord, setWordFound] = useState<string | null>(null);
+  const [openProfileId, setOpenProfileId] = useState<number | null>(null);
   
 
  // const queryParam = new URLSearchParams(window.location.search);
@@ -92,10 +93,12 @@ export default function GamePage() {
     socket.on('connect', () => {
       console.log("Connecté au GameGateway !");
 
-     // const action = queryParam.get('action');
       if (actionType === 'create') {
         console.log(`Ordre reçu : Création de la room #${reelChannelId}...`);
         socket.emit('create_room', { name: `Salon de ${sessionStorage.getItem('username') || 'Game'}` });
+      } else if (actionType === 'spec') {
+        console.log(`Ordre reçu : Rejoindre la room #${reelChannelId} en spectateur...`);
+        socket.emit('join_room_as_spec', { channelId: reelChannelId });
       } else {
         console.log(` Ordre reçu : Rejoindre la room #${reelChannelId}...`);
         socket.emit('join_room', { channelId: reelChannelId });
@@ -134,7 +137,6 @@ export default function GamePage() {
     socket.on('room_info', (data: { type: 'public' | 'private', maxMembers: number | null, code?: string }) => {
       setRoomType(data.type);
       setMaxmembers(data.maxMembers);
-      setRoomCode(data.code ?? null);
     });
 
     // Reçu quand on (re)rejoint un salon dans lequel une partie est déjà en cours
@@ -232,7 +234,9 @@ export default function GamePage() {
 
     socket.on('kicked_from_game', (data: { userId: number }) => {
 
-      if(Number(data.userId) === Number(myIdRef.current)){
+      // Pour le spec, myIdRef peut ne pas encore être initialisé au moment du join
+      // (kick reçu avant la réponse de get_my_id), donc on redirige directement
+      if(actionType === 'spec' || Number(data.userId) === Number(myIdRef.current)){
        // alert("You have been kicked from the channel by admin");
         window.location.href = '/dashboard';
       }
@@ -314,6 +318,7 @@ export default function GamePage() {
   }, []);
 
   const isMeTheDrawer = Number(drawerInfo?.drawerId) === Number(myId);
+  const isSpectator   = actionType === 'spec';
 
   const handleStartGame = () => {
     if (socket) {
@@ -450,10 +455,15 @@ export default function GamePage() {
           </div>
         </div>
 
-          {roomType === 'private' && (
+          {roomType === 'private' && maxMembers != null && (
             <div className="flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg bg-violet-950 border border-violet-500 text-violet-300">
-              <span> code: <strong>{roomCode}</strong></span>
-              {maxMembers != null && <span>. Max {maxMembers} joueurs</span>}
+              <span>Max {maxMembers} joueurs</span>
+            </div>
+          )}
+
+          {isSpectator && (
+            <div className="flex items-center gap-2 text-sm font-semibold px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-500 text-slate-300">
+              <span>👁 Spectateur</span>
             </div>
           )}
 
@@ -488,7 +498,7 @@ export default function GamePage() {
 
           <ul className="space-y-2 overflow-y-auto flex-1">
            {(Array.isArray(listeJoueurs) ? listeJoueurs : []).map((joueur: any, index: number) => (
-            <li key={joueur?.id || index} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-100">
+            <li key={joueur?.id || index} onClick={() => setOpenProfileId(joueur.id)} className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-100 cursor-pointer hover:bg-slate-800 transition-colors">
               <div className="flex items-center gap-2.5">
                 
                 {joueur.avatarUrl ? (
@@ -618,12 +628,15 @@ export default function GamePage() {
               >
                 <span>⬅️ Return To Lobby</span>
               </button>
+              {/* Play Again masqué pour le spectateur : il ne peut pas relancer une partie */}
+              {!isSpectator && (
               <button
                 onClick={handlePlayAgain}
                 className="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold px-6 py-3 rounded-xl shadow-lg hover:shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider border border-emerald-500/30"
               >
                 <span>⬅️ Play Again</span>
               </button>
+              )}
 
             </div>
 
@@ -646,14 +659,37 @@ export default function GamePage() {
           </h3>
 
           <div className="flex-1 overflow-hidden">
-            <GameChat channelId={reelChannelId} />
+            <GameChat channelId={reelChannelId} isSpectator={isSpectator} />
           </div>
           
         </aside>
       </main>
 
+      {/* Modal de profil — clic sur un joueur dans la liste */}
+      {openProfileId !== null && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center"
+          onClick={() => setOpenProfileId(null)}
+        >
+          <div
+            className="bg-gray-900 rounded-xl border border-gray-800 max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto relative"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setOpenProfileId(null)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-white text-lg"
+            >
+              ✕
+            </button>
+            <div className="p-6">
+              <ProfileContent userId={openProfileId} key={openProfileId} />
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
-  
+
 
 }
