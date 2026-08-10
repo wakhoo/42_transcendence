@@ -421,7 +421,7 @@ export default function GamePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 p-4 flex flex-col gap-4 font-sans text-slate-800">
+    <div className="min-h-screen bg-slate-950 p-4 flex flex-col gap-4 font-sans text-slate-800 overflow-y-auto">
 
       {message && (
       <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-red-500/90 text-white px-6 py-3 rounded-full shadow-2xl border border-red-400 flex items-center gap-3 animate-bounce backdrop-blur-sm">
@@ -644,7 +644,7 @@ export default function GamePage() {
             </div>
 
               ) : (
-        <main className="flex-1 w-full h-[82vh] bg-slate-900/40 rounded-xl border border-slate-700/50 p-3 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
+        <main className="flex-1 w-full h-[50vh] lg:h-[82vh] bg-slate-900/40 rounded-xl border border-slate-700/50 p-3 flex flex-col items-center justify-center relative overflow-hidden shadow-inner">
           
           <div className="relative w-full h-full flex-1 overflow-hidden rounded-lg">
             <GameCanvas isDrawer={isMeTheDrawer} socket={socket} channelId={reelChannelId} /> 
@@ -655,16 +655,16 @@ export default function GamePage() {
         </section>
 
         {/* On utilise calc pour ajouter les 32px manquants au 82vh ! 👇 */}
-        <aside className="h-[90vh] w-80 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
-          
+        <aside className="h-[60vh] lg:h-[90vh] w-full lg:w-80 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+
           <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 shrink-0">
             Chat Game
           </h3>
 
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden min-h-0">
             <GameChat channelId={reelChannelId} isSpectator={isSpectator} />
           </div>
-          
+
         </aside>
       </main>
 

@@ -101,9 +101,9 @@ function LoginPage() {
                         </form>
                         <GoogleSignInButton />
                         <button
-                            onClick={() => navigate(-1)}
+                            onClick={() => navigate('/signUp')}
                             className="text-gray-500 text-sm text-center hover:text-white transition-colors">
-                            ← Back
+                            Don't have an account? Sign up
                         </button>
                     </>
                 ) : (
