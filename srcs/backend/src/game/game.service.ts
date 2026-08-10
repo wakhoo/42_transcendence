@@ -607,28 +607,28 @@ async handleDisconnection(userId: number): Promise<number | null> {
   }
 
   
-  async findPublicRoom(userId: number): Promise<number | null> {
+  // async findPublicRoom(userId: number): Promise<number | null> {
 
-     let kicked = false;
+  //    let kicked = false;
 
-     for (const [channelID, currentGame] of this.activeGames.entries()) {
+  //    for (const [channelID, currentGame] of this.activeGames.entries()) {
       
 
-      if(this.isUserKick(channelID, userId)){
-        kicked = true;
-        continue;
-      }
+  //     if(this.isUserKick(channelID, userId)){
+  //       kicked = true;
+  //       continue;
+  //     }
 
-      const currentMembers = await this.chatService.getChannelMember(channelID);
-      if(currentGame.type === 'public' && currentMembers.length > 0 && currentMembers.length < 8){
-          return channelID;
-        }
-      }
-      if(kicked)
-          throw new ForbiddenException("You have been kicked from this channel ");
+  //     const currentMembers = await this.chatService.getChannelMember(channelID);
+  //     if(currentGame.type === 'public' && currentMembers.length > 0 && currentMembers.length < 8){
+  //         return channelID;
+  //       }
+  //     }
+  //     if(kicked)
+  //         throw new ForbiddenException("You have been kicked from this channel ");
 
-      return null;
-  }
+  //     return null;
+  // }
 
   async forcedRemovePlayer(channelId: number, kickedUserId: number) {
 

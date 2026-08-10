@@ -579,10 +579,13 @@ export default function DashboardPage() {
                                         const v = e.target.value;
                                         if (v === '' || /^\d+$/.test(v)) setCreateMaxPlayers(v); // uniquement vide ou des chiffres
                                     }}
-                                    placeholder="No limit"
+                                    placeholder="Max 8"
                                 />
                                 {createMaxPlayers !== '' && !(Number(createMaxPlayers) >= 2) && (
                                     <span className="text-red-400 text-xs">Must be 2 or more</span>
+                                )}
+                                 {createMaxPlayers !== '' && (Number(createMaxPlayers) > 8) && (
+                                    <span className="text-red-400 text-xs">Must be 8 maximum</span>
                                 )}
                             </label>
 
@@ -639,7 +642,7 @@ export default function DashboardPage() {
                                     Cancel
                                 </button>
                                 <button
-                                    disabled={(createMaxPlayers !== '' && !(Number(createMaxPlayers) >= 2)) || (createRounds !== '' && !(Number(createRounds) >= 1))}
+                                    disabled={(createMaxPlayers !== '' && !(Number(createMaxPlayers) >= 2) || Number(createMaxPlayers) > 8) || (createRounds !== '' && !(Number(createRounds) >= 1))}
                                     onClick={async () => {
                                         try {
                                             const response = await fetch(`${window.location.origin}/api/chat/create-game`, {

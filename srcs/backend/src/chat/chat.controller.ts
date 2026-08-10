@@ -158,14 +158,14 @@ export class ChatController {
         return session;
     }
 
-    @Get('join-public-game')
-    async joinPublicGame(@CurrentUser() user: JwtPayload) {
+    // @Get('join-public-game')
+    // async joinPublicGame(@CurrentUser() user: JwtPayload) {
 
-        const userId = user.sub;
-        const channelId = await this.gameService.findPublicRoom(userId);
-        if(!channelId)
-            throw new NotFoundException('No public room yet you can create one !');
-        return {channelId};
-    }
+    //     const userId = user.sub;
+    //     const channelId = await this.gameService.findPublicRoom(userId);
+    //     if(!channelId)
+    //         throw new NotFoundException('No public room yet you can create one !');
+    //     return {channelId};
+    // }
 
 }

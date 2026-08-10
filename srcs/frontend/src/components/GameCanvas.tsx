@@ -60,6 +60,8 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		};
 	};
 
+
+	//clique souris 
 	const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
 
 	if(!isDrawer || !contextRef.current || !canvasRef.current)
@@ -75,6 +77,7 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 
 	};
 
+	//mouvement de souris
 	const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
 
 		if(!isDrawing || !isDrawer || !contextRef.current || !canvasRef.current || !prevPos.current)
@@ -99,6 +102,8 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 	prevPos.current = {x, y};
 	};
 
+
+	//dessine reellement
 	const drawSegment = (x1: number, y1: number, x2: number, y2: number, segColor: string = '#FFFFFF',
 		segSize: number = 4, tool: DrawTool = 'pencil') => {
 
@@ -129,6 +134,8 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		if(!socket)
 			return;
 	
+
+		//dessine le trait recu d un autre joueur
 		const handleIncomingDraw = (recu: any) => {
 
 			if(isDrawer)

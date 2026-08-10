@@ -491,7 +491,7 @@ export default function GamePage() {
       </header>
 
 
-      <main className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1 min-h-[500px]">
+      <main className="grid grid-cols-1 lg:grid-cols-[16rem_1fr_20rem] gap-4 flex-1 min-h-[500px]">
 
         <aside className="bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
           <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 flex items-center justify-between">
@@ -538,7 +538,7 @@ export default function GamePage() {
         </aside>
 
 
-        <section className="col-span-1 lg:col-span-2 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
+        <section className="bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center relative overflow-hidden">
           
           {showMsg && drawerInfo &&  !endGame && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full shadow-md text-sm font-medium z-10 animate-bounce">
@@ -654,8 +654,7 @@ export default function GamePage() {
           )}
         </section>
 
-        {/* On utilise calc pour ajouter les 32px manquants au 82vh ! 👇 */}
-        <aside className="h-[60vh] lg:h-[90vh] w-full lg:w-80 bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+        <aside className="h-[60vh] lg:h-[90vh] w-full bg-slate-950 p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col">
 
           <h3 className="font-bold text-lg text-slate-800 border-b border-slate-100 pb-3 mb-3 shrink-0">
             Chat Game
