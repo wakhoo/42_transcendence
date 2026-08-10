@@ -43,14 +43,11 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		ctx.lineWidth = 5;
 
 		contextRef.current = ctx;
-
 		
-			
 	}, []);
 
 
 	const getExactPosition = (canvas: HTMLCanvasElement, e: React.MouseEvent<HTMLCanvasElement> | MouseEvent) => {
-
 
 		const rect = canvas.getBoundingClientRect();
 
@@ -60,13 +57,10 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 
 			x: (e.clientX - rect.left) * scaleX,
 			y: (e.clientY - rect.top) * scaleY
-
 		};
-
 	};
 
 	const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
-
 
 	if(!isDrawer || !contextRef.current || !canvasRef.current)
 		return;
@@ -100,11 +94,9 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 			lineWidth: brushSize,
 			tool: activeTool
 		};
-
 		socket.emit('draw', {drawData: drawdata , channelId: channelId});
 	}
 	prevPos.current = {x, y};
-
 	};
 
 	const drawSegment = (x1: number, y1: number, x2: number, y2: number, segColor: string = '#FFFFFF',
