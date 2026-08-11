@@ -3,8 +3,11 @@ import { ClassSerializerInterceptor, ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
+import { loadVaultSecrets } from "./vault-loader";
 
 async function bootstrap() {
+  await loadVaultSecrets();
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.set("trust proxy", 1);

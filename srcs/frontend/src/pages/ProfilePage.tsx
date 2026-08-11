@@ -760,9 +760,13 @@ export function ProfileContent({ userId }: { userId?: number }) {
             ) : (
                 <div className="flex flex-col items-center text-center gap-4 py-4">
                     <div
-                        className="w-20 h-20 rounded-2xl border-4"
+                        className="w-20 h-20 rounded-2xl border-4 overflow-hidden"
                         style={{ backgroundColor: targetUser!.profileColor, borderColor: targetUser!.profileColor + '55' }}
-                    />
+                    >
+                        {targetUser!.avatarUrl && (
+                            <img src={targetUser!.avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+                        )}
+                    </div>
                     <h2 className="text-xl font-bold">{targetUser!.username}</h2>
 
                     {myFriendship && (

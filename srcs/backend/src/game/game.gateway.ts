@@ -13,7 +13,7 @@ import { UserService } from '../user/user.service';
 export const gameSocketUserMap = new Map<string, number>();
 
 // point d'entree reseau 
-@WebSocketGateway({ cors: true, namespace: '/game'})
+@WebSocketGateway({ cors: { origin: process.env.NESTAUTH_URL }, namespace: '/game'})
 
 export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 

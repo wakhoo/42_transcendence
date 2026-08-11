@@ -17,7 +17,7 @@ import { UserService } from '../user/user.service';
 
 export const socketUserMap = new Map<string, number>();
 
-@WebSocketGateway({ namespace: '/chat', cors: { origin: '*' } })
+@WebSocketGateway({ namespace: '/chat', cors: { origin: process.env.NESTAUTH_URL } })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer()
     server!: Server;

@@ -74,8 +74,16 @@ services:
     depends_on:
       mariadb:
         condition: service_healthy
-      # vault:
-      #   condition: service_healthy
+      vault:
+        condition: service_healthy
+    volumes:
+      - vault_approle:/vault/approle:ro
+      - vault_certs:/vault/certs:ro
+    environment:
+      VAULT_ADDR: https://vault:8200
+      VAULT_CACERT: /vault/certs/cert.pem
+      VAULT_ROLE_ID_FILE: /vault/approle/role_id
+      VAULT_SECRET_ID_FILE: /vault/approle/secret_id
     env_file: .env
     restart: unless-stopped
     healthcheck:
@@ -112,26 +120,28 @@ services:
   #  HashiCorp Vault — Secret management
   #  vault_net only — backend access only
   # ----------------------------------------------------------
-  # vault:
-  #   build:
-  #     context: ./srcs/vault
-  #     dockerfile: Dockerfile
-  #   container_name: vault
-  #   networks:
-  #     - vault_net
-  #   volumes:
-  #     - vault_data:/vault/data
-  #     - ./srcs/vault/config:/vault/config:ro
-  #   env_file: .env
-  #   cap_add:
-  #     - IPC_LOCK
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     # Ensures the container is not just running but actually ready to accept connections before dependent services start.
-  #     test: ["CMD", "vault", "status"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  vault:
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
+    container_name: vault
+    networks:
+      - vault_net
+    volumes:
+      - vault_data:/vault/data
+      - ./vault/config:/vault/config:ro
+      - vault_certs:/vault/certs
+      - vault_approle:/vault/approle
+    cap_add:
+      - IPC_LOCK
+    restart: unless-stopped
+    healthcheck:
+      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 
 # ============================================================
@@ -149,9 +159,27 @@ networks:
 volumes:
   mariadb_data:
     driver: local
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /home/dancel/data/mariadb
 
   vault_data:
     driver: local
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /home/dancel/data/vault
 
   nginx_logs:
+    driver: local
+
+  # vault (container, runs as root) writes into these at runtime — as
+  # Docker-managed named volumes instead of host bind mounts, no
+  # root-owned directory ever lands inside the project tree, so no
+  # sudo is needed to create, read, or reset them.
+  vault_certs:
+    driver: local
+
+  vault_approle:
     driver: local
