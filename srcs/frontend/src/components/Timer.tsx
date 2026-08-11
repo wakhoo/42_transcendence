@@ -49,9 +49,13 @@ export default function GamePage() {
 
   const handleLeave = () => {
 
-      if (socket)
+      if (socket && reelChannelId)
         socket.emit('leave_room', {channelId: reelChannelId});
-      window.location.href = '/dashboard';
+
+      navigate('/dashboard');
+      // setTimeout(() => {
+      // window.location.href = '/dashboard';
+      // });
     };
 
   useEffect(() => {
@@ -282,40 +286,18 @@ export default function GamePage() {
     return () => {
       cancelled = true;
 
-     if (socketInstance && socketInstance.connected) {
+     if (socketInstance ) {
 
-        socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
+        if(socketInstance.connected)
+          socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
+      
+        socketInstance.removeAllListeners();
         setTimeout(() => {
           if (socketInstance) {
             socketInstance.disconnect();
           }
         }, 100);
       }
-
-      if (socketInstance) {
-        socketInstance.off('connect');
-        socketInstance.off('update_players');
-        socketInstance.off('game_state_sync');
-        socketInstance.off('timer_update');
-        socketInstance.off('round_start');
-        socketInstance.off('word_hint');
-        socketInstance.off('error');
-        socketInstance.off('exception');
-        socketInstance.off('secret_word');
-        socketInstance.off('round_end');
-        socketInstance.off('room_created');
-        socketInstance.off('classement');
-        socketInstance.off('message_channel');
-        socketInstance.off('game_over');
-        socketInstance.off('game_cancelled');
-        socketInstance.off('game_closed');
-        socketInstance.off('kicked_from_game');
-        socketInstance.off('game_invite');
-        socketInstance.off('new_admin');
-        socketInstance.off('round_break');
-        socketInstance.removeAllListeners();
-      }
-     // socketInstance.disconnect();
     };
 
   }, []);
