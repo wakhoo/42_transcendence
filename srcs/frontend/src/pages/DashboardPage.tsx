@@ -398,7 +398,7 @@ export default function DashboardPage() {
                                                     </span>
                                                 )}
                                                 <span className={`text-[11px] font-semibold ${isFull ? 'text-red-400' : 'text-gray-400'}`}>
-                                                    {memberCount}/{max ?? '∞'}
+                                                    {memberCount}/{max ?? '8'}
                                                 </span>
                                                 {/* bouton oeil pour rejoindre en spec sauf si kick*/}
                                                 <span
