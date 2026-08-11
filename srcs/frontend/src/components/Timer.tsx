@@ -422,7 +422,21 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 p-4 flex flex-col gap-4 font-sans text-slate-800 overflow-y-auto">
-
+      <div className="lg:hidden fixed inset-0 z-[9999] bg-slate-950/98 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
+        <div className="bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl max-w-sm">
+          <span className="text-6xl block mb-4 animate-bounce">🖥️</span>
+          <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-emerald-400 mb-3">
+            Screen Too Small
+          </h2>
+          <p className="text-slate-400 text-sm leading-relaxed mb-6">
+            For the best gaming experience and to use the drawing canvas properly, 
+            <strong> DrawDraw</strong> is only available on desktop screens.
+          </p>
+          <div className="animate-pulse text-xs font-bold text-indigo-500 uppercase tracking-widest border border-indigo-500/30 bg-indigo-500/10 py-2 rounded-lg">
+            Please resize your window or join from a computer.
+          </div>
+        </div>
+      </div>
       {message && (
       <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-red-500/90 text-white px-6 py-3 rounded-full shadow-2xl border border-red-400 flex items-center gap-3 animate-bounce backdrop-blur-sm">
         <span className="text-xl">⚠️</span>
