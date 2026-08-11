@@ -78,7 +78,7 @@ export class UserController {
             username: dto.username,
             avatarUrl: dto.avatarUrl,
         });
-        this.gdprAudit.logDataChanged(userId);
+        await this.gdprAudit.logDataChanged(userId, req.ip);
         return this.toSafeProfile(updated);
     }
 
@@ -103,7 +103,7 @@ export class UserController {
 
         const newHash = await bcrypt.hash(dto.newPassword, 12);
         await this.userService.setPasswordHash(userId, newHash);
-        this.gdprAudit.logDataChanged(userId);
+        await this.gdprAudit.logDataChanged(userId, req.ip);
         return { success: true };
     }
 
@@ -119,7 +119,7 @@ export class UserController {
             if (!valid) throw new UnauthorizedException('Invalid 2FA code');
         }
 
-        this.gdprAudit.logDataExported(user.id);
+        await this.gdprAudit.logDataExported(user.id, req.ip);
         return {
             messages: await this.userService.getUserMessage(user.id),
             profile: this.toSafeProfile(user),
@@ -147,7 +147,7 @@ export class UserController {
         }
 
         await this.userService.remove(userId);
-        this.gdprAudit.logAccountDeleted(userId);
+        await this.gdprAudit.logAccountDeleted(userId, req.ip);
     }
 
     private toSafeProfile(user: User) {

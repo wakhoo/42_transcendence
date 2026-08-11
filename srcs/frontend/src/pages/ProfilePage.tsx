@@ -72,6 +72,10 @@ export function ProfileContent({ userId }: { userId?: number }) {
     const [awaitingPasswordCode, setAwaitingPasswordCode] = useState(false);
     const [passwordMsg, setPasswordMsg]         = useState('');
     const [passwordError, setPasswordError]     = useState('');
+    const [passwordSaving, setPasswordSaving]   = useState(false);
+
+    const [savingProfile, setSavingProfile]     = useState(false);
+    const [deletingAccount, setDeletingAccount] = useState(false);
 
     async function loadAll() {
         const token = await getAccessToken();
@@ -109,26 +113,33 @@ export function ProfileContent({ userId }: { userId?: number }) {
     useEffect(() => { loadAll(); }, []); // le [] c'est pour lancer loadAll au demarage
 
     async function saveProfile(code?: string) {
+        if (savingProfile) return;
+
         const changingIdentity = me != null && (username !== me.username || email !== me.email);
         if (changingIdentity && me?.totpEnabled && !code) {
             setAwaitingProfileCode(true);
             return;
         }
 
-        const res = await fetch('/api/user/me', {
-            method: 'PATCH',
-            headers: await authHeaders(),
-            body: JSON.stringify(code ? { username, email, code } : { username, email }),
-        }); //stringify c'est pour transformer en json
-        const data = await res.json();
-        if (res.ok) {  //res.ok veut dire que le code http est compris entre 200 et 299 donc que tout s'est bien passe
-            setMe(data);
-            setMsg('Profile updated');
-            setAwaitingProfileCode(false);
-            setProfileCode('');
-            window.location.reload();
+        setSavingProfile(true);
+        try {
+            const res = await fetch('/api/user/me', {
+                method: 'PATCH',
+                headers: await authHeaders(),
+                body: JSON.stringify(code ? { username, email, code } : { username, email }),
+            }); //stringify c'est pour transformer en json
+            const data = await res.json();
+            if (res.ok) {  //res.ok veut dire que le code http est compris entre 200 et 299 donc que tout s'est bien passe
+                setMe(data);
+                setMsg('Profile updated');
+                setAwaitingProfileCode(false);
+                setProfileCode('');
+                window.location.reload();
+            }
+            else setMsg(data.message ?? 'Error'); //dans le json de la requete retour message contient le code http et le message d'erreur lance par mes exceptions
+        } finally {
+            setSavingProfile(false);
         }
-        else setMsg(data.message ?? 'Error'); //dans le json de la requete retour message contient le code http et le message d'erreur lance par mes exceptions
     }
 
     function cancelProfileCode() {
@@ -138,22 +149,28 @@ export function ProfileContent({ userId }: { userId?: number }) {
 
     async function handleDeleteAccount(e: FormEvent) {
         e.preventDefault();
+        if (deletingAccount) return;
         setDeleteError('');
-        const res = await fetch('/api/user/me', {
-            method: 'DELETE',
-            headers: await authHeaders(),
-            body: JSON.stringify({
-                ...(deletePassword ? { password: deletePassword } : {}),
-                ...(deleteCode ? { code: deleteCode } : {}),
-            }),
-        });
-        if (res.ok) {
-            clearSession();
-            navigate('/login');
-            return;
+        setDeletingAccount(true);
+        try {
+            const res = await fetch('/api/user/me', {
+                method: 'DELETE',
+                headers: await authHeaders(),
+                body: JSON.stringify({
+                    ...(deletePassword ? { password: deletePassword } : {}),
+                    ...(deleteCode ? { code: deleteCode } : {}),
+                }),
+            });
+            if (res.ok) {
+                clearSession();
+                navigate('/login');
+                return;
+            }
+            const data = await res.json().catch(() => ({}));
+            setDeleteError(data.message ?? 'Failed to delete account');
+        } finally {
+            setDeletingAccount(false);
         }
-        const data = await res.json().catch(() => ({}));
-        setDeleteError(data.message ?? 'Failed to delete account');
     }
 
     function cancelDelete() {
@@ -164,6 +181,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
     }
 
     async function changePassword(code?: string) {
+        if (passwordSaving) return;
         setPasswordError('');
         setPasswordMsg('');
 
@@ -177,25 +195,30 @@ export function ProfileContent({ userId }: { userId?: number }) {
             return;
         }
 
-        const res = await fetch('/api/user/me/password', {
-            method: 'PATCH',
-            headers: await authHeaders(),
-            body: JSON.stringify({
-                ...(currentPassword ? { currentPassword } : {}),
-                newPassword,
-                ...(code ? { code } : {}),
-            }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) {
-            setPasswordMsg('Password updated');
-            setCurrentPassword('');
-            setNewPassword('');
-            setConfirmPassword('');
-            setPasswordCode('');
-            setAwaitingPasswordCode(false);
-        } else {
-            setPasswordError(data.message ?? 'Failed to update password');
+        setPasswordSaving(true);
+        try {
+            const res = await fetch('/api/user/me/password', {
+                method: 'PATCH',
+                headers: await authHeaders(),
+                body: JSON.stringify({
+                    ...(currentPassword ? { currentPassword } : {}),
+                    newPassword,
+                    ...(code ? { code } : {}),
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                setPasswordMsg('Password updated');
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+                setPasswordCode('');
+                setAwaitingPasswordCode(false);
+            } else {
+                setPasswordError(data.message ?? 'Failed to update password');
+            }
+        } finally {
+            setPasswordSaving(false);
         }
     }
 
@@ -287,11 +310,17 @@ export function ProfileContent({ userId }: { userId?: number }) {
     }
 
     async function handleAvatarSelect(avatarUrl: string) {
-        const res = await fetch('/api/user/me', { method: 'PATCH', headers: await authHeaders(), body: JSON.stringify({ avatarUrl }) });
-        const data = await res.json();
-        if (res.ok) {
-            setMe(data);
-            setMsg('Avatar updated');
+        if (savingProfile) return;
+        setSavingProfile(true);
+        try {
+            const res = await fetch('/api/user/me', { method: 'PATCH', headers: await authHeaders(), body: JSON.stringify({ avatarUrl }) });
+            const data = await res.json();
+            if (res.ok) {
+                setMe(data);
+                setMsg('Avatar updated');
+            }
+        } finally {
+            setSavingProfile(false);
         }
     }
 
@@ -371,17 +400,19 @@ export function ProfileContent({ userId }: { userId?: number }) {
                         <div className="flex items-center gap-2">
                             <button
                                 onClick={() => startExport('download')}
+                                disabled={exportLoading}
                                 title="Export my data"
                                 aria-label="Export my data"
-                                className="px-2 py-1 rounded-lg bg-gray-900 border border-gray-700 hover:bg-gray-800 transition-colors text-xs text-gray-300"
+                                className="px-2 py-1 rounded-lg bg-gray-900 border border-gray-700 hover:bg-gray-800 transition-colors text-xs text-gray-300 disabled:opacity-50"
                             >
                                 Export ⬆️
                             </button>
                             <button
                                 onClick={() => startExport('view')}
+                                disabled={exportLoading}
                                 title="View my data"
                                 aria-label="View my data"
-                                className="px-2 py-1 rounded-lg bg-gray-900 border border-gray-700 hover:bg-gray-800 transition-colors text-xs text-gray-300"
+                                className="px-2 py-1 rounded-lg bg-gray-900 border border-gray-700 hover:bg-gray-800 transition-colors text-xs text-gray-300 disabled:opacity-50"
                             >
                                 View info 🔍
                             </button>
@@ -451,7 +482,8 @@ export function ProfileContent({ userId }: { userId?: number }) {
                         {!awaitingProfileCode && (
                             <button
                                 onClick={() => saveProfile()}
-                                className="self-start px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors"
+                                disabled={savingProfile}
+                                className="self-start px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors disabled:opacity-50"
                             >
                                 Save
                             </button>
@@ -472,7 +504,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                                 <div className="flex gap-2">
                                     <button
                                         type="submit"
-                                        disabled={profileCode.length !== 6}
+                                        disabled={profileCode.length !== 6 || savingProfile}
                                         className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors disabled:opacity-50"
                                     >
                                         Confirm
@@ -546,7 +578,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                                         </ul>
                                         <button
                                             onClick={() => changePassword()}
-                                            disabled={(me.hasPassword && !currentPassword) || !passwordChecksPassed}
+                                            disabled={(me.hasPassword && !currentPassword) || !passwordChecksPassed || passwordSaving}
                                             className="self-start px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors disabled:opacity-50"
                                         >
                                             Change password
@@ -568,7 +600,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                                         <div className="flex gap-2">
                                             <button
                                                 type="submit"
-                                                disabled={passwordCode.length !== 6}
+                                                disabled={passwordCode.length !== 6 || passwordSaving}
                                                 className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors disabled:opacity-50"
                                             >
                                                 Confirm
@@ -740,7 +772,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                                 <div className="flex gap-2">
                                     <button
                                         type="submit"
-                                        disabled={(me.hasPassword && !deletePassword) || (me.totpEnabled && deleteCode.length !== 6)}
+                                        disabled={(me.hasPassword && !deletePassword) || (me.totpEnabled && deleteCode.length !== 6) || deletingAccount}
                                         className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors disabled:opacity-50"
                                     >
                                         Confirm delete

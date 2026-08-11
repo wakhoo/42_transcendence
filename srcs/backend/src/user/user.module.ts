@@ -5,13 +5,14 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { JwtGuard } from "../auth/guards/jwt.guard";
 import { User } from "./user.entity";
 import { Message } from "../chat/entities/message.entity";
+import { AuditLog } from "./audit-log.entity";
 import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { GdprAuditService } from "./gdpr-audit.service";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Message]),
+    TypeOrmModule.forFeature([User, Message, AuditLog]),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
