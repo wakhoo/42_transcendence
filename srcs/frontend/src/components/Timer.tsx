@@ -422,7 +422,7 @@ export default function GamePage() {
 
   return (
     <div className="min-h-screen bg-slate-950 p-4 flex flex-col gap-4 font-sans text-slate-800 overflow-y-auto">
-      <div className="lg:hidden fixed inset-0 z-[9999] bg-slate-950/98 backdrop-blur-md flex flex-col items-center justify-center p-8 text-center text-white">
+      <div className="flex lg:[@media(min-height:700px)]:hidden fixed inset-0 z-[9999] bg-slate-950/98 backdrop-blur-md flex-col items-center justify-center p-8 text-center text-white">
         <div className="bg-slate-900 border border-slate-700 p-8 rounded-2xl shadow-2xl max-w-sm">
           <span className="text-6xl block mb-4 animate-bounce">🖥️</span>
           <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-emerald-400 mb-3">
@@ -435,6 +435,14 @@ export default function GamePage() {
           <div className="animate-pulse text-xs font-bold text-indigo-500 uppercase tracking-widest border border-indigo-500/30 bg-indigo-500/10 py-2 rounded-lg">
             Please resize your window or join from a computer.
           </div>
+          <button
+            onClick={() => {
+              window.location.href = "/dashboard";
+            }}
+            className="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black px-6 py-3.5 rounded-xl shadow-xl hover:shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider"
+          >
+            <span>⬅️ Return To Dashboard</span>
+          </button>
         </div>
       </div>
       {message && (

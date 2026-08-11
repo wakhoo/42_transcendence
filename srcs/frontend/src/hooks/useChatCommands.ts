@@ -126,8 +126,8 @@ export function useChatCommands(
 
         if (cmd === 'limit') {
             const n = parseInt(args[0]);
-            if (isNaN(n) || n < 2) { 
-                err('Usage: /limit <number> (min 2)'); 
+            if (isNaN(n) || n < 2 || n > 8) { 
+                err('Usage: /limit <number> (min 2, max 8)'); 
                 return; 
             }
             const r = await api(`/api/chat/channels/${channelId}/max-members`, 'PATCH', { maxMembers: n });
