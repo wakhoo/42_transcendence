@@ -439,7 +439,7 @@ export default function GamePage() {
             onClick={() => {
               window.location.href = "/dashboard";
             }}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black px-6 py-3.5 rounded-xl shadow-xl hover:shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider"
+            className="mt-6 w-full bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black px-6 py-3.5 rounded-xl shadow-xl hover:shadow-indigo-500/20 transition-all flex items-center justify-center gap-2 text-sm uppercase tracking-wider"
           >
             <span>⬅️ Return To Dashboard</span>
           </button>
