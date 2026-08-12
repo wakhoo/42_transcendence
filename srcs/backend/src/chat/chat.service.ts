@@ -41,9 +41,7 @@ export class ChatService implements OnModuleInit {
     ) {}
 
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // INITIALISATION : si salon general ou badwords n'existent pas, les cree
-    // ─────────────────────────────────────────────────────────────────────────
+    // INITIALISATION : si salon general ou badwords n'existent pas, les cree 
 
     async onModuleInit(): Promise<void> {
         const count = await this.badWordRepo.count();
@@ -62,9 +60,8 @@ export class ChatService implements OnModuleInit {
         return general;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+
     // CHANNELS : creation + getters
-    // ─────────────────────────────────────────────────────────────────────────
 
     async getGameChannels(userId: number): Promise<(Channel & { isUserMember: boolean; isUserKicked: boolean; maxRound?: number })[]> {
         const channels = await this.channelRepo.find({ where: { type: 'game' }, relations: { members: { user: true } } });
@@ -94,20 +91,14 @@ export class ChatService implements OnModuleInit {
         });
         const saved = await this.channelRepo.save(channel);
 
-        const membership = this.memberRepo.create({
-            user: { id: userId },
-            channel: { id: saved.id },
-            role: 'admin',
-        });
+        const membership = this.memberRepo.create({ user: { id: userId }, channel: { id: saved.id }, role: 'admin'});
         await this.memberRepo.save(membership);
 
         return saved;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // CHANNELS — rejoindre et quitter
-    // ─────────────────────────────────────────────────────────────────────────
 
+    // CHANNELS — rejoindre et quitter
 
     async getChannelMember(channelId: number): Promise<ChannelMember[]>  {
         return this.memberRepo.find({ where: { channel: { id: channelId } } });
@@ -118,7 +109,7 @@ export class ChatService implements OnModuleInit {
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
         if (!channel) throw new NotFoundException('Channel not found');
 
-        const existing = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
+        const existing = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } } });
         if (existing) 
             return existing;
 
@@ -138,16 +129,12 @@ export class ChatService implements OnModuleInit {
             if (count >= channel.maxMembers) throw new ForbiddenException('Channel is full');
         }
 
-        const membership = this.memberRepo.create({
-            user: { id: userId },
-            channel: { id: channelId },
-            role: 'member',
-        });
+        const membership = this.memberRepo.create({ user: { id: userId }, channel: { id: channelId }, role: 'member'});
         return this.memberRepo.save(membership);
     }
 
     async leaveChannel(userId: number, channelId: number): Promise<void> {
-        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
+        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } } });
         if (!membership) throw new NotFoundException('You are not a member of this channel');
 
         const wasAdmin = membership.role === 'admin' ;
@@ -164,12 +151,11 @@ export class ChatService implements OnModuleInit {
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+
     // CHANNELS — actions admin (kick, invite, mute, password, limit, suppression)
-    // ─────────────────────────────────────────────────────────────────────────
 
     private async requireAdmin(userId: number, channelId: number): Promise<void> {
-        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, });
+        const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } } });
         if (!membership || membership.role !== 'admin') {
             throw new ForbiddenException('Admin privileges required');
         }
@@ -179,20 +165,16 @@ export class ChatService implements OnModuleInit {
         await this.requireAdmin(adminId, channelId);
         this.gameService.banUserFromChannel(channelId, targetUserId);
         await this.gameService.forcedRemovePlayer(channelId, targetUserId);
-        const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
+        const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } } });
         if (target)
             await this.memberRepo.remove(target);
     }
 
     async inviteUser(adminId: number, channelId: number, targetUserId: number): Promise<ChannelMember> {
         await this.requireAdmin(adminId, channelId);
-        const existing = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
+        const existing = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } } });
         if (existing) throw new BadRequestException('User is already in this channel');
-        const membership = this.memberRepo.create({
-            user: { id: targetUserId },
-            channel: { id: channelId },
-            role: 'member',
-        });
+        const membership = this.memberRepo.create({ user: { id: targetUserId }, channel: { id: channelId }, role: 'member'});
         await this.gameService.sendInviteNotif(targetUserId, channelId,"Admin");
         return this.memberRepo.save(membership);
     }
@@ -255,9 +237,8 @@ export class ChatService implements OnModuleInit {
         this.gameService.server.emit('channel_deleted', {channelId: channelId});
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+
     // MESSAGES
-    // ─────────────────────────────────────────────────────────────────────────
 
     async sendMessage(userId: number, channelId: number, content: string): Promise<Message | any> {
         const membership = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } }, relations: { channel: true }});
@@ -313,9 +294,8 @@ export class ChatService implements OnModuleInit {
         return this.messageRepo.find({ where: { channel: { id: channelId } }, relations: { sender: true }, order: { createdAt: 'DESC' }, take: limit });
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+
     // MESSAGES PRIVÉS — crée ou retrouve un channel DM entre deux users
-    // ─────────────────────────────────────────────────────────────────────────
 
     async getOrCreateDmChannel(userId: number, targetUserId: number): Promise<Channel> {
         const dmName = `dm_${Math.min(userId, targetUserId)}_${Math.max(userId, targetUserId)}`;
@@ -331,9 +311,8 @@ export class ChatService implements OnModuleInit {
         return channel;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+
     // AMIS
-    // ─────────────────────────────────────────────────────────────────────────
 
     async sendFriendRequest(requesterId: number, addresseeId: number): Promise<Friendship> {
         if (requesterId === addresseeId) throw new BadRequestException('Cannot add yourself');
@@ -371,7 +350,6 @@ export class ChatService implements OnModuleInit {
     }
 
     async unblockUser(userId: number, targetUserId: number): Promise<void> {
-        // correction : on ne cherche que dans le sens userId=requester pour que seul le bloqueur puisse débloquer
         const block = await this.friendshipRepo.findOne({ where: { requester: { id: userId }, addressee: { id: targetUserId }, status: 'blocked' } });
         if (!block) throw new NotFoundException('No block found with this user');
         await this.friendshipRepo.remove(block);

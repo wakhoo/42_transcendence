@@ -4,7 +4,9 @@ WORKDIR /app
 
 COPY package*.json ./
 
-# installation exacte du lock file 
+RUN apk add --no-cache python3 make g++
+
+# exact lock file install
 RUN npm ci
 
 COPY . .

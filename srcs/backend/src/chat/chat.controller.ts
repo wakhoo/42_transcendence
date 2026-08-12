@@ -8,7 +8,6 @@ import {
     ParseIntPipe,
     Patch,
     Post,
-    Req,
     UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -100,12 +99,12 @@ export class ChatController {
         return this.chatService.deleteChannel(user.sub, channelId);
     }
 
-    // ── DMs ───────────────────────────────────────────────────────────────────
+//      // ── DMs ───────────────────────────────────────────────────────────────────
 
-    @Get('dm/:userId')
-    getDmChannel( @CurrentUser() user: JwtPayload, @Param('userId', ParseIntPipe) targetUserId: number) {
-        return this.chatService.getOrCreateDmChannel(user.sub, targetUserId);
-    }
+//      @Get('dm/:userId')
+//      getDmChannel( @CurrentUser() user: JwtPayload, @Param('userId', ParseIntPipe) targetUserId: number) {
+//         return this.chatService.getOrCreateDmChannel(user.sub, targetUserId);
+//      }
 
     // ── Amis ──────────────────────────────────────────────────────────────────
 
@@ -150,22 +149,9 @@ export class ChatController {
     }
 
     @Post('create-game')
-    async createGameRoom(@Req() req: any, @Body() body: { name?: string; isPrivate?: boolean; maxMembers?: number; password?: string; rounds?: number }) {
-
-        const creatorId = Number(req.user.sub || req.user.id || req.user.userId) ;
+    async createGameRoom(@CurrentUser() user: JwtPayload, @Body() body: { name?: string; isPrivate?: boolean; maxMembers?: number; password?: string; rounds?: number }) {
         const roomName = body.name || `Game Room ${Math.floor(Math.random() * 1000)}`;
-        const session = await this.gameService.createGameSession(creatorId, roomName, body.isPrivate ?? false, body.maxMembers, body.password, body.rounds);
+        const session = await this.gameService.createGameSession(user.sub, roomName, body.isPrivate ?? false, body.maxMembers, body.password, body.rounds);
         return session;
     }
-
-    // @Get('join-public-game')
-    // async joinPublicGame(@CurrentUser() user: JwtPayload) {
-
-    //     const userId = user.sub;
-    //     const channelId = await this.gameService.findPublicRoom(userId);
-    //     if(!channelId)
-    //         throw new NotFoundException('No public room yet you can create one !');
-    //     return {channelId};
-    // }
-
 }

@@ -46,14 +46,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                 return;
             }
 
-            // Signature-only verification would still accept tokens for users deleted
-            // after the token was issued (e.g. DB reset while the access token is still
-            // within its TTL), so the subject must still exist.
             const user = await this.userService.findById(payload.sub);
             if (!user) {
                 client.disconnect();
                 return;
             }
+            
             socketUserMap.set(client.id, payload.sub);
 
             const isGameMode = client.handshake.query?.mode === 'game';
@@ -61,9 +59,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
             if (isGameMode && targetChannelId) {
                 void client.join(`channel_${targetChannelId}`);
-                void client.join(targetChannelId.toString()); 
-                
-                console.log(`User ${payload.sub} connecté au CHAT DU JEU (salon #${targetChannelId})`);
+                void client.join(targetChannelId.toString());                 
+                console.log(`User ${payload.sub} connect to the game chat (room #${targetChannelId})`);
                 return;
             }
 
@@ -108,7 +105,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         try {
             await this.chatService.joinChannel(userId, data.channelId, data.password);
             void client.join(`channel_${data.channelId}`);
-            client.emit('joinedChannel', { channelId: data.channelId });
         } catch (e) {
             client.emit('error', { message: (e as Error).message });
         }
@@ -122,7 +118,6 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         try {
             await this.chatService.leaveChannel(userId, data.channelId);
             void client.leave(`channel_${data.channelId}`);
-            client.emit('leftChannel', { channelId: data.channelId });
         } catch (e) {
             client.emit('error', { message: (e as Error).message });
         }

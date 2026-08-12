@@ -25,8 +25,15 @@ export function useChatCommands(
             return;
         const headers = await authHeaders();
 
-        function ok(msg: string) { setCmdMsg(msg); setTimeout(() => setCmdMsg(''), 5000); }
-        function err(msg: string) { setError(msg);  setTimeout(() => setError(''),  5000); }
+        function ok(msg: string) { 
+            setCmdMsg(msg); 
+            setTimeout(() => setCmdMsg(''), 5000); 
+        }
+
+        function err(msg: string) { 
+            setError(msg);  
+            setTimeout(() => setError(''),  5000); 
+        }
 
         async function api(url: string, method: string, body?: object) {
             const res  = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
@@ -41,7 +48,10 @@ export function useChatCommands(
 
         if (cmd === 'kick') {
             const target = findUser(args[0]);
-            if (!target) { err(`User "${args[0]}" not found`); return; }
+            if (!target) { 
+                err(`User "${args[0]}" not found`); 
+                return; 
+            }
             const r = await api(`/api/chat/channels/${channelId}/kick/${target.id}`, 'DELETE');
             r.ok ? ok(`${target.username} has been kicked`) : err(r.msg || 'Error');
             return;
@@ -49,7 +59,10 @@ export function useChatCommands(
 
         if (cmd === 'mute') {
             const target = findUser(args[0]);
-            if (!target) { err(`User "${args[0]}" not found`); return; }
+            if (!target) { 
+                err(`User "${args[0]}" not found`); 
+                return; 
+            }
             const minutes = parseInt(args[1]) || 5;
             const r = await api(`/api/chat/channels/${channelId}/mute/${target.id}`, 'PATCH', { minutes });
             r.ok ? ok(`${target.username} muted for ${minutes} min`) : err(r.msg || 'Error');
@@ -83,10 +96,17 @@ export function useChatCommands(
 
         if (cmd === 'msg') {
             const target = findUser(args[0]);
-            if (!target) { err(`User "${args[0]}" not found`); return; }
+            if (!target) { 
+                err(`User "${args[0]}" not found`); 
+                return; 
+            }
             const content = args.slice(1).join(' ');
-            if (!content) { err('Usage: /msg <user> <message>'); return; }
-            if (!socketRef.current) return;
+            if (!content) { 
+                err('Usage: /msg <user> <message>'); 
+                return; 
+            }
+            if (!socketRef.current) 
+                return;
             socketRef.current.emit('sendDm', { targetUserId: target.id, content });
             ok(`DM sent to ${target.username}`);
             return;
@@ -94,7 +114,10 @@ export function useChatCommands(
 
         if (cmd === 'invite') {
             const target = findUser(args[0]);
-            if (!target) { err(`User "${args[0]}" not found`); return; }
+            if (!target) { 
+                err(`User "${args[0]}" not found`); 
+                return; 
+            }
             const r = await api(`/api/chat/channels/${channelId}/invite/${target.id}`, 'POST');
             r.ok ? ok(`${target.username} invited`) : err(r.msg || 'Error');
             return;
@@ -102,7 +125,10 @@ export function useChatCommands(
 
         if (cmd === 'add') {
             const target = findUser(args[0]);
-            if (!target) { err(`User "${args[0]}" not found`); return; }
+            if (!target) { 
+                err(`User "${args[0]}" not found`); 
+                return; 
+            }
             const r = await api(`/api/chat/friends/${target.id}`, 'POST');
             r.ok ? ok(`Friend request sent to ${target.username}`) : err(r.msg || 'Error');
             return;
@@ -110,7 +136,10 @@ export function useChatCommands(
 
         if (cmd === 'block') {
             const target = findUser(args[0]);
-            if (!target) { err(`User "${args[0]}" not found`); return; }
+            if (!target) { 
+                err(`User "${args[0]}" not found`); 
+                return; 
+            }
             const r = await api(`/api/chat/block/${target.id}`, 'POST');
             r.ok ? ok(`${target.username} blocked`) : err(r.msg || 'Error');
             return;
@@ -118,7 +147,10 @@ export function useChatCommands(
 
         if (cmd === 'unblock') {
             const target = findUser(args[0]);
-            if (!target) { err(`User "${args[0]}" not found`); return; }
+            if (!target) { 
+                err(`User "${args[0]}" not found`); 
+                return; 
+            }
             const r = await api(`/api/chat/block/${target.id}`, 'DELETE');
             r.ok ? ok(`${target.username} unblocked`) : err(r.msg || 'Error');
             return;
