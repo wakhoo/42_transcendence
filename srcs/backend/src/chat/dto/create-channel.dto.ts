@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, MinLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, Max, MinLength } from 'class-validator';
 
 export class CreateChannelDto {
     @IsString()
@@ -20,6 +20,7 @@ export class CreateChannelDto {
 
     @IsInt()
     @Min(2)
+    @Max(8)
     @IsOptional()
     maxMembers?: number;
 }

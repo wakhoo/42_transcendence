@@ -54,8 +54,6 @@ docker compose -f ./srcs/docker-compose.yml up --build
 
 4. Open in browser
 ```
-https://dancel.42.fr:8443
-# or
 https://localhost:8443
 ```
 
@@ -92,10 +90,6 @@ WS_PORT=9000
 OAUTH_GOOGLE_CLIENT_ID=
 OAUTH_GOOGLE_CLIENT_SECRET=
 
-# OAuth — GitHub
-OAUTH_GITHUB_CLIENT_ID=
-OAUTH_GITHUB_CLIENT_SECRET=
-
 # 2FA
 TOTP_ISSUER=ft_transcendence
 ```
@@ -123,7 +117,6 @@ TOTP_ISSUER=ft_transcendence
 | `nginx` | `srcs/nginx/` | 8443 (HTTPS), 8080 (HTTP → redirects to 8443) | Reverse proxy + WAF — only entry point |
 | `frontend` | `srcs/frontend/` | none | React/Vite UI |
 | `backend` | `srcs/backend/` | none | NestJS REST API |
-| `websocket` | `srcs/websocket/` | none | Real-time WebSocket server |
 | `mariadb` | `srcs/mariadb/` | none | Relational database |
 
 ### What each container does
@@ -132,9 +125,7 @@ TOTP_ISSUER=ft_transcendence
 
 **`frontend`** — Serves the React application compiled by Vite. Not exposed directly — nginx proxies requests to it on the internal Docker network.
 
-**`backend`** — The NestJS API. Handles all business logic and exposes routes under `/api`. Talks to `mariadb` for data persistence. Not exposed externally — nginx forwards matching requests to it.
-
-**`websocket`** — Manages WebSocket connections for real-time features (game state, live updates). Listens on port 9000 inside the Docker network. Nginx handles the WebSocket upgrade and proxies connections to it.
+**`backend`** — The NestJS API. Handles all business logic, exposes routes under `/api`, and manages WebSocket connections via integrated NestJS gateways (`/ws`). Talks to `mariadb` for data persistence. Not exposed externally — nginx forwards matching requests to it.
 
 **`mariadb`** — Stores all persistent data. Accessible only from the `backend` container through the isolated `db` network. Data survives container restarts via the `mariadb_data` Docker volume.
 
@@ -145,7 +136,7 @@ Four Docker networks enforce strict separation between layers:
 | Network | Members | Purpose |
 |---------|---------|---------|
 | `dmz` | nginx | Faces the internet |
-| `internal` | nginx, frontend, backend, websocket | Internal app traffic |
+| `internal` | nginx, frontend, backend | Internal app traffic |
 | `db` | backend, mariadb | Database access only |
 | `vault_net` | backend, vault (planned) | Secrets management |
 
@@ -160,7 +151,6 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | `nginx` | `nginx -t` | Config is valid and process is running |
 | `frontend` | `curl http://localhost:3000` | UI server responds |
 | `backend` | `curl http://localhost:3000/api/health` | NestJS API responds |
-| `websocket` | `curl http://localhost:9000/health` | WebSocket server responds |
 | `mariadb` | `mariadb-admin ping` | Database accepts connections |
 
 `backend` waits for `mariadb` to report healthy before starting, preventing startup crashes when the database is not yet ready.
@@ -171,10 +161,10 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 | Member | Role | Responsibilities |
 |--------|------|-----------------|
-| dancel | Product Owner + Developer | Product vision, backlog; WebSocket real-time, chat/profile/friends, Public API, ORM, Content Moderation AI, Web-Based Game, Remote Players, Multiplayer (3+), Advanced Chat, Microservices Architecture |
+| dancel | Product Owner + Developer | Multi-User Simultaneous Support, WebSocket Real-Time Features, User Interaction (Chat + Profile + Friends), ORM, Content Moderation AI, Advanced Chat Features |
 | chajeon | Project Manager + Developer | Team coordination; auth (bcrypt), HTTPS, Privacy Policy/ToS, README, OAuth 2.0, 2FA, WAF/ModSecurity + Vault, GDPR Compliance |
 | asdiallo | Tech Lead + Developer | Architecture; web app scaffold, Docker single-command deployment, responsive frontend, input validation, full-stack framework usage, frontend/backend framework, Standard User Management & Auth |
-| aboutale | Developer | Game Statistics & Match History, Tournament System, Game Customization, Gamification System, Spectator Mode |
+| aboutale | Developer | Web-Based Game, Remote Players, Multiplayer (3+ Players), Spectator Mode |
 
 ---
 
@@ -188,7 +178,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 ### Tools Used
 - **Issue Tracker**: Google Sheet
 - **Communication**: Slack
-- **Version Control**: Git — [repository URL]
+- **Version Control**: Git — https://github.com/wakhoo/42_transcendence
 
 ### Branch Strategy
 - `main` — stable, production-ready
@@ -206,13 +196,13 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | Technology | Reason |
 |-----------|--------|
 | React | Component-based UI, large ecosystem, team familiarity |
-| [Tailwind / Bootstrap] | [Why this CSS framework] |
+| Tailwind CSS | Utility-first CSS, responsive design |
 
 ### Backend
 | Technology | Reason |
 |-----------|--------|
 | Nest.js | Full-stack framework, API routes, SSR support |
-| [Prisma / TypeORM] | [Why this ORM] |
+| TypeORM | NestJS integration, TypeScript decorators, MariaDB support |
 
 ### Database
 | Technology | Reason |
@@ -236,24 +226,68 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 #### users
 | Column | Type | Description |
 |--------|------|-------------|
-| id | UUID | Primary key |
+| id | INT | Primary key |
 | email | VARCHAR | Unique, used for login |
-| password_hash | VARCHAR | bcrypt hashed password |
+| password_hash | VARCHAR | bcrypt hashed password (nullable for OAuth users) |
 | username | VARCHAR | Display name |
-| avatar_url | VARCHAR | Profile picture |
+| avatar_url | VARCHAR | Profile picture URL |
+| profile_color | VARCHAR | UI accent color |
 | totp_secret | VARCHAR | 2FA seed (nullable) |
-| is_2fa_enabled | BOOLEAN | 2FA toggle |
+| totp_enabled | BOOLEAN | 2FA toggle |
 | created_at | TIMESTAMP | Account creation date |
 
-#### [table2]
+#### channels
 | Column | Type | Description |
 |--------|------|-------------|
-| id | UUID | Primary key |
-| [column] | [type] | [description] |
+| id | INT | Primary key |
+| name | VARCHAR(50) | Unique channel name |
+| type | ENUM | `general`, `game`, or `dm` |
+| is_private | BOOLEAN | Private channel flag |
+| password_hash | VARCHAR | bcrypt-hashed join password (nullable) |
+| max_members | INT | Member cap (nullable) |
+| created_at | TIMESTAMP | Creation date |
+
+#### channel_members
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| role | ENUM | `admin`, `member`, `spec`, or `drawer` |
+| muted_until | DATETIME | Mute expiry (nullable) |
+| warnings | INT | Moderation warning count |
+| joined_at | TIMESTAMP | Join date |
+| user_id | INT | FK → users |
+| channel_id | INT | FK → channels |
+
+#### messages
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| content | TEXT | Message body |
+| created_at | TIMESTAMP | Send date |
+| sender_id | INT | FK → users (nullable, system messages) |
+| channel_id | INT | FK → channels |
+
+#### friendships
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| status | ENUM | `pending`, `accepted`, or `blocked` |
+| created_at | TIMESTAMP | Request date |
+| requester_id | INT | FK → users |
+| addressee_id | INT | FK → users |
+
+#### bad_words
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| word | VARCHAR | Banned word or phrase |
 
 ### Relationships
-- [users] 1 — N [table2]
-- [Describe other relationships]
+- users 1 — N channel_members — N channels (join table)
+- users 1 — N messages (as sender)
+- users 1 — N friendships (as requester or addressee)
+- channels 1 — N messages
+- channels 1 — N channel_members
 
 ---
 
@@ -263,12 +297,22 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 |---------|-------------|--------------|
 | User Registration & Login | Email + password auth with bcrypt | chajeon |
 | HTTPS / TLS 1.3 | All connections encrypted | chajeon |
-| Docker Infrastructure | 4-network isolation, single-command run | chajeon |
-| WAF / ModSecurity | OWASP CRS, SQLi/XSS protection | chajeon |
+| Docker Infrastructure | 4-network isolation, single-command run | asdiallo |
+| WAF / ModSecurity + HashiCorp Vault | OWASP CRS, SQLi/XSS protection, secrets management | chajeon |
+| OAuth 2.0 | Google social login | chajeon |
 | 2FA Authentication | TOTP-based with QR code registration | chajeon |
-| Backend API | Nest.js API routes | asdiallo |
-| Database Design | MariaDB schema and relations | asdiallo |
-| Drawing & Guessing Game | One player gets a keyword and draws it live; others guess in real-time chat | dancel, aboutale |
+| Public API | Secured REST API with rate limiting | chajeon |
+| GDPR Compliance | Data request, deletion, export | chajeon |
+| User Management & Auth | Profile, avatar, friends list, online status | asdiallo |
+| Frontend & Backend Frameworks | React + NestJS | asdiallo |
+| WebSocket Real-Time | Socket.IO gateway with JWT auth, presence tracking, multi-tab support, typing indicators | dancel |
+| Chat + Profile + Friends | Channels (public/private/DM), friends system (request/accept/reject), block/unblock | dancel |
+| Content Moderation AI | Bad-word dictionary seeded at startup, per-member warning counter, auto-filter on every message | dancel |
+| Advanced Chat | Timed mute, password-protected channels, game invite via WebSocket, spectator/drawer roles | dancel |
+| Drawing & Guessing Game | Real-time multiplayer drawing game | aboutale |
+| Remote Players | Two players on separate machines with reconnection | aboutale |
+| Multiplayer (3+) | 3 or more simultaneous players | aboutale |
+| Spectator Mode | Watch live games | aboutale |
 | Privacy Policy Page | Accessible from footer | chajeon |
 | Terms of Service Page | Accessible from footer | chajeon |
 
@@ -297,51 +341,71 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | Full-Stack Framework Usage | Web | Major | 2 | asdiallo | — |
 | WebSocket Real-Time Features | Web | Major | 2 | dancel | — |
 | User Interaction (Chat + Profile + Friends) | Web | Major | 2 | dancel | — |
-| Public API | Web | Major | 2 | dancel | — |
+| Public API | Web | Major | 2 | chajeon | — |
 | Standard User Management & Auth | User Management | Major | 2 | asdiallo | — |
 | WAF/ModSecurity + HashiCorp Vault | Cybersecurity | Major | 2 | chajeon | — |
-| Web-Based Game | Gaming & UX | Major | 2 | dancel | — |
-| Remote Players | Gaming & UX | Major | 2 | dancel | Requires a game module |
-| Multiplayer (3+ Players) | Gaming & UX | Major | 2 | dancel | Requires a game module |
-| Microservices Architecture | DevOps | Major | 2 | dancel | — |
+| Web-Based Game | Gaming & UX | Major | 2 | aboutale | — |
+| Remote Players | Gaming & UX | Major | 2 | aboutale | Requires a game module |
+| Multiplayer (3+ Players) | Gaming & UX | Major | 2 | aboutale | Requires a game module |
 | Frontend Framework Only | Web | Minor | 1 | asdiallo | — |
 | Backend Framework Only | Web | Minor | 1 | asdiallo | — |
 | ORM | Web | Minor | 1 | dancel | — |
-| Game Statistics & Match History | User Management | Minor | 1 | aboutale | Requires a game module |
 | OAuth 2.0 Authentication | User Management | Minor | 1 | chajeon | — |
 | 2FA (Two-Factor Authentication) | User Management | Minor | 1 | chajeon | — |
 | Content Moderation AI | Artificial Intelligence | Minor | 1 | dancel | — |
 | Advanced Chat Features | Gaming & UX | Minor | 1 | dancel | Requires User Interaction module |
-| Tournament System | Gaming & UX | Minor | 1 | aboutale | Requires a game module |
-| Game Customization | Gaming & UX | Minor | 1 | aboutale | Requires a game module |
-| Gamification System | Gaming & UX | Minor | 1 | aboutale | — |
 | Spectator Mode | Gaming & UX | Minor | 1 | aboutale | Requires a game module |
 | GDPR Compliance | Data & Analytics | Minor | 1 | chajeon | — |
-| **Total** | | | **33** | | |
+| **Total** | | | **27** | | |
 
 ### Point Calculation
-- Major modules (2pt each): 10 × 2 = 20pt
-- Minor modules (1pt each): 13 × 1 = 13pt
-- **Total: 33pt** (minimum required: 14pt)
+- Major modules (2pt each): 9 × 2 = 18pt
+- Minor modules (1pt each): 9 × 1 = 9pt
+- **Total: 27pt** (minimum required: 14pt)
 
 ---
 
 ## Individual Contributions
 
 ### dancel — Product Owner + Developer
-- Product vision and backlog management
-- Multi-User Simultaneous Support (mandatory)
-- WebSocket Real-Time Features (Major)
-- User Interaction: Chat + Profile + Friends (Major)
-- Public API (Major)
-- ORM (Minor)
-- Content Moderation AI (Minor)
-- Web-Based Game (Major)
-- Remote Players (Major)
-- Multiplayer, 3+ Players (Major)
-- Advanced Chat Features (Minor)
-- Microservices Architecture (Major)
-- Challenges: [Any challenges faced and how resolved]
+
+**Multi-User Simultaneous Support** (mandatory)
+- `socketUserMap` — maps each `socket.id` to a `userId`, tracking all active connections across tabs
+- Multi-tab detection: a user is only marked offline when their last socket disconnects
+- Presence broadcasts: `presenceChanged` (online/offline) pushed to all connected clients in real time
+
+**WebSocket Real-Time Features** (Major)
+- Socket.IO gateway at `/chat` namespace with JWT authentication at connection time
+- Partial tokens (`pending2fa`) rejected at the WebSocket level
+- Events received: `joinChannel`, `leaveChannel`, `sendMessage`, `sendDm`, `typing`
+- Events emitted: `newMessage`, `userTyping`, `presenceChanged`, `ready`
+- Game mode: dual room join (`channel_${id}` for chat events, `${id}` for game events)
+- `emitToUser()`: delivers events to all sockets of a given user (DM, game invites)
+
+**User Interaction: Chat + Profile + Friends** (Major)
+- Channels: create, join (with optional password), leave, list, message history
+- Direct messages: auto-creates a private DM channel on first message between two users
+- Friends system: send/accept/reject friend request, list friends, list pending requests
+- Block/unblock: prevents DMs and channel interactions with blocked users
+- Channel admin: kick member, timed mute (with expiry datetime), invite, set password, set privacy, set max-members, delete channel
+
+**ORM** (Minor)
+- TypeORM entities: `Channel`, `ChannelMember`, `Message`, `Friendship`, `BadWord`
+- Relations: `@OneToMany` / `@ManyToOne` with `CASCADE` deletes
+- `@Unique` constraints, enum columns, `@CreateDateColumn`
+
+**Content Moderation AI** (Minor)
+- `BadWord` entity with a dictionary seeded automatically on startup
+- Message content checked before storage and broadcast; violations trigger warnings
+- Warning counter per member (`warnings` field on `ChannelMember`)
+
+**Advanced Chat Features** (Minor)
+- Timed mute: `mutedUntil` datetime stored per member, enforced on every message
+- Password-protected channels (bcrypt-hashed)
+- Game invite via WebSocket `game_invite` event, delivered via `emitToUser`
+- Private game room join code: `GET /chat/find-private-game/:code`
+- Spectator (`spec`) and drawer roles in `channel_members`
+- Typing indicators: `typing` event → `userTyping` broadcast to channel members
 
 ### chajeon — Project Manager + Developer
 - Team coordination, meeting facilitation, progress tracking
@@ -371,12 +435,10 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 - Challenges: [Any challenges faced and how resolved]
 
 ### aboutale — Developer
-- Game Statistics & Match History (Minor)
-- Tournament System (Minor)
-- Game Customization (Minor)
-- Gamification System (Minor)
+- Web-Based Game (Major)
+- Remote Players (Major)
+- Multiplayer, 3+ Players (Major)
 - Spectator Mode (Minor)
-- Challenges: [Any challenges faced and how resolved]
 
 ---
 
