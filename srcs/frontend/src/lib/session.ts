@@ -81,6 +81,10 @@ export function saveSession(accessToken: string, refreshToken: string) {
     storeTokens(accessToken, refreshToken);
 }
 
+export function getRefreshToken(): string | null {
+    return sessionStorage.getItem('refreshToken');
+}
+
 export function clearSession() {
     clearTokens();
 }

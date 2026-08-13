@@ -206,24 +206,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       if (snapshot) client.emit('game_state_sync', snapshot);
     }
 
-    // @SubscribeMessage('join_public_room')
-    // async handleJoinPublicRoom(@ConnectedSocket() client: Socket, @MessageBody() data: {channelId: number}) {
-
-    //   const userId = gameSocketUserMap.get(client.id);
-    //   if(!userId) {
-
-    //     client.emit('error', {message: 'User non identify'});
-    //     return;
-    //   }
-
-    //   const channelFound = await this.gameService.findPublicRoom();
-    //   if(channelFound)
-    //     client.emit('public_room_found', { channelId: channelFound });
-    //   else
-    //     client.emit('error', { message: 'No public room yet you can create one !' });
-    // }
-    
-
     //debut de manche 
     @SubscribeMessage('start_game')
     async handleGame(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
@@ -285,8 +267,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
           this.server.to(data.channelId.toString()).emit('clear_canvas');
 
     }
-
-
 
     async handleDisconnect(client: Socket) {
 

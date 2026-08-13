@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AvatarPicker } from '../components/AvatarPicker';
 import { TotpEnrollForm } from '../components/TotpEnrollForm';
-import { authHeaders, getAccessToken, clearSession } from '../lib/session';
+import { authHeaders, getAccessToken, getRefreshToken, clearSession } from '../lib/session';
 
 type Me = {
     id: number;
@@ -227,7 +227,19 @@ export function ProfileContent({ userId }: { userId?: number }) {
         setPasswordCode('');
     }
 
-    function handleLogout() {
+    async function handleLogout() {
+        const refreshToken = getRefreshToken();
+        if (refreshToken) {
+            try {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: await authHeaders(),
+                    body: JSON.stringify({ refreshToken }),
+                });
+            } catch {
+                // best-effort — the session is cleared locally below regardless
+            }
+        }
         clearSession();
         navigate('/login');
     }

@@ -99,13 +99,6 @@ export class ChatController {
         return this.chatService.deleteChannel(user.sub, channelId);
     }
 
-//      // ── DMs ───────────────────────────────────────────────────────────────────
-
-//      @Get('dm/:userId')
-//      getDmChannel( @CurrentUser() user: JwtPayload, @Param('userId', ParseIntPipe) targetUserId: number) {
-//         return this.chatService.getOrCreateDmChannel(user.sub, targetUserId);
-//      }
-
     // ── Amis ──────────────────────────────────────────────────────────────────
 
     @Get('friends')
