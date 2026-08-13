@@ -23,6 +23,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { GdprAuditService } from './gdpr-audit.service';
+import { MailService } from '../mail/mail.service';
 
 type AuthedRequest = Request & { user: JwtPayload };
 
@@ -34,6 +35,7 @@ export class UserController {
     constructor(
         private readonly userService: UserService,
         private readonly gdprAudit: GdprAuditService,
+        private readonly mail: MailService,
     ) {}
 
     @Get('me')
@@ -79,6 +81,7 @@ export class UserController {
             avatarUrl: dto.avatarUrl,
         });
         await this.gdprAudit.logDataChanged(userId, req.ip);
+        void this.mail.sendProfileChangedEmail(updated.email);
         return this.toSafeProfile(updated);
     }
 
@@ -104,6 +107,7 @@ export class UserController {
         const newHash = await bcrypt.hash(dto.newPassword, 12);
         await this.userService.setPasswordHash(userId, newHash);
         await this.gdprAudit.logDataChanged(userId, req.ip);
+        void this.mail.sendProfileChangedEmail(user.email);
         return { success: true };
     }
 
@@ -120,6 +124,7 @@ export class UserController {
         }
 
         await this.gdprAudit.logDataExported(user.id, req.ip);
+        void this.mail.sendDataExportedEmail(user.email);
         return {
             messages: await this.userService.getUserMessage(user.id),
             profile: this.toSafeProfile(user),
@@ -146,8 +151,10 @@ export class UserController {
             if (!valid) throw new UnauthorizedException('Invalid 2FA code');
         }
 
+        const deletedEmail = user.email;
         await this.userService.remove(userId);
         await this.gdprAudit.logAccountDeleted(userId, req.ip);
+        void this.mail.sendAccountDeletedEmail(deletedEmail);
     }
 
     private toSafeProfile(user: User) {

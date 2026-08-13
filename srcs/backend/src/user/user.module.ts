@@ -9,10 +9,12 @@ import { AuditLog } from "./audit-log.entity";
 import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { GdprAuditService } from "./gdpr-audit.service";
+import { MailModule } from "../mail/mail.module";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Message, AuditLog]),
+    MailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
