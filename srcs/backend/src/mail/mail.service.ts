@@ -72,7 +72,7 @@ export class MailService {
     </tr>
     <tr>
       <td style="padding:20px 32px;background:#111827;color:#6b7280;font-size:12px;text-align:center;">
-        This is an automated message from DrawDraw.<br><br>
+        This is an automated message from DrawDraw.<br>
         If you didn't request this, please contact support immediately.
       </td>
     </tr>

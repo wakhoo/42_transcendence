@@ -8,6 +8,55 @@
 
 ---
 
+<details>
+<summary><strong>📑 Table of Contents</strong></summary>
+
+- [Description](#description)
+  - [Key Features](#key-features)
+- [Instructions](#instructions)
+  - [Prerequisites](#prerequisites)
+  - [Setup](#setup)
+  - [Environment Variables](#environment-variables)
+  - [Available Commands](#available-commands)
+- [Docker Architecture](#docker-architecture)
+  - [Container overview](#container-overview)
+  - [What each container does](#what-each-container-does)
+  - [Network isolation](#network-isolation)
+  - [Healthchecks](#healthchecks)
+- [Team Information](#team-information)
+- [Project Management](#project-management)
+  - [Work Organization](#work-organization)
+  - [Tools Used](#tools-used)
+  - [Branch Strategy](#branch-strategy)
+- [Technical Stack](#technical-stack)
+  - [Frontend](#frontend)
+  - [Backend](#backend)
+  - [Database](#database)
+  - [Infrastructure & Security](#infrastructure--security)
+- [Database Schema](#database-schema)
+  - [Tables](#tables)
+  - [Relationships](#relationships)
+- [Features List](#features-list)
+- [Modules](#modules)
+  - [Mandatory Requirements](#mandatory-requirements)
+  - [Chosen Modules](#chosen-modules)
+  - [Point Calculation](#point-calculation)
+- [Individual Contributions](#individual-contributions)
+  - [dancel — Product Owner + Developer](#dancel--product-owner--developer)
+  - [chajeon — Project Manager + Developer](#chajeon--project-manager--developer)
+  - [asdiallo — Tech Lead + Developer](#asdiallo--tech-lead--developer)
+  - [aboutale — Developer](#aboutale--developer)
+- [Backend commands — help / cheat sheet](#backend-commands--help--cheat-sheet)
+- [Resources](#resources)
+  - [Documentation](#documentation)
+  - [Security Standards & Password Policy](#security-standards--password-policy)
+  - [AI Usage](#ai-usage)
+- [Team Information (aboutale)](#team-information-aboutale)
+
+</details>
+
+---
+
 ## Description
 
 **ft_transcendence** is a web project built as the final project of the 42 Common Core.
@@ -120,6 +169,8 @@ VAULT_ADDR=https://vault:8200
 
 ## Docker Architecture
 
+![Docker Architecture Flow Chart](assets/FlowChart.png)
+
 ### Container overview
 
 | Container | Built from | External port | Role |
@@ -230,6 +281,8 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 ---
 
 ## Database Schema
+
+![Database Schema](assets/DBschema.png)
 
 ### Tables
 
@@ -428,18 +481,55 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 - Typing indicators: `typing` event → `userTyping` broadcast to channel members
 
 ### chajeon — Project Manager + Developer
-- Team coordination, meeting facilitation, progress tracking
-- Docker infrastructure (4-network isolation, docker-compose, Makefile)
-- Nginx configuration and TLS 1.3 setup
-- Email + Password Authentication with bcrypt (mandatory)
-- HTTPS configuration and security headers (mandatory)
-- Privacy Policy and Terms of Service pages (mandatory)
-- README.md (mandatory)
-- OAuth 2.0 Authentication (Minor)
-- 2FA / TOTP implementation (Minor)
-- WAF/ModSecurity + HashiCorp Vault module (Major)
-- GDPR Compliance (Minor)
-- Challenges: [Any challenges faced and how resolved]
+
+**Team Coordination**
+- Meeting facilitation, task tracking (Google Sheet), progress reporting across the 4-person team
+- Docker infrastructure: 4-network isolation (`dmz`, `internal`, `db`, `vault_net`), `docker-compose.yml`, Makefile targets (`up`, `down`, `re`, `logs`, `clean`, `fclean`)
+
+**Email + Password Authentication with bcrypt** (mandatory)
+- `bcrypt` hashing at cost factor 12 (`auth.service.ts`), never storing or logging plaintext passwords
+- `register()` rejects on duplicate email *or* username before hashing; `login()` returns either a token pair or `{ twoFactorRequired: true, partialToken }` when the account has TOTP enabled
+- Refresh tokens are opaque and tracked server-side via `SessionService`; `/auth/refresh` deletes the old session and issues a new pair (rotation, not reuse)
+- `@Throttle` limits login, password change, and account deletion to 5 attempts / 60s per the project's brute-force policy
+
+**HTTPS / TLS 1.3** (mandatory)
+- `nginx.conf` restricts `ssl_protocols` to TLS 1.3 only, terminates TLS for every service, and hard-redirects port 8080 → 8443
+- Security headers on every response: HSTS (1 year, includeSubDomains), CSP (`default-src 'self'`), `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`
+- Extra nginx-level blocklist for dotfiles (`.env`, `.git`) and backup/config extensions (`.bak`, `.sql`, `.conf`, …) as a second layer beneath ModSecurity
+
+**Privacy Policy & Terms of Service** (mandatory)
+- Static pages (`privacy-policy.html`, `terms-of-service.html`) served by the frontend and exposed at dedicated nginx locations so they're reachable without hitting the SPA router or the backend
+
+**OAuth 2.0 Authentication** (Minor)
+- Google login via `passport-google-oauth20` (`google.strategy.ts`); callback route lives under `/api/auth/callback/google` but is nginx-rewritten so it's reachable at the shorter `/auth/callback/google`
+- `googleLogin()` looks up the user by `(provider, oauthId)` first, and only on a fresh sign-in checks for an existing password account with the same email — throwing `ConflictException` instead of silently merging accounts
+- Auto-generates a unique username from the email's local part, appending a numeric suffix on collision
+- Google logins go through the same TOTP branch as password logins, so 2FA is enforced regardless of how the user authenticated
+
+**2FA / TOTP Implementation** (Minor)
+- `otplib` + `qrcode`: `POST /auth/2fa/setup` generates a secret, an `otpauth://` URI, and a scannable QR code as a data URL
+- `/auth/2fa/enable` and `/2fa/disable` both require a valid TOTP code before toggling state — you can't turn 2FA off just by being logged in
+- A login from a 2FA-enabled account gets a short-lived (5 min) `pending2fa` JWT instead of real tokens; `Pending2faGuard` accepts *only* pending tokens and `JwtGuard` rejects them outright, so a partial token can't be replayed against any other authenticated route
+- Sensitive account actions (email/username change, password change, data export, account deletion) re-check the TOTP code on top of the existing session, not just at login
+
+**WAF/ModSecurity + HashiCorp Vault** (Major)
+- ModSecurity runs as an nginx module in front of every route, loaded with the OWASP Core Rule Set (`crs-setup.conf`, `main.conf`)
+- `custom-exclusions.conf` narrowly scopes three documented false positives instead of disabling rules globally: Swagger UI's inline `<script>` tags at `/api/docs`, Socket.IO's upgrade-handshake headers at `/socket.io`, and Google's OAuth `scope` query param (`...profile...`) which CRS's LFI rule (930120) misreads as a `~/.profile` dotfile read attempt
+- `vault-loader.ts` logs into Vault via AppRole (role/secret ID files mounted as Docker secrets), reads the app's KV secret over HTTPS, and merges it into `process.env` before NestJS's `ConfigModule` boots — no-ops when `VAULT_ADDR` is unset so local dev without a running Vault still works off a plain `.env`
+- Vault sits on its own `vault_net` network, reachable only from `backend`
+
+**GDPR Compliance** (Minor)
+- `GdprAuditService` writes an append-only `audit_logs` row (`data_changed`, `data_exported`, or `account_deleted`) on every profile edit, password change, export, and deletion; `user_id` is intentionally a plain column with no FK/cascade so the trail survives the account it refers to being deleted
+- `GET /user/me/export` (Article 20 — data portability) returns the user's profile and message history as JSON; gated behind a TOTP re-check when 2FA is enabled
+- `DELETE /user/me` (Article 17 — right to erasure) requires password confirmation (and TOTP code, if enabled) before the account is removed
+- `MailService` sends a confirmation email for each of the three actions (profile changed / data exported / account deleted); mail failures are caught and logged so a bounced email never blocks the underlying GDPR action itself
+
+**README.md** (mandatory)
+- Authored and maintains the full project README: setup instructions, architecture diagrams, DB schema, module list, and this contributions section
+
+**Challenges**
+- ModSecurity's stock CRS flagged legitimate traffic (Swagger's inline scripts, Socket.IO's handshake, Google's OAuth callback) as attacks; resolved by writing narrowly-scoped exclusions per route instead of weakening the WAF project-wide
+- Keeping 2FA state consistent across login and profile-editing flows — every endpoint that could leak or change account-critical data (email, password, export, delete) needed its own TOTP re-check, not just the login path
 
 ### asdiallo — Tech Lead + Developer
 - Overall architecture design
