@@ -38,24 +38,26 @@ The controller is the mapping table between incoming requests and the code. With
 | Folder | What it's responsible for |
 |---|---|
 | `auth/` | Everything about *proving who you are*: register, login, JWT issuance, Google OAuth, 2FA. Fully documented in `AUTH.md`. |
-| `user/` | Everything about *the user record itself*: reading and writing rows in the `users` table (email, username, avatar, TOTP flags…). `auth/` calls into this module, it doesn't touch the database directly. |
-| `chat/` | Where real-time messaging between players will live (entities, guards, decorators are already scaffolded). Not yet wired into `app.module.ts` — see the commented-out `ChatModule` import. |
+| `user/` | Everything about *the user record itself*: reading and writing rows in the `users` table (email, username, avatar, TOTP flags…), plus the GDPR data-rights endpoints. `auth/` calls into this module, it doesn't touch the database directly. |
+| `chat/` | Real-time messaging: `ChatGateway` (Socket.IO, `/chat` namespace), channels, DMs, friends, block/unblock, moderation. Wired into `app.module.ts`. |
+| `game/` | The drawing/guessing game: `GameGateway` (Socket.IO, `/game` namespace) and `GameService`. See `../../game.md` for the full event flow. Wired into `app.module.ts`. |
+| `mail/` | `MailService` — sends the GDPR confirmation emails (profile changed / data exported / account deleted). |
 | `health/` | The `/api/health` endpoint used by Docker's healthcheck. No business value beyond "is the server alive". |
-
-Game logic isn't implemented yet — when it lands, it will follow the same pattern: its own folder, its own module, imported into `app.module.ts`.
 
 This is the layer the frontend actually talks to: every screen that shows game state, chat messages, or user profile info (username, avatar, 2FA status…) gets that data by calling a route exposed by one of these modules over `/api/*`.
 
 ### Request flow (schema)
 
-Two separate paths exist, for two different needs. Use the **REST API** (`backend`) when the frontend asks a one-off question and expects one answer: log in, fetch a profile, enable 2FA. Use the **WebSocket** (`websocket`) when data needs to flow continuously without either side asking for it: chat messages, live paddle/ball coordinates, score updates.
+Two separate paths exist, for two different needs. Use the **REST API** when the frontend asks a one-off question and expects one answer: log in, fetch a profile, enable 2FA. Use **WebSocket (Socket.IO)** when data needs to flow continuously without either side asking for it: chat messages, drawing strokes, round/timer updates, presence.
+
+Both live inside the same `backend` NestJS process — there is no separate real-time service. REST controllers and the two `@WebSocketGateway()` classes (`ChatGateway` on the `/chat` namespace, `GameGateway` on the `/game` namespace) are just different entry points into the same app, sharing the same services and the same MariaDB connection.
 
 The browser only ever talks to `nginx` (port 443). `nginx` decides which container to forward to by looking at the URL path — nothing more:
 
 ```nginx
-location /api/  { proxy_pass http://backend:3000; }
-location /ws    { proxy_pass http://websocket:9000; }
-location /      { proxy_pass http://frontend:3000; }  # everything else
+location /api/       { proxy_pass http://backend:3000; }
+location /socket.io  { proxy_pass http://backend:3000; }  # Socket.IO upgrade, still `backend`
+location /            { proxy_pass http://frontend:3000; }  # everything else
 ```
 
 **Path 1 — REST API (`/api/...`): request → one response, connection closes**
@@ -74,33 +76,21 @@ What each box inside `backend` does, in order:
 
 Example: `POST /api/auth/login` — the browser sends email+password, the backend checks the DB, replies once with a token, done.
 
-**Path 2 — WebSocket (`/ws`): one connection stays open, messages flow both ways**
+**Path 2 — WebSocket / Socket.IO (`/socket.io`): one connection stays open, messages flow both ways**
 
 ```
-Browser  ──WebSocket upgrade '/ws'──▶  nginx  ──▶  websocket (ws server)
-   ▲                                                       │
-   └───────────────── messages pushed anytime ─────────────┘
+Browser  ──Socket.IO handshake '/socket.io'──▶  nginx  ──▶  backend (ChatGateway / GameGateway)
+   ▲                                                                │
+   └────────────────────── messages pushed anytime ─────────────────┘
 ```
 
-Example: during a match, paddle position updates and chat messages get pushed the instant they happen — no repeated `fetch()` calls, no waiting for a request.
+Example: during a match, drawing strokes, round timers, and chat messages get pushed the instant they happen — no repeated `fetch()` calls, no waiting for a request.
 
-### `websocket/` — real-time server
+### Real-time gateways — `chat/chat.gateway.ts` and `game/game.gateway.ts`
 
-A separate, minimal Node process — **not** NestJS, no REST routes, no database access of its own. It uses the raw [`ws`](https://github.com/websockets/ws) library instead of Socket.IO. Its job is anything that can't wait for a request/response round trip:
+There is no separate real-time process. `ChatGateway` and `GameGateway` are ordinary NestJS providers decorated with `@WebSocketGateway()`, running inside the same `backend` container as the REST API, each on its own Socket.IO namespace (`/chat`, `/game`) so their events don't collide. They share `UserService`/`ChatService` directly (in-process method calls, not HTTP) and can query MariaDB like any other service.
 
-- **Chat** — messages typed by one player need to reach the other player(s) immediately.
-- **Live game state** — paddle position, ball coordinates, score updates: dozens of tiny updates per second, far too chatty for REST.
-
-How it works today (`srcs/websocket/server.js`): it opens a plain HTTP server on port 9000 with two things attached —
-1. a `GET /health` route (used only by Docker's healthcheck, see the table below),
-2. a `WebSocketServer` that accepts the upgrade, logs incoming messages, and logs disconnects.
-
-There's no chat or game logic wired in yet — right now it just proves the connection works. When that logic lands, it will live here: broadcasting each client's message to the other player(s) in the same room/match instead of just logging it.
-
-Why it's its own container instead of living inside the NestJS `backend`:
-- A WebSocket connection is **long-lived** (stays open for the whole match/chat session) while HTTP requests are short-lived — mixing the two workloads in one process makes the REST API's restart/scaling story messier.
-- nginx proxies `/ws` straight to it (`proxy_pass http://websocket:9000` with the `Upgrade`/`Connection` headers set for the protocol switch — see `nginx.conf`), completely separate from the `/api/*` routing to `backend`.
-- It sits on the `internal` network only, **not** on `db` — it cannot query MariaDB directly today. If chat history ever needs to be persisted, it will have to go through the `backend`'s API (or be added to the `db` network later) rather than talking to the database itself.
+Each gateway authenticates the socket with the same JWT used for REST (`server.use(...)` middleware verifying the `Authorization`/`auth.token` handshake field before the client can emit anything), and keeps its own in-memory `Map<socketId, userId>` to translate a volatile `socket.id` into the durable DB user id. See `game.md` for `GameGateway`'s full event table and its reconnect-grace-period handling.
 
 ## Backend `package.json` scripts — explained
 
@@ -156,7 +146,7 @@ Runs Prettier on every `.ts` file inside `src/`. Prettier rewrites the files to 
 | `@nestjs/passport`, `passport`, `passport-google-oauth20` | Google OAuth 2.0 login flow (`GoogleStrategy`). |
 | `otplib`, `qrcode` | 2FA: `otplib` generates/verifies TOTP codes, `qrcode` turns the secret into a scannable QR code image. |
 | `class-validator`, `class-transformer` | Validate and shape incoming request bodies against the DTOs (e.g. reject a `register` request with a 3-character password before it ever reaches the service). |
-| `@nestjs/websockets`, `@nestjs/platform-socket.io`, `socket.io` | Real-time transport for chat/game features once `ChatModule` (and later game) is wired in. |
+| `@nestjs/websockets`, `@nestjs/platform-socket.io`, `socket.io` | Real-time transport for `ChatGateway` and `GameGateway`. |
 | `reflect-metadata`, `rxjs` | Low-level dependencies NestJS itself needs (decorator metadata, reactive streams) — not called directly in app code. |
 
 Dev-only tools (`eslint`, `prettier`'s peers, `@nestjs/cli`, `typescript`, `@types/*`) never ship in the production image — see the Dockerfile's `builder` stage below.
@@ -193,67 +183,7 @@ To stop and wipe the volumes (database included):
 docker compose down -v
 ```
 
----
-
-### Container overview
-
-| Container | Image built from | Exposed port | Role |
-|-----------|-----------------|--------------|------|
-| `nginx` | `./nginx/` | 443 (HTTPS), 80 (HTTP) | Reverse proxy + WAF |
-| `frontend` | `./frontend/` | none (internal only) | React/Vite UI |
-| `backend` | `./backend/` | none (internal only) | NestJS API |
-| `websocket` | `./websocket/` | none (internal only) | Real-time server |
-| `mariadb` | `./mariadb/` | none (internal only) | Database |
-
----
-
-### Container details
-
-#### `nginx` — Reverse proxy / WAF
-The only container that accepts traffic from the outside world. It receives every HTTP and HTTPS request and routes them to the right internal container. It also runs ModSecurity as a Web Application Firewall (WAF) to block common attacks (SQLi, XSS…). Nothing reaches the backend or the frontend without going through it first.
-
-#### `frontend` — React/Vite UI
-Serves the React application. It is not exposed directly to the internet — nginx proxies requests to it on the internal Docker network. In production mode the Vite build outputs static files that are served by a small HTTP server.
-
-#### `backend` — NestJS API
-The business logic of the application. It exposes a REST API under `/api` on port 3000 **inside** the Docker network. Nginx forwards `/api/*` requests to it. It connects to `mariadb` for data and to `vault` (when enabled) for secrets.
-
-#### `websocket` — Real-time server
-Handles WebSocket connections for features that need live updates (game state, chat…). Runs on port 9000 inside the Docker network. Nginx proxies WebSocket upgrade requests to it. See [`websocket/` — real-time server](#websocket--real-time-server) above for how it actually works.
-
-#### `mariadb` — Database
-Stores all persistent data. It is only reachable from the `backend` container via the `db` network — no other container can talk to it directly, and it has no port exposed to the host. The data is persisted in the `mariadb_data` Docker volume so it survives container restarts.
-
----
-
-### Network isolation
-
-The stack uses four separate Docker networks to enforce strict isolation:
-
-| Network | Who is on it | Why |
-|---------|-------------|-----|
-| `dmz` | nginx | Faces the internet |
-| `internal` | nginx, frontend, backend, websocket | Internal app traffic |
-| `db` | backend, mariadb | Database access only |
-| `vault_net` | backend (+ vault when enabled) | Secrets management |
-
-A container can only reach another container if they share a network. `mariadb` is on `db` only — the frontend can never reach it directly, even by accident.
-
----
-
-### Healthchecks
-
-Each container declares a healthcheck so Docker knows when it is truly ready (not just started):
-
-| Container | Healthcheck command | What it verifies |
-|-----------|-------------------|-----------------|
-| `nginx` | `nginx -t` | Nginx config is valid and the process is running |
-| `frontend` | `curl http://localhost:3000` | The frontend server responds |
-| `backend` | `curl http://localhost:3000/api/health` | The NestJS API responds (via `HealthController`) |
-| `websocket` | `curl http://localhost:9000/health` | The WebSocket server responds |
-| `mariadb` | `mariadb-admin ping` | The database accepts connections |
-
-`backend` waits for `mariadb` to be healthy before starting. This prevents NestJS from crashing on startup because the database is not ready yet.
+For the full container list, port map, network-isolation diagram, and per-container healthchecks, see the root [`README.md`](../../README.md#container-overview) — this doc stays focused on what's inside the `backend` container itself.
 
 ---
 

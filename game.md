@@ -23,16 +23,27 @@ Notre architecture divise clairement le réseau de la logique métier pour reste
 ---
 
 ## 🔄 2. RÉSCRIPTION DES DÉPENDANCES CIRCULAIRES (`forwardRef`)
-Étant donné que la Gateway doit appeler le Service, mais que le Service doit également accéder à la `gameSocketUserMap` exportée par la Gateway (pour envoyer le mot secret en privé au dessinateur via son `socket.id`), nous utilisons le décorateur `@Inject(forwardRef(() => GameService))` dans le constructeur de la Gateway. Cela indique au compilateur NestJS d'initialiser les deux classes de manière croisée sans provoquer de plantage au démarrage.
+La Gateway injecte `GameService` (et `ChatService`, pour créer/rejoindre le vrai `Channel` associé à une room) via `@Inject(forwardRef(() => GameService))` / `forwardRef(() => ChatService)`. `GameService` importe de son côté `gameSocketUserMap` directement depuis `game.gateway.ts` — c'est un `Map` exporté au niveau du module (pas une injection DI) : c'est comme ça que le Service retrouve le `socket.id` du dessinateur pour lui envoyer `secret_word` en privé, sans dépendre de la Gateway elle-même.
+
+**Grâce de reconnexion :** `handleDisconnect` n'acte pas un départ immédiatement — il attend `RECONNECT_GRACE_MS` (8000ms) avant d'appeler `handleDisconnection`, pour qu'un refresh de page (disconnect + reconnect quasi instantané) n'annule pas la partie ou ne transfère pas les droits admin pour rien.
 
 ---
 
 ## 📡 3. TABLEAU DES ÉVÉNEMENTS WEBSOCKETS
 
-| Événement Reçu | Émetteur | Action du Backend / Service | Diffusion globale via `emit()` |
+Rooms publiques et **privées** (avec code d'accès, `maxMembers`) sont toutes les deux supportées — l'état est porté par `session.type` / `session.code` et renvoyé au client via `room_info`.
+
+| Événement Reçu | Émetteur | Action du Backend / Service | Diffusion via `emit()` |
 | :--- | :--- | :--- | :--- |
-| **`create_room`** | Créateur (Joueur 1) | Crée la session RAM et fait rejoindre le salon `channelId`. | `update_players` (liste des joueurs avec pseudos) |
-| **`join_room`** | Invités (Joueurs 2+) | Ajoute l'ID à la session RAM et au salon Socket.io. | `update_players` + `message_channel` |
-| **`start_game`** | Créateur | Lance le jeu, désigne le 1er dessinateur et lance le chrono. | `round_start`, `word_hint` (+ `secret_word` en privé au dessinateur) |
-| **`draw`** | Dessinateur actif | Enregistre le tracé dans `historicDraw` (RAM). | `draw` (transmet les coordonnées à tout le salon) |
-| **`disconnect`** *(auto)* | Navigateur / Client | Nettoie la RAM, retire le joueur et gère les départs en direct.| `update_players`, `drawer_left`, ou `game_cancelled` si $< 2$ joueurs |
+| **`create_room`** | Créateur | Crée la session RAM + le vrai `Channel` en base, rejoint la room Socket.io. | `room_created` (créateur), `update_players`, `new_admin` |
+| **`join_room`** | Invités | Ajoute le joueur à la session RAM + au `Channel` (chat), refuse les joueurs kické (`kicked_from_game`). | `update_players`, `new_admin`, `room_info`, `game_state_sync` (si partie déjà en cours) |
+| **`join_room_as_spec`** | Spectateur | Rejoint la room Socket.io **sans** rejoindre le chat — c'est le mécanisme du mode spectateur. | `room_info` (`isSpectator: true`), `update_players`, `game_state_sync` |
+| **`start_game`** | Créateur (admin) | Refuse si non-admin (`not_admin`). Sinon désigne le 1er dessinateur, tire un mot, lance le chrono de 60s. | `round_start`, `word_hint`, `secret_word` (privé au dessinateur), `timer_update` (chaque seconde) |
+| **`draw`** | Dessinateur actif | Enregistre le tracé dans `historicDraw` (RAM). | `draw` (relayé au reste du salon) |
+| **`clear_canvas`** | Dessinateur actif | Autorisé seulement si l'émetteur est bien le dessinateur courant. | `clear_canvas` (broadcast au salon) |
+| **`leave_room`** | Client | Quitte la room Socket.io et déclenche `handleDisconnection`. | `update_players`, `new_admin`, `drawer_left`, ou `game_cancelled` si $< 2$ joueurs |
+| *(mot deviné, via le chat)* | — | `checkGuess` valide le mot dans le message. | `word_found`, puis si tout le monde a trouvé : `round_end` + `classement` |
+| *(fin du chrono)* | — | Le round se termine sans que tous aient trouvé. | `round_end`, `classement`, puis `round_break` ou `game_over` (fin de partie) |
+| **`disconnect`** *(auto)* | Navigateur / Client | Après le délai de grâce de 8s : nettoie la RAM, retire le joueur. | `update_players`, `drawer_left`, ou `game_cancelled` si $< 2$ joueurs |
+
+D'autres événements existent en support : `get_my_id` (résout le `userId` du socket courant), `kicked_from_game` / `game_closed` (modération admin), `game_invite` (invitation envoyée via le chat).

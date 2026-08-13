@@ -310,11 +310,11 @@ POST /api/auth/logout  [protected by JwtGuard]
 `JwtGuard` (`src/auth/guards/jwt.guard.ts`) protects routes that require full authentication.
 
 **How it works:**
-1. Reads the `Authorization: Bearer <token>` header
-2. Verifies the JWT signature and expiry using `JwtService.verify()`
-3. Rejects tokens with `pending2fa: true` — partial tokens cannot access protected routes
-4. Attaches the decoded payload to `request.user`
-5. Throws `401` if the header is missing, malformed, expired, or is a partial token
+1. Reads the `Authorization: Bearer <token>` header — throws `401 "Missing token"` if absent
+2. Verifies the JWT signature and expiry — throws `401 "Invalid or expired token"` on failure
+3. Rejects tokens with `pending2fa: true` — throws `401 "2FA verification required"`
+4. Re-checks that the token's subject (`sub`) still exists via `UserService.findById()` — throws `401 "User no longer exists"` if the account was deleted after the token was issued (a signature check alone can't catch that)
+5. Attaches the decoded payload to `request.user`
 
 **How to use on a route:**
 
@@ -371,7 +371,7 @@ Creates a new user account with email and password.
 
 | Status | Body | Condition |
 |---|---|---|
-| 200 | `{ "accessToken": "<jwt>" }` | User created successfully |
+| 201 | `{ "accessToken": "<jwt>", "refreshToken": "<hex>" }` | User created successfully |
 | 400 | Validation error details | Invalid field format or length |
 | 409 | `"Email already in use"` | Email is taken |
 | 409 | `"Username already in use"` | Username is taken |
@@ -386,7 +386,8 @@ curl -sk -X POST https://localhost/api/auth/register \
 
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "dc2ff538560415daa55c819519da9f6abbf7b9fc..."
 }
 ```
 
@@ -414,9 +415,11 @@ Authenticates an existing user with email and password.
 
 | Status | Body | Condition |
 |---|---|---|
-| 200 | `{ "accessToken": "<jwt>" }` | Credentials valid |
+| 201 | `{ "accessToken": "<jwt>", "refreshToken": "<hex>" }` | Credentials valid, 2FA disabled |
+| 201 | `{ "twoFactorRequired": true, "partialToken": "<jwt>" }` | Credentials valid, 2FA enabled — call `/auth/2fa/verify` next |
 | 400 | Validation error details | Invalid field format |
 | 401 | `"Invalid credentials"` | Email not found, wrong password, or OAuth-only account |
+| 429 | Too Many Requests | More than 5 attempts in 60s (`@Throttle`) |
 
 **Example**
 
@@ -428,8 +431,68 @@ curl -sk -X POST https://localhost/api/auth/login \
 
 ```json
 {
-  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "dc2ff538560415daa55c819519da9f6abbf7b9fc..."
 }
+```
+
+---
+
+### `POST /auth/refresh`
+
+Exchanges a valid refresh token for a new access/refresh pair. Rotation is in effect — the old refresh token is deleted the moment this call succeeds, so it cannot be reused.
+
+**Request body**
+
+```json
+{ "refreshToken": "<refresh_token>" }
+```
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 201 | `{ "accessToken": "<jwt>", "refreshToken": "<hex>" }` | Token valid — new pair issued |
+| 400 | Validation error details | Missing/non-string `refreshToken` |
+| 401 | `"Invalid or expired refresh token"` | Token not found, expired, or already spent |
+
+```bash
+curl -sk -X POST https://localhost/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refreshToken":"<refresh_token>"}'
+```
+
+---
+
+### `POST /auth/logout`
+
+Deletes the session server-side, invalidating the given refresh token. **Protected by JwtGuard.**
+
+**Headers**
+
+```
+Authorization: Bearer <accessToken>
+```
+
+**Request body**
+
+```json
+{ "refreshToken": "<refresh_token>" }
+```
+
+**Responses**
+
+| Status | Body | Condition |
+|---|---|---|
+| 200 | *(empty)* | Session deleted |
+| 401 | `"Missing token"` | No Authorization header |
+| 401 | `"Invalid or expired token"` | Access token invalid or expired |
+
+```bash
+curl -sk -X POST https://localhost/api/auth/logout \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <accessToken>" \
+  -d '{"refreshToken":"<refresh_token>"}'
 ```
 
 ---
@@ -456,33 +519,10 @@ The token is signed with `HS256` using `JWT_SECRET` from the environment.
 | `iat` | Issued at (Unix timestamp) |
 | `exp` | Expiry (Unix timestamp, `iat + JWT_EXPIRES_IN`) |
 
-Use this token in the `Authorization` header for protected routes (JWT guard not yet implemented — planned for `feat/auth-guard`):
+Use this token in the `Authorization` header for protected routes, enforced by `JwtGuard`:
 
 ```
 Authorization: Bearer <accessToken>
-```
-
-**Request body**
-
-```json
-{
-  "refreshToken": "<refresh_token>"
-}
-```
-
-**Responses**
-
-| Status | Body | Condition |
-|---|---|---|
-| 200 | (empty) | Session deleted |
-| 401 | `"Missing token"` | No Authorization header |
-| 401 | `"Invalid or expired token"` | Access token invalid or expired |
-
-```bash
-curl -sk -X POST https://localhost/api/auth/logout \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <accessToken>" \
-  -d '{"refreshToken":"<refresh_token>"}'
 ```
 
 ---
@@ -667,10 +707,27 @@ curl -sk -X POST https://localhost/api/auth/2fa/disable \
 
 ---
 
-## What Is Not Yet Implemented
+## Frontend Integration
 
-| Feature | Planned branch |
-|---|---|
-| Login rate limiting (5 attempts → delay) | `feat/auth-rate-limit` |
-| Frontend `/auth/callback` page (token storage) | frontend branch |
-| Frontend `/auth/2fa` page (TOTP code input) | frontend branch |
+Requests are made to relative `/api/...` paths (no separate base-URL env var — nginx serves frontend and proxies `/api` to `backend` from the same origin).
+
+### Token storage — `srcs/frontend/src/lib/session.ts`
+
+Both `accessToken` and `refreshToken` are kept in `sessionStorage` (not `localStorage`, and not React state) behind four functions every page uses instead of touching storage directly:
+
+- `saveSession(accessToken, refreshToken)` — called after register, password login, 2FA verify, and the OAuth callback
+- `getAccessToken()` — decodes the JWT's `exp` client-side; if it's expired (30s buffer), transparently calls `POST /auth/refresh` and stores the new pair before returning a token. Concurrent callers share one in-flight refresh instead of racing to spend the same refresh token twice.
+- `getRefreshToken()` — plain read of the stored refresh token, used by the logout call below.
+- `clearSession()` — clears both tokens client-side.
+
+**Logout** (`ProfilePage.tsx`'s `handleLogout`): best-effort `POST /auth/logout` with the current `refreshToken` (so the `sessions` row is deleted server-side too), then `clearSession()` and redirect to `/login` regardless of whether that call succeeded — a network hiccup on logout shouldn't strand the user in a half-logged-out state.
+
+### Pages
+
+| Route | Component | Purpose |
+|---|---|---|
+| `/login` | `LoginPage.tsx` | Email/password login. On `twoFactorRequired`, switches to an inline OTP step (`OtpVerifyForm`) in the same page — no redirect, since the SPA never lost its state. |
+| `/signUp` | `SignUpPage.tsx` | Registration; saves the session directly from the `201` response. |
+| `/auth/callback` | `AuthCallbackPage.tsx` | Google OAuth landing page — reads `accessToken`/`refreshToken` from the URL query string (full-page redirect, so tokens can't come back as in-memory state), saves the session, then redirects. |
+| `/auth/2fa` | `GoogleTwoFactorPage.tsx` | Google OAuth's 2FA landing page — reads `partialToken` from the URL, submits the TOTP code to `POST /auth/2fa/verify`. The password-login 2FA step does **not** use this route. |
+| `/2fa/prompt` | `TwoFactorSetupPage.tsx` | Optional 2FA setup/enable prompt (QR code + confirm code), drives `POST /auth/2fa/setup` then `POST /auth/2fa/enable`. |

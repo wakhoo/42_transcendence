@@ -14,7 +14,7 @@ Once React has started, a root component takes over. Based on the URL shown in t
 
 The application is a "single page application": there is really only one actual HTML page. When a link or button that changes the page is clicked, the browser does not reload everything from the server — React intercepts the URL change and swaps the displayed content for the correct page, instantly, without a reload.
 
-The root component holds the list of possible paths (for example the site root, `/login`, `/signUp`, `/dashboard`, `/game`) and matches each of these paths to a specific page. It acts as a switchboard: as soon as the URL matches one of these paths, the associated page is displayed.
+The root component holds the list of possible paths (the site root, `/login`, `/signUp`, `/dashboard`, `/game`, `/profile`, plus the auth-only landing pages `/auth/callback`, `/auth/2fa`, and `/2fa/prompt`) and matches each of these paths to a specific page. It acts as a switchboard: as soon as the URL matches one of these paths, the associated page is displayed.
 
 ## 3. User journey, page by page
 
@@ -28,10 +28,16 @@ Lets an already-registered user enter their email and password. If the credentia
 Lets a new user create an account (email, username, password). Once the account is created, the user is automatically logged in and sent straight to their dashboard, without having to go through the login page first.
 
 **Dashboard**
-This is the main page once logged in. It acts as a central hub: list of connected players, a real-time general chat, and access to the different game modes (join a public room, create a public or private room). If a user reaches this page without being logged in, they are automatically sent back to the login page.
+This is the main page once logged in. It acts as a central hub: list of connected players with live online/offline presence, a real-time general chat, and access to the different game modes (join a public room, or create a public or private room). If a user reaches this page without being logged in, they are automatically sent back to the login page.
+
+**Profile page**
+Lets the logged-in user view and edit their own account: avatar, username, email, password, and 2FA status. Reachable from the dashboard once logged in.
 
 **Game page**
-The page where a match takes place. It is still under construction and currently serves as a scratch page for testing the countdown timer mechanic.
+The page where a match actually takes place: a shared drawing canvas, the current round's word hint and timer, live scores, and a spectator mode for anyone who joins after a round has already started. Both public and private (code-protected) rooms are supported.
+
+**Auth landing pages**
+A few routes exist purely as landing spots the backend redirects to rather than places a user navigates to directly: `/auth/callback` completes a Google OAuth login, `/auth/2fa` completes a Google OAuth login when the account has 2FA enabled, and `/2fa/prompt` is the optional screen for setting up (enabling) 2FA on an existing account.
 
 The typical path for a new user is therefore: home → sign-up (or login) → dashboard → game. The login and sign-up pages also include a way back to the previous screen so users can backtrack without losing their place.
 
@@ -53,7 +59,7 @@ In development, requests meant for the server are automatically redirected to th
 - **The base HTML page**: the minimal skeleton loaded by the browser, whose only job is to host the React application.
 - **The entry script**: starts React and mounts it into the page.
 - **The root component**: defines the list of available pages and the routing between them.
-- **The pages folder**: contains one file per screen of the application (home, login, sign-up, dashboard, game). Each file is responsible for the display and behavior of a single screen.
+- **The pages folder**: contains one file per screen of the application (home, login, sign-up, dashboard, profile, game, plus the auth landing pages). Each file is responsible for the display and behavior of a single screen.
 - **The components folder**: contains reusable pieces that can be plugged into several pages (for example the countdown timer used on the game page), instead of duplicating the same block in every page that needs it.
 - **The global stylesheet**: defines the overall look of the application (fonts, base colors, etc.), applied across all pages.
 - **The dev server configuration**: describes how the project should be started locally, including redirecting requests to the backend server during development.

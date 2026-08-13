@@ -15,7 +15,9 @@ All endpoints live under `/api/user/me` and are implemented in the `UserModule`.
 | `GET /user/me/export` | Portability | Art. 20 |
 | `DELETE /user/me` | Erasure ("right to be forgotten") | Art. 17 |
 
-**Scope note:** these endpoints only cover the `users` table. Chat data (messages, channel memberships, friendships) lives in `ChatModule` and is intentionally **not** included in the export/erasure flow yet — that's chat's own team's territory to wire in when ready.
+**Scope note:** rectification (`PATCH`) only touches the `users` row itself. Export and erasure go further: `GET /user/me/export` also returns the caller's own chat messages (see below), and `DELETE /user/me` cascades into `sessions`, `channel_members`, and `friendships`, and anonymizes `messages` (see [What actually gets deleted](#what-actually-gets-deleted)). Channel memberships/friendships themselves are still not exportable, only erasable.
+
+Every action here — profile change, export, deletion — is written to an append-only `audit_logs` table via `GdprAuditService` (`user_id`, `action`, `ip`, timestamp; no FK/cascade on `user_id`, so the trail survives the account it refers to being deleted) and triggers a confirmation email via `MailService`. A failed/bounced email is caught and logged — it never blocks the underlying GDPR action.
 
 ---
 
@@ -24,13 +26,17 @@ All endpoints live under `/api/user/me` and are implemented in the `UserModule`.
 ```
 src/user/
 ├── user.entity.ts              # TypeORM entity → maps to the `users` table
-├── user.service.ts             # DB queries: create, find*, update, remove, TOTP/OAuth helpers
+├── user.service.ts             # DB queries: create, find*, update, remove, getUserMessage, TOTP/OAuth helpers
 ├── user.controller.ts          # HTTP routes for all GDPR endpoints (this doc)
 ├── user.module.ts              # Registers JwtModule + JwtGuard locally (same pattern as ChatModule)
+├── gdpr-audit.service.ts        # Writes the append-only audit_logs row for every GDPR-relevant action
+├── audit-log.entity.ts          # TypeORM entity → maps to the `audit_logs` table
 └── dto/
     ├── update-user.dto.ts       # Input validation for PATCH /user/me
     └── delete-account.dto.ts    # Input validation for DELETE /user/me (password + optional 2FA code)
 ```
+
+`MailService` (`../mail/mail.service.ts`) sends the confirmation email for each of the three actions below (profile changed / data exported / account deleted).
 
 `UserModule` registers its own `JwtModule.registerAsync(...)` and provides `JwtGuard` (imported from `../auth/guards/jwt.guard`) directly — it does **not** import `AuthModule`. This avoids a circular module dependency (`AuthModule` already imports `UserModule` for `UserService`).
 
@@ -83,13 +89,15 @@ curl -sk https://localhost/api/user/me \
 
 ## `PATCH /user/me`
 
-Corrects profile fields (rectification). Both fields are optional — send only what changed.
+Corrects profile fields (rectification). All fields are optional — send only what changed.
 
 **Request body**
 ```json
 {
   "email": "new@example.com",
-  "username": "newname"
+  "username": "newname",
+  "avatarUrl": "/avatars/avatar3.png",
+  "code": "123456"
 }
 ```
 
@@ -97,13 +105,19 @@ Corrects profile fields (rectification). Both fields are optional — send only 
 |---|---|
 | `email` | optional, valid email format |
 | `username` | optional, 3–20 characters |
+| `avatarUrl` | optional, must be one of the 20 built-in `/avatars/avatarN.png` paths |
+| `code` | required *only* if `email` or `username` is changing **and** the account has 2FA enabled — 6-digit TOTP |
+
+Changing `avatarUrl` alone never requires a 2FA code, even on a 2FA-enabled account — only email/username changes are gated, since those are the fields an attacker with a stolen access token would want to hijack (e.g. to intercept a password-reset email).
 
 **Responses**
 
 | Status | Condition |
 |---|---|
 | 200 | Updated profile (same shape as `GET /user/me`) |
-| 400 | Validation error (bad email format, username length) |
+| 400 | Validation error (bad email format, username length, invalid avatar path) |
+| 400 | `"2FA code required"` — changing email/username on a 2FA-enabled account without a `code` |
+| 401 | `"Invalid 2FA code"` — wrong or expired TOTP code |
 | 409 | `"Email already in use"` — another account owns that email |
 | 409 | `"Username already in use"` — another account owns that username |
 
@@ -118,11 +132,20 @@ curl -sk -X PATCH https://localhost/api/user/me \
 
 ## `GET /user/me/export`
 
-Returns a portable JSON snapshot of the user's own profile data (Art. 20).
+Returns a portable JSON snapshot of the user's own profile **and their own chat messages** (Art. 20). Requires a valid TOTP code as a query param if the account has 2FA enabled — an access token alone isn't enough to pull a full data export.
+
+**Query params**
+
+| Param | Rules |
+|---|---|
+| `code` | required only if `totpEnabled` is `true` — 6-digit TOTP |
 
 **Response `200`**
 ```json
 {
+  "messages": [
+    { "id": 42, "content": "hey", "channel": { "id": 3, "name": "general" }, "createdAt": "..." }
+  ],
   "profile": {
     "id": 1,
     "email": "user@example.com",
@@ -137,7 +160,16 @@ Returns a portable JSON snapshot of the user's own profile data (Art. 20).
 }
 ```
 
-Same sensitive-field exclusions as `GET /user/me` (no `passwordHash`, no `totpSecret` — exporting an auth secret would be a security bug, not a compliance feature).
+`messages` comes from `UserService.getUserMessage()` — every message this user sent, with its parent channel. Same sensitive-field exclusions on `profile` as `GET /user/me` (no `passwordHash`, no `totpSecret` — exporting an auth secret would be a security bug, not a compliance feature).
+
+**Responses**
+
+| Status | Condition |
+|---|---|
+| 200 | Export returned |
+| 400 | `"2FA code required"` | Account has 2FA enabled but no `code` query param was sent |
+| 401 | `"Invalid 2FA code"` | Wrong or expired TOTP code |
+| 429 | Too Many Requests | More than 5 calls in 60s (`@Throttle`) |
 
 ```bash
 curl -sk https://localhost/api/user/me/export \
@@ -180,6 +212,7 @@ Both checks apply independently and are checked in order: password first, then 2
 | 401 | `"Invalid password"` | Wrong password |
 | 401 | `"Invalid 2FA code"` | Wrong or expired TOTP code |
 | 401 | Unauthorized | Missing/invalid/expired access token |
+| 429 | Too Many Requests | More than 5 attempts in 60s (`@Throttle`) |
 
 ```bash
 curl -sk -X DELETE https://localhost/api/user/me \

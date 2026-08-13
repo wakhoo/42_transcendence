@@ -177,16 +177,19 @@ VAULT_ADDR=https://vault:8200
 |-----------|-----------|---------------|------|
 | `nginx` | `srcs/nginx/` | 8443 (HTTPS), 8080 (HTTP → redirects to 8443) | Reverse proxy + WAF — only entry point |
 | `frontend` | `srcs/frontend/` | none | React/Vite UI |
-| `backend` | `srcs/backend/` | none | NestJS REST API |
+| `backend` | `srcs/backend/` | none | NestJS REST API + WebSocket gateways |
 | `mariadb` | `srcs/mariadb/` | none | Relational database |
+| `vault` | `srcs/vault/` | none | HashiCorp Vault — secrets management |
 
 ### What each container does
 
-**`nginx`** — The only container reachable from the internet. Every request passes through it. It routes `/api/*` to the backend, `/ws` to the websocket server, and everything else to the frontend. ModSecurity runs as a Web Application Firewall to block SQLi, XSS, and other OWASP Top 10 attacks before they reach the app.
+**`nginx`** — The only container reachable from the internet. Every request passes through it. It routes `/api/*` and `/socket.io` to the backend, and everything else to the frontend. ModSecurity runs as a Web Application Firewall to block SQLi, XSS, and other OWASP Top 10 attacks before they reach the app.
 
 **`frontend`** — Serves the React application compiled by Vite. Not exposed directly — nginx proxies requests to it on the internal Docker network.
 
-**`backend`** — The NestJS API. Handles all business logic, exposes routes under `/api`, and manages WebSocket connections via integrated NestJS gateways (`/ws`). Talks to `mariadb` for data persistence. Not exposed externally — nginx forwards matching requests to it.
+**`backend`** — The NestJS API. Handles all business logic, exposes routes under `/api`, and manages WebSocket connections via two integrated NestJS gateways over Socket.IO (`ChatGateway` on `/chat`, `GameGateway` on `/game`, both reached through nginx's `/socket.io` route). Talks to `mariadb` for data persistence and to `vault` for secrets. Not exposed externally — nginx forwards matching requests to it.
+
+**`vault`** — HashiCorp Vault. Stores app secrets, reachable only from `backend` over the isolated `vault_net` network. `backend`'s `vault-loader.ts` logs in via AppRole and merges the KV secret into `process.env` before NestJS boots; it no-ops when `VAULT_ADDR` is unset, so local dev without a running Vault still works off a plain `.env`.
 
 **`mariadb`** — Stores all persistent data. Accessible only from the `backend` container through the isolated `db` network. Data survives container restarts via the `mariadb_data` Docker volume.
 
@@ -199,7 +202,7 @@ Four Docker networks enforce strict separation between layers:
 | `dmz` | nginx | Faces the internet |
 | `internal` | nginx, frontend, backend | Internal app traffic |
 | `db` | backend, mariadb | Database access only |
-| `vault_net` | backend, vault (planned) | Secrets management |
+| `vault_net` | backend, vault | Secrets management |
 
 A container can only reach another container if they share a network. `mariadb` is on `db` only — the frontend can never reach the database, even accidentally.
 
@@ -213,6 +216,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | `frontend` | `curl http://localhost:3000` | UI server responds |
 | `backend` | `curl http://localhost:3000/api/health` | NestJS API responds |
 | `mariadb` | `mariadb-admin ping` | Database accepts connections |
+| `vault` | `vault status` | Vault is unsealed and responding |
 
 `backend` waits for `mariadb` to report healthy before starting, preventing startup crashes when the database is not yet ready.
 
@@ -276,7 +280,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | Docker + Docker Compose | Containerization, single-command deployment |
 | Nginx + ModSecurity | Reverse proxy, WAF with OWASP CRS |
 | HTTPS / TLS 1.3 | Encrypted external connections, latest TLS standard |
-| HashiCorp Vault | Secret and credential management (planned) |
+| HashiCorp Vault | Secret and credential management |
 
 ---
 
@@ -557,23 +561,63 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 - Keeping 2FA state consistent across login and profile-editing flows — every endpoint that could leak or change account-critical data (email, password, export, delete) needed its own TOTP re-check, not just the login path
 
 ### asdiallo — Tech Lead + Developer
-- Overall architecture design
-- Technology stack decisions
-- Web Application scaffold: frontend + backend + DB (mandatory)
-- Docker Single-Command Deployment (mandatory)
-- Responsive Frontend (mandatory)
-- Input Validation, frontend + backend (mandatory)
-- Full-Stack Framework Usage (Major)
-- Frontend Framework Only (Minor)
-- Backend Framework Only (Minor)
-- Standard User Management & Auth (Major)
-- Challenges: [Any challenges faced and how resolved]
+
+**Overall Architecture & Stack Decisions**
+- Chose the React + NestJS stack and laid out the initial project structure that the rest of the team built on
+
+**Web Application Scaffold (Frontend + Backend + DB)** (mandatory)
+- Bootstrapped the React frontend and NestJS backend boilerplate, with an initial backend `/health` endpoint and dev proxy between the two
+- Set up the backend's TypeScript/ESLint config and `src/` structure
+
+**Docker Single-Command Deployment** (mandatory)
+- Multi-stage `Dockerfile` for the backend service; frontend, WebSocket, and MariaDB services wired into `docker-compose.yml`
+- Nginx gateway configured for HTTP + WebSocket proxying, with healthchecks on every service so `docker compose up` brings up a working stack in one shot
+- Makefile targets refined for day-to-day usage
+
+**Responsive Frontend** (mandatory)
+- Tailwind-based responsive layout work across pages (Dashboard, Profile)
+
+**Input Validation, Frontend + Backend** (mandatory)
+- Global `ValidationPipe({ whitelist: true })` in `main.ts` — every incoming DTO is validated and unknown fields are stripped before reaching a handler
+- Auth/user DTOs (`register.dto.ts`, `login.dto.ts`, `update-user.dto.ts`, …) built with `class-validator` decorators (`IsEmail`, `IsString`, `Length`, …), mirrored by matching form validation on the frontend
+
+**Full-Stack Framework Usage** (Major)
+- End-to-end React + NestJS setup: scaffold, build tooling, and dev/prod scripts
+
+**Frontend Framework Only** (Minor) / **Backend Framework Only** (Minor)
+- React app structure (routing, pages) and NestJS module structure each usable independently, satisfying both standalone-framework requirements
+
+**Standard User Management & Auth** (Major)
+- Login / SignUp pages, plus the Google OAuth callback flow (`AuthCallbackPage.tsx`)
+- Profile page + `ProfileContent` component: avatar, profile color, editable fields
+- Online presence: fetch-all-users and live online/offline status on the Dashboard
+
+**Challenges**
+- [Any challenges faced and how resolved]
 
 ### aboutale — Developer
-- Web-Based Game (Major)
-- Remote Players (Major)
-- Multiplayer, 3+ Players (Major)
-- Spectator Mode (Minor)
+
+**Web-Based Game** (Major)
+- Backend game engine — `game.gateway.ts` + `game.service.ts`: turn rotation, timer events, word selection, hint generation, and dynamic scoring
+- Interactive Canvas (frontend): HTML5 Canvas integration that captures, scales, and broadcasts drawing coordinates in real time; batches stroke events instead of emitting per-pixel to keep the socket from congesting
+- Real-time dashboard: UI wired to backend WebSocket events (`channel_deleted`, `presenceChanged`) so the frontend strictly mirrors DB state; responsive layout and profile modals built with Tailwind CSS
+
+**Remote Players** (Major)
+- Graceful handling of disconnects mid-game: admin rights transfer to another player, active room timers are cleared, and an empty game is auto-canceled instead of left hanging
+
+**Multiplayer, 3+ Players** (Major)
+- Turn rotation and scoring generalized to N simultaneous players in the same room, not just 1v1
+
+**Spectator Mode** (Minor)
+- Spectator role integrated into the game/room state (view-only — no drawing or guessing rights)
+
+**Frontend Anti-Crash System**
+- Strict `Array.isArray()` validation before updating React state, so an HTTP 429 error payload (object, not array) can't reach `.map()` and crash the UI during high server load
+
+**Challenges**
+- Ghost timers / race conditions: a player kicked or disconnected at the exact moment a round timer fired could trigger `setTimeout` callbacks for an already-canceled game, sending empty hints or crashing the round — resolved with state checks before running delayed callbacks and clearing all active timers when a room empties or a game force-closes
+- Canvas performance: broadcasting every pixel move over WebSockets congested the network — resolved by batching coordinate events and emitting strokes instead of raw points
+- "White Screen of Death": rapid UI interactions tripped the backend Throttler, replacing expected JSON arrays with error objects and breaking `.map()` — resolved by validating array shape before updating state, letting the UI ignore error payloads and freeze gracefully until the rate limit expired
 
 ---
 
