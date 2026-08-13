@@ -299,6 +299,15 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | totp_enabled | BOOLEAN | 2FA toggle |
 | created_at | TIMESTAMP | Account creation date |
 
+#### sessions
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| token_hash | VARCHAR | Hashed refresh token |
+| expires_at | DATETIME | Refresh token expiry |
+| created_at | TIMESTAMP | Session creation date |
+| user_id | INT | FK → users (cascade delete) |
+
 #### channels
 | Column | Type | Description |
 |--------|------|-------------|
@@ -321,6 +330,14 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | user_id | INT | FK → users |
 | channel_id | INT | FK → channels |
 
+#### match
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| channel_id | INT | Game room this match belongs to — plain column, not a FK |
+| scores | JSON | Per-player score map (`{ userId: score }`) |
+| created_at | TIMESTAMP | Match creation date |
+
 #### messages
 | Column | Type | Description |
 |--------|------|-------------|
@@ -339,6 +356,12 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | requester_id | INT | FK → users |
 | addressee_id | INT | FK → users |
 
+#### words
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| content | VARCHAR | Unique drawing keyword, drawn from at random each round |
+
 #### bad_words
 | Column | Type | Description |
 |--------|------|-------------|
@@ -355,12 +378,14 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | created_at | TIMESTAMP | Event date |
 
 ### Relationships
+- users 1 — N sessions (refresh tokens, cascade delete)
 - users 1 — N channel_members — N channels (join table)
 - users 1 — N messages (as sender)
 - users 1 — N friendships (as requester or addressee)
 - users 1 — N audit_logs (by user_id, no FK constraint — see above)
 - channels 1 — N messages
 - channels 1 — N channel_members
+- channels 1 — N match (by channel_id, no FK constraint — game rounds played in that room)
 
 ---
 
