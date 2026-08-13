@@ -42,6 +42,7 @@ cd ft_transcendence
 2. Create your environment file
 ```bash
 cp .env.example .env
+cp seed.env.example seed.env
 # Fill in the required values in .env
 ```
 
@@ -87,7 +88,7 @@ MARIADB_PASSWORD=
 MARIADB_DATABASE=ft_transcendence
 
 # Mail
-GMAIL_USER=tau7259@gmail.com
+GMAIL_USER=
 
 # NESTAUTH_URL=https://dancel.42.fr
 NESTAUTH_URL=https://localhost
