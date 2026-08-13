@@ -111,7 +111,8 @@ if ! vault kv get -format=json secret/ft_transcendence >/dev/null 2>&1; then
             MARIADB_PASSWORD="$MARIADB_PASSWORD" \
             OAUTH_GOOGLE_CLIENT_ID="$OAUTH_GOOGLE_CLIENT_ID" \
             OAUTH_GOOGLE_CLIENT_SECRET="$OAUTH_GOOGLE_CLIENT_SECRET" \
-            TOTP_ISSUER="$TOTP_ISSUER" >/dev/null
+            TOTP_ISSUER="$TOTP_ISSUER" \
+            GMAIL_APP_PASSWORD="$GMAIL_APP_PASSWORD" >/dev/null
     else
         echo "[vault-entrypoint] WARNING: no /vault/config/seed.env found, secret/ft_transcendence not seeded"
     fi

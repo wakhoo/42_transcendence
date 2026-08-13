@@ -59,39 +59,48 @@ https://localhost:8443
 
 ### Environment Variables
 
+Copy `seed.env.example` to `seed.env` and fill in the values:
+
+```env
+JWT_SECRET=
+NESTAUTH_SECRET=
+
+MARIADB_ROOT_PASSWORD=
+MARIADB_PASSWORD=
+
+OAUTH_GOOGLE_CLIENT_ID=
+OAUTH_GOOGLE_CLIENT_SECRET=
+
+TOTP_ISSUER=ft_transcendence
+GMAIL_APP_PASSWORD=
+```
+
 Copy `.env.example` to `.env` and fill in the values:
 
 ```env
 # Database — MariaDB
-DB_HOST=mariadb
-DB_PORT=3306
-DB_ROOT_PASSWORD=
-DB_USER=
-DB_PASSWORD=
-DB_NAME=ft_transcendence
+MARIADB_HOST=mariadb
+MARIADB_PORT=3306
+MARIADB_ROOT_PASSWORD=
+MARIADB_USER=
+MARIADB_PASSWORD=
+MARIADB_DATABASE=ft_transcendence
 
-# Backend — Nest.js
-BACKEND_PORT=3000
-NESTAUTH_URL=https://dancel.42.fr
-NESTAUTH_SECRET=
+# Mail
+GMAIL_USER=tau7259@gmail.com
+
+# NESTAUTH_URL=https://dancel.42.fr
+NESTAUTH_URL=https://localhost
 
 # JWT
-JWT_SECRET=
 JWT_EXPIRES_IN=3600
 
 # Frontend — React
-VITE_API_URL=https://dancel.42.fr/api
-VITE_WS_URL=wss://dancel.42.fr/ws
+VITE_API_URL=https://localhost/api
+VITE_WS_URL=wss://localhost/ws
 
-# WebSocket
-WS_PORT=9000
-
-# OAuth — Google
-OAUTH_GOOGLE_CLIENT_ID=
-OAUTH_GOOGLE_CLIENT_SECRET=
-
-# 2FA
-TOTP_ISSUER=ft_transcendence
+# Vault
+VAULT_ADDR=https://vault:8200
 ```
 
 ### Available Commands
@@ -282,10 +291,20 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | id | INT | Primary key |
 | word | VARCHAR | Banned word or phrase |
 
+#### audit_logs
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| user_id | INT | References users.id — plain column, not a FK (no cascade, so the trail survives account deletion) |
+| action | ENUM | `data_changed`, `data_exported`, or `account_deleted` (GDPR audit trail) |
+| ip | VARCHAR(45) | Request IP (nullable) |
+| created_at | TIMESTAMP | Event date |
+
 ### Relationships
 - users 1 — N channel_members — N channels (join table)
 - users 1 — N messages (as sender)
 - users 1 — N friendships (as requester or addressee)
+- users 1 — N audit_logs (by user_id, no FK constraint — see above)
 - channels 1 — N messages
 - channels 1 — N channel_members
 
