@@ -403,7 +403,6 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | WAF / ModSecurity + HashiCorp Vault | OWASP CRS, SQLi/XSS protection, secrets management | chajeon |
 | OAuth 2.0 | Google social login | chajeon |
 | 2FA Authentication | TOTP-based with QR code registration | chajeon |
-| Public API | Secured REST API with rate limiting | chajeon |
 | GDPR Compliance | Data request, deletion, export | chajeon |
 | User Management & Auth | Profile, avatar, friends list, online status | asdiallo |
 | Frontend & Backend Frameworks | React + NestJS | asdiallo |
@@ -443,7 +442,6 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | Full-Stack Framework Usage | Web | Major | 2 | asdiallo | — |
 | WebSocket Real-Time Features | Web | Major | 2 | dancel | — |
 | User Interaction (Chat + Profile + Friends) | Web | Major | 2 | dancel | — |
-| Public API | Web | Major | 2 | chajeon | — |
 | Standard User Management & Auth | User Management | Major | 2 | asdiallo | — |
 | WAF/ModSecurity + HashiCorp Vault | Cybersecurity | Major | 2 | chajeon | — |
 | Web-Based Game | Gaming & UX | Major | 2 | aboutale | — |
@@ -461,9 +459,9 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | **Total** | | | **27** | | |
 
 ### Point Calculation
-- Major modules (2pt each): 9 × 2 = 18pt
+- Major modules (2pt each): 8 × 2 = 16pt
 - Minor modules (1pt each): 9 × 1 = 9pt
-- **Total: 27pt** (minimum required: 14pt)
+- **Total: 25pt** (minimum required: 14pt)
 
 ---
 
