@@ -4,7 +4,6 @@ import HomePage from './pages/HomePage.tsx';
 import SignUpPage from './pages/SignUpPage.tsx';
 import LoginPage from './pages/LoginPage.tsx';
 import PublicLayout from './components/PublicLayout.tsx';
-//import Timer from './components/Timer.tsx';
 import GamePage from './pages/GamePage.tsx';
 import DashboardPage from './pages/DashboardPage.tsx';
 import ProfilePage from './pages/ProfilePage.tsx';

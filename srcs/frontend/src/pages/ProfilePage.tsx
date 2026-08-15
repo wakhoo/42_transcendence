@@ -356,7 +356,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
         setTotpError('');
     }
 
-    function friendOf(f: Friendship) { //fonction qui permet de savoir si la personne a envoye la demande ou l'a recu
+    function friendOf(f: Friendship) {
         if (f.requester.id === me?.id)
             return f.addressee;
         return f.requester;

@@ -24,7 +24,6 @@ type UserProfile = {
     avatarUrl: string | null;
 };
 
-//ajout
 type GameRoom = {
     id: number;
     name: string;
@@ -53,14 +52,11 @@ export default function DashboardPage() {
     const [onlineUserIds, setOnlineUserId]              = useState<Set<number>>(new Set());
     const [showMyProfile, setShowMyProfile]             = useState<boolean>(false);
     const [showUsers, setShowUsers]                     = useState<boolean>(false);
-//    const [showJoinModal, setShowJoinModal] = useState(false);
-//    const [joinCode, setJoinCode] = useState('');
-    // A partir de la que des ajouts
     const [showCreateModal, setShowCreateModal]         = useState(false);
     const [createMaxPlayers, setCreateMaxPlayers]       = useState('');
     const [createPassword, setCreatePassword]           = useState('');
     const [createPrivate, setCreatePrivate]             = useState(false);
-    const [createRounds, setCreateRounds]               = useState(''); // nombre de manches (vide = 3 par défaut)
+    const [createRounds, setCreateRounds]               = useState('');
     const [gameRooms, setGameRooms]                     = useState<GameRoom[]>([]);
     const [joinPwdRoomId, setJoinPwdRoomId]             = useState<number | null>(null);
     const [joinPwdInput, setJoinPwdInput]               = useState('');
@@ -175,7 +171,6 @@ export default function DashboardPage() {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // Rafraîchit la liste des parties toutes les 5sec
     useEffect(() => {
         const load = async () => {
             const res = await fetch('/api/chat/game-rooms', { headers: await authHeaders() });
@@ -266,17 +261,15 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-           {/* 1. On rajoute "relative" ici pour que le logo absolu reste dans ce cadre */}
+
             <div className="shrink-0 flex items-center justify-center px-4 py-6 lg:flex-1 lg:py-4 relative">
                 
-                {/* 2. LE LOGO : Placé tout en haut (top-12) et décalé à gauche (-ml-16) */}
+
                 <div className="absolute top-8 lg:top-12 lg:-ml-16">
-                    {/* (Utilise text-6xl si c'est le logo texte que je t'ai donné, ou w-80 si c'est une image SVG) */}
+
                     <DrawDrawLogo className="text-5xl lg:text-7xl" />
                 </div>
 
-                {/* 3. TES BOUTONS : On ne touche à rien, ils restent parfaitement au centre ! 
-                    (J'ai juste ajouté mt-32 lg:mt-0 pour éviter que le logo n'écrase les boutons sur téléphone) */}
                 <div className="flex flex-col gap-4 sm:gap-6 lg:gap-12 w-full max-w-xs sm:max-w-sm mt-32 lg:mt-0">
 
                     {/* liste des parties en cours */}
@@ -344,7 +337,6 @@ export default function DashboardPage() {
                                                 <span className={`text-[11px] font-semibold ${isFull ? 'text-red-400' : 'text-gray-400'}`}>
                                                     {memberCount}/{max ?? '8'}
                                                 </span>
-                                                {/* bouton oeil pour rejoindre en spec sauf si kick*/}
                                                 <span
                                                     role="button"
                                                     title="Watch as spectator"
@@ -364,7 +356,7 @@ export default function DashboardPage() {
                             </div>
                         )}
                     </div>
-                        {/* Ouvre la modale au lieu de créer directement */}
+
                         <button
                             onClick={() => setShowCreateModal(true)}
                             className="relative [transform-style:preserve-3d] px-8 py-4 sm:px-16 sm:py-6 lg:px-32 lg:py-8 rounded-2xl text-emerald-900 text-base sm:text-lg lg:text-xl font-semibold
@@ -384,7 +376,7 @@ export default function DashboardPage() {
                         </button>
                 </div>
 
-                {/* Modale de mot de passe pour rejoindre une room protégée */}
+
                 {joinPwdRoomId !== null && (
                     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
                         <div className="bg-white rounded-2xl p-6 w-80 flex flex-col gap-4 text-gray-800">
@@ -410,7 +402,6 @@ export default function DashboardPage() {
                     </div>
                 )}
 
-                {/* Modale de création d'une room — remplace le bouton "Create new private room" */}
                 {showCreateModal && (
                     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
                         <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-80 flex flex-col gap-4 shadow-2xl">
@@ -431,7 +422,7 @@ export default function DashboardPage() {
                                     value={createMaxPlayers}
                                     onChange={(e) => {
                                         const v = e.target.value;
-                                        if (v === '' || /^\d+$/.test(v)) setCreateMaxPlayers(v); // uniquement vide ou des chiffres
+                                        if (v === '' || /^\d+$/.test(v)) setCreateMaxPlayers(v);
                                     }}
                                     placeholder="Max 8"
                                 />
@@ -483,7 +474,6 @@ export default function DashboardPage() {
                                 </div>
                             </label>
 
-                            {/* Rappel des commandes admin disponibles une fois dans le salon */}
                             <div className="text-xs text-gray-600 bg-gray-800/60 border border-gray-700/50 rounded-lg px-3 py-2">
                                 <span className="font-semibold text-gray-500">Admin commands (in chat):</span><br />
                                 <span className="font-mono text-gray-600">/limit · /pass · /kick · /mute · /private · /close</span>
