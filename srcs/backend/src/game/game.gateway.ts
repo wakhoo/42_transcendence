@@ -243,8 +243,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
 
 
-
-
     @SubscribeMessage('leave_room')
     async handleLeaveRoom(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
 
@@ -268,6 +266,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
     }
 
+    
     async handleDisconnect(client: Socket) {
 
       const userId = gameSocketUserMap.get(client.id);
