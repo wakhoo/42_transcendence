@@ -456,7 +456,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | Advanced Chat Features | Gaming & UX | Minor | 1 | dancel | Requires User Interaction module |
 | Spectator Mode | Gaming & UX | Minor | 1 | aboutale | Requires a game module |
 | GDPR Compliance | Data & Analytics | Minor | 1 | chajeon | — |
-| **Total** | | | **27** | | |
+| **Total** | | | **25** | | |
 
 ### Point Calculation
 - Major modules (2pt each): 8 × 2 = 16pt
