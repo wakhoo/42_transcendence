@@ -225,7 +225,7 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		{isDrawer && (
                 <div className="absolute top-4 bg-slate-900/90 border border-slate-700 px-6 py-2.5 rounded-full shadow-2xl flex items-center gap-4 backdrop-blur-sm z-20">
                     
-                    {/* Bouton Crayon */}
+        
                     <button
                         onClick={() => setActiveTool('pencil')}
                         className={`px-4 py-1.5 rounded-full font-bold text-sm flex items-center gap-2 transition-all ${
@@ -238,7 +238,7 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
                         <span>Crayon</span>
                     </button>
 
-                    {/* Bouton Gomme */}
+    
                     <button
                         onClick={() => setActiveTool('eraser')}
                         className={`px-4 py-1.5 rounded-full font-bold text-sm flex items-center gap-2 transition-all ${
@@ -251,7 +251,6 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
                         <span>Gomme</span>
                     </button>
 
-                    {/* Séparateur */}
                     <div className="w-px h-6 bg-slate-700" />
 					<div className="flex items-center gap-1.5 ml-2">
 					{['#0a0a0a', '#EF4444', '#3B82F6', '#10B981', '#F59E0B' , '#a611ac'].map((couleur) => (
@@ -270,7 +269,6 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 					))}
 					</div>	
 
-                    {/* Bouton Poubelle (Tout effacer) */}
                     <button
                         onClick={handleEmitClear}
                         title="Tout effacer"
@@ -281,11 +279,11 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
                 </div>
             )}
       <canvas
-        ref={canvasRef} // On lie le HTML à notre référence React
+        ref={canvasRef}
         onMouseDown={startDrawing} // Quand on clique
         onMouseMove={draw}         // Quand on bouge
         onMouseUp={stopDrawing}    // Quand on relâche le clic
-        onMouseLeave={stopDrawing} // Sécurité : si la souris sort du cadre, on arrête de dessiner
+        onMouseLeave={stopDrawing} 
         className="absolute inset-0 w-full h-full bg-white cursor-crosshair shadow-2xl block touch-none"
       />
     </div>

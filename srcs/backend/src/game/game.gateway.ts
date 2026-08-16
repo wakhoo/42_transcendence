@@ -94,7 +94,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
 
 
- // cree une sessio n de jeu et ajoute le createur de la room
+ // cree une session de jeu et ajoute le createur de la room
   // modifié : le front envoie maintenant un 'name' au lieu d'un 'channelId' aléatoire
   // createGameSession crée un vrai Channel en base et retourne la session avec le vrai ID
 @SubscribeMessage('create_room')
@@ -225,7 +225,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
     }
 
 
-    // donee du tracee a tout les joeuur du salon
     @SubscribeMessage('draw')
     async handleDrawing(@ConnectedSocket() client: Socket,
             @MessageBody(new ValidationPipe()) data: DrawDto){
@@ -254,6 +253,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
     }
 
 
+    
     @SubscribeMessage('clear_canvas')
     async handleClearCanvas(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
 
