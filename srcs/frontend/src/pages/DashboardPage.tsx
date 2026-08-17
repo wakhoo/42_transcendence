@@ -148,18 +148,6 @@ export default function DashboardPage() {
                     else next.delete(data.userId);
                     return next;
                 });
-                authHeaders().then(headers =>
-                    fetch('/api/user', { headers })
-                        .then(r => { 
-                            if (!r.ok) throw new Error('Rate limit');
-                            return r.json();
-                        })
-                        .then((data: UserProfile[]) => { if(Array.isArray(data)) {
-                            setUsers(data);
-                        }
-                    })
-                    .catch(err => console.warn('Users MAJ ignored', err))
-                );
             });
 
             socket.on('channel_deleted', (data: {channelId: number}) => {
