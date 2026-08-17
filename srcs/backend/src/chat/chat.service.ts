@@ -229,13 +229,14 @@ export class ChatService implements OnModuleInit {
 
     async deleteChannelIfEmpty(channelId: number): Promise<void> {
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
-        if (!channel) 
+        if (!channel)
             return;
-        if (channel.type === 'general') 
+        if (channel.type === 'general')
             return;
 
+        await this.memberRepo.delete({ channel: { id: channelId } });
         const memberCount = await this.memberRepo.count({ where: { channel: { id: channelId } } });
-        if (memberCount > 0) 
+        if (memberCount > 0)
             return;
 
         await this.gameService.forceCloseGame(channelId);
