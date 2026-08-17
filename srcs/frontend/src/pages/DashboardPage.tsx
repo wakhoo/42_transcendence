@@ -86,6 +86,7 @@ export default function DashboardPage() {
 
     useEffect(() => {
         let socket: Socket | null = null;
+        let cancelled = false;
 
         (async () => {
             const token = await getAccessToken();
@@ -93,6 +94,8 @@ export default function DashboardPage() {
                 navigate('/login');
                 return;
             }
+            if (cancelled)
+                return;
 
             socket = io(`${window.location.origin}/chat`, { auth: { token } });
             socketRef.current = socket;
@@ -158,7 +161,10 @@ export default function DashboardPage() {
             })
         })();
 
-        return (() => { socketRef.current?.disconnect(); });
+        return (() => {
+            cancelled = true;
+            socket?.disconnect();
+        });
     }, [navigate]);
 
 
