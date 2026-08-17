@@ -41,7 +41,7 @@ function SignUp() {
         }
     }
     const emailValide = email.includes('@') && email.includes('.');
-    const usernameValide = username.length > 0 && username.length <= 20;
+    const usernameValide = username.length >= 3 && username.length <= 20;
     const passwordValide = password.length >= 8 && password.length <= 128;
     const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
     const formValide = emailValide && usernameValide && passwordValide && passwordsMatch && agreedToTerms;
