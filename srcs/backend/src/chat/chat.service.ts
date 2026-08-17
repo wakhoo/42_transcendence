@@ -175,6 +175,11 @@ export class ChatService implements OnModuleInit {
         await this.requireAdmin(adminId, channelId);
         const existing = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } } });
         if (existing) throw new BadRequestException('User is already in this channel');
+        const channel = await this.channelRepo.findOne({ where: { id: channelId } });
+        if (channel?.maxMembers !== null && channel?.maxMembers !== undefined) {
+            const memberCount = await this.memberRepo.count({ where: { channel: { id: channelId } } });
+            if (memberCount >= channel.maxMembers) throw new BadRequestException('Channel is full');
+        }
         const membership = this.memberRepo.create({ user: { id: targetUserId }, channel: { id: channelId }, role: 'member'});
         await this.gameService.sendInviteNotif(targetUserId, channelId,"Admin");
         return this.memberRepo.save(membership);

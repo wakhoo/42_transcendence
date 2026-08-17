@@ -236,15 +236,14 @@ export class GameService implements OnModuleInit {
             session.turnTimeout = undefined;
         }
     }
-    // recuperatio ndes membres via chatservice
-		const members = await this.chatService.getChannelMember(channelId);
-    const playerIds = members ? members.map(m=> m.user.id) : [];
-    if(playerIds.length < 2){
-      	this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
-        return;
+    const socketsInRoom = await this.server.in(channelId.toString()).fetchSockets();
+    const connectedUserIds = [...new Set(socketsInRoom.map(s => gameSocketUserMap.get(s.id)).filter((id): id is number => id !== undefined))];
+    if (connectedUserIds.length < 2) {
+      this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
+      return;
     }
-   
-	
+
+
     session.timeLeft = 60;
     session.scores = {};
     session.guessedUsers = [];
@@ -254,7 +253,7 @@ export class GameService implements OnModuleInit {
     session.currentDrawerId = -1;
     session.currentHint = '';
 
-    playerIds.forEach((id) => {
+    connectedUserIds.forEach((id) => {
         session.scores[id] = 0;
     });
     await this.handleNextTurn(channelId);

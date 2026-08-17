@@ -59,7 +59,7 @@
 
 ## Description
 
-**ft_transcendence** is a web project built as the final project of the 42 Common Core.
+**DrawDraw** is a web project built as the final project ft_transcendence of the 42 Common Core.
 
 ### Key Features
 - Real-time drawing & guessing game: one player gets a keyword and draws it, others guess in the chat
