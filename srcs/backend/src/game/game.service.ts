@@ -176,9 +176,13 @@ export class GameService implements OnModuleInit {
     const members = await this.chatService.getChannelMember(channelId);
     if(!members || members.length === 0)
         return [];
+
+    const session = this.activeGames.get(channelId);
+    const activMembers = members.filter(m => {if (session) {
+      return session.scores[m.user.id] !== undefined;} return true ;});
     // lancement de la recherche pseudo de chaque joeur dans la map jusque a ce que tout le monde a repondu plus filet de securite creation de faux joueur
     const playerName = await Promise.all(
-      members.map(async (m) => {
+      activMembers.map(async (m) => {
 
         try {
             const user = await this.userService.findById(m.user.id);
@@ -236,7 +240,7 @@ export class GameService implements OnModuleInit {
             session.turnTimeout = undefined;
         }
     }
- const socketsInRoom = await this.server.in(channelId.toString()).fetchSockets();
+    const socketsInRoom = await this.server.in(channelId.toString()).fetchSockets();
     const connectedUserIds = [...new Set(socketsInRoom.map(s => gameSocketUserMap.get(s.id)).filter((id): id is number => id !== undefined))];
     if (connectedUserIds.length < 2) {
       this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');

@@ -88,7 +88,7 @@ export class ChatService implements OnModuleInit {
             type,
             isPrivate,
             passwordHash,
-            maxMembers: maxMembers ?? null,
+            maxMembers: maxMembers ?? (type === 'game' ? 8 : null),
         });
         const saved = await this.channelRepo.save(channel);
 
