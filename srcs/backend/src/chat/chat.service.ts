@@ -17,6 +17,7 @@ import { Friendship } from './entities/friendship.entity';
 import { BadWord } from './entities/bad-word.entity';
 import { BAD_WORDS } from './words.seed';
 import { GameService } from '../game/game.service';
+import { BCRYPT_ROUNDS } from '../common/constants';
 
 @Injectable()
 export class ChatService implements OnModuleInit {
@@ -79,7 +80,7 @@ export class ChatService implements OnModuleInit {
 
         let passwordHash: string | null = null;
         if (password) {
-            passwordHash = await bcrypt.hash(password, 10);
+            passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
         }
 
         const channel = this.channelRepo.create({
@@ -191,7 +192,7 @@ export class ChatService implements OnModuleInit {
         await this.requireAdmin(adminId, channelId);
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
         if (!channel) throw new NotFoundException('Channel not found');
-        channel.passwordHash = password ? await bcrypt.hash(password, 10) : null;
+        channel.passwordHash = password ? await bcrypt.hash(password, BCRYPT_ROUNDS) : null;
         await this.channelRepo.save(channel);
     }
 

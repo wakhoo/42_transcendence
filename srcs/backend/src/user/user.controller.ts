@@ -24,6 +24,7 @@ import { DeleteAccountDto } from './dto/delete-account.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { GdprAuditService } from './gdpr-audit.service';
 import { MailService } from '../mail/mail.service';
+import { BCRYPT_ROUNDS } from '../common/constants';
 
 type AuthedRequest = Request & { user: JwtPayload };
 
@@ -104,7 +105,7 @@ export class UserController {
             if (!valid) throw new UnauthorizedException('Invalid 2FA code');
         }
 
-        const newHash = await bcrypt.hash(dto.newPassword, 12);
+        const newHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
         await this.userService.setPasswordHash(userId, newHash);
         await this.gdprAudit.logDataChanged(userId, req.ip);
         void this.mail.sendProfileChangedEmail(user.email);
