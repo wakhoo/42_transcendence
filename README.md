@@ -590,8 +590,14 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 - Profile page + `ProfileContent` component: avatar, profile color, editable fields
 - Online presence: fetch-all-users and live online/offline status on the Dashboard
 
+**Avatar** (major)
+- Users can choose an avatar from a predefined set.
+- The user has a default avatar defined by the random color assigned to them.
+
 **Challenges**
-- [Any challenges faced and how resolved]
+
+**Learning curve & tech stack decisions**
+A big part of the difficulty was upstream of any code: understanding a full stack I had no prior experience with (React, NestJS, TypeORM, Docker, Vault...) well enough to make informed decisions about which technologies would actually work well together, rather than just picking popular names. The initial project setup — structuring the repo, wiring the Docker Compose services, getting the pieces to talk to each other — was a challenge on its own, since it required a level of architectural organization I couldn't yet judge with confidence, not knowing any of these technologies going in.
 
 ### aboutale — Developer
 
