@@ -52,25 +52,8 @@ export default function GamePage() {
       navigate('/dashboard');
     };
 
-  useEffect(() => {
 
-    if(!socket)
-        return;
-    socket.on('connect', () => {
-
-        socket.emit('get_my_id', (response : {userId : number}) => {
-
-            if(response && response.userId){
-                setMyId(response.userId);
-              myIdRef.current = response.userId;
-            }
-  
-        });
-    });
-
-  }, [socket]);
-
-
+    
   useEffect(() => {
     let socketInstance: Socket | null = null;
     let cancelled = false;
@@ -94,6 +77,14 @@ export default function GamePage() {
     socket.on('connect', () => {
       console.log("Connecté au GameGateway !");
 
+      socket.emit('get_my_id', (response : {userId : number}) => {
+
+          if(response && response.userId){
+                setMyId(response.userId);
+              myIdRef.current = response.userId;
+            }
+        });
+      
       if (actionType === 'create') {
         console.log(`Ordre reçu : Création de la room #${reelChannelId}...`);
         socket.emit('create_room', { name: `Salon de ${sessionStorage.getItem('username') || 'Game'}` });
@@ -272,8 +263,6 @@ export default function GamePage() {
 
      if (socketInstance ) {
 
-        if(socketInstance.connected)
-          socketInstance.emit('leave_room', { channelId: Number(reelChannelId) });
       
         socketInstance.removeAllListeners();
         setTimeout(() => {

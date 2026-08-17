@@ -8,7 +8,7 @@ export const word = [
   'sofa', 'fridge', 'umbrella', 'scissors', 'pencil', 'book', 'glasses', 'camera', 'backpack', 'candle',
   'hammer', 'toothbrush', 'pillow', 'wallet', 'ring', 'crown', 'trash can', 'toilet', 'soap', 'towel',
   'banana', 'pizza', 'burger', 'ice cream', 'cake', 'cheese', 'cookie', 'donut', 'watermelon', 'carrot',
-  'bread', 'egg', 'sandwich', 'french fries', 'sushi', 'popcorn', 'hot dog', 'strawberry', 'pineapple', 'chocolate',
+  'bread', 'egg', 'sandwich', 'sushi', 'popcorn', 'strawberry', 'pineapple', 'chocolate',
   'coffee', 'milk', 'juice', 'teapot', 'lollipop',
   'bicycle', 'bus', 'airplane', 'boat', 'rocket', 'train', 'helicopter', 'submarine', 'truck', 'tractor',
   'motorcycle', 'scooter', 'ambulance', 'fire truck', 'taxi',

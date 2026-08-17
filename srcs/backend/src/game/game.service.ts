@@ -236,13 +236,12 @@ export class GameService implements OnModuleInit {
             session.turnTimeout = undefined;
         }
     }
-    const socketsInRoom = await this.server.in(channelId.toString()).fetchSockets();
+ const socketsInRoom = await this.server.in(channelId.toString()).fetchSockets();
     const connectedUserIds = [...new Set(socketsInRoom.map(s => gameSocketUserMap.get(s.id)).filter((id): id is number => id !== undefined))];
     if (connectedUserIds.length < 2) {
       this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
       return;
     }
-
 
     session.timeLeft = 60;
     session.scores = {};
