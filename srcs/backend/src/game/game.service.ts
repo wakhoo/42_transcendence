@@ -8,9 +8,7 @@ import { Word } from './word.entity';
 import { word as wordTab} from './word.seed';
 import { Match } from './match.entity';
 import { gameSocketUserMap } from './game.gateway';
-import { CurrentUser } from '../chat/decorators/current-user.decorator';
-import { Socket } from 'dgram';
-import { channel } from 'diagnostics_channel';
+
 
 
 //represente une partie 
@@ -70,15 +68,15 @@ export class GameService implements OnModuleInit {
     }
   }
 
-      private generateUniqueCode(): string {
+  private generateUniqueCode(): string {
       let code: string;
       do {
         code = Math.floor(10000 + Math.random() * 90000).toString();
       } while ([...this.activeGames.values()].some(session => session.code === code));
       return code;
-    }
+  }
 
-    //j'ai rajoute le nbr de rounds en argument, ce sera 3 par defaut
+
    async createGameSession(creatorId: number, name: string, isPrivate: boolean = false, maxMembers?: number, password?: string, maxRound?: number): Promise<GameSession> {
 
 
@@ -182,7 +180,6 @@ export class GameService implements OnModuleInit {
     const playerName = await Promise.all(
       members.map(async (m) => {
 
-        //const userId = m?.user?.id || m?.userId || m?.id;
         try {
             const user = await this.userService.findById(m.user.id);
             return {
@@ -225,7 +222,6 @@ export class GameService implements OnModuleInit {
 			this.activeGames.set(channelId, session);
 		}
 
-    //j'ai ajoute cette condition pour que seul l'admin puisse lancer le jeu
     if(session && userId !== session.creatorId){
       return 'not_admin';
     }
@@ -240,15 +236,14 @@ export class GameService implements OnModuleInit {
             session.turnTimeout = undefined;
         }
     }
-    // recuperatio ndes membres via chatservice
-		const members = await this.chatService.getChannelMember(channelId);
-    const playerIds = members ? members.map(m=> m.user.id) : [];
-    if(playerIds.length < 2){
-      	this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
-        return;
+    const socketsInRoom = await this.server.in(channelId.toString()).fetchSockets();
+    const connectedUserIds = [...new Set(socketsInRoom.map(s => gameSocketUserMap.get(s.id)).filter((id): id is number => id !== undefined))];
+    if (connectedUserIds.length < 2) {
+      this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
+      return;
     }
-   
-	
+
+
     session.timeLeft = 60;
     session.scores = {};
     session.guessedUsers = [];
@@ -258,7 +253,7 @@ export class GameService implements OnModuleInit {
     session.currentDrawerId = -1;
     session.currentHint = '';
 
-    playerIds.forEach((id) => {
+    connectedUserIds.forEach((id) => {
         session.scores[id] = 0;
     });
     await this.handleNextTurn(channelId);
@@ -621,8 +616,8 @@ async handleDisconnection(userId: number): Promise<number | null> {
       this.bannedUser.set(channelId, new Set());
 
     this.bannedUser.get(channelId)!.add(userId);
-
   }
+
 
   isUserKick(channelId: number , userId: number): boolean {
 
@@ -630,6 +625,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
     return kicked ? kicked.has(userId) : false;
 
   }
+
 
   async forceCloseGame(channelId: number) {
 
@@ -640,6 +636,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
     this.activeGames.delete(channelId);
   }
 
+  
   async sendInviteNotif(targetUserId: number, channelId: number, inviterName: String){
 
       if(this.server){

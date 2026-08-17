@@ -17,6 +17,7 @@ import { Friendship } from './entities/friendship.entity';
 import { BadWord } from './entities/bad-word.entity';
 import { BAD_WORDS } from './words.seed';
 import { GameService } from '../game/game.service';
+import { BCRYPT_ROUNDS } from '../common/constants';
 
 @Injectable()
 export class ChatService implements OnModuleInit {
@@ -79,7 +80,7 @@ export class ChatService implements OnModuleInit {
 
         let passwordHash: string | null = null;
         if (password) {
-            passwordHash = await bcrypt.hash(password, 10);
+            passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
         }
 
         const channel = this.channelRepo.create({
@@ -174,6 +175,11 @@ export class ChatService implements OnModuleInit {
         await this.requireAdmin(adminId, channelId);
         const existing = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } } });
         if (existing) throw new BadRequestException('User is already in this channel');
+        const channel = await this.channelRepo.findOne({ where: { id: channelId } });
+        if (channel?.maxMembers !== null && channel?.maxMembers !== undefined) {
+            const memberCount = await this.memberRepo.count({ where: { channel: { id: channelId } } });
+            if (memberCount >= channel.maxMembers) throw new BadRequestException('Channel is full');
+        }
         const membership = this.memberRepo.create({ user: { id: targetUserId }, channel: { id: channelId }, role: 'member'});
         await this.gameService.sendInviteNotif(targetUserId, channelId,"Admin");
         return this.memberRepo.save(membership);
@@ -191,7 +197,7 @@ export class ChatService implements OnModuleInit {
         await this.requireAdmin(adminId, channelId);
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
         if (!channel) throw new NotFoundException('Channel not found');
-        channel.passwordHash = password ? await bcrypt.hash(password, 10) : null;
+        channel.passwordHash = password ? await bcrypt.hash(password, BCRYPT_ROUNDS) : null;
         await this.channelRepo.save(channel);
     }
 
@@ -223,13 +229,14 @@ export class ChatService implements OnModuleInit {
 
     async deleteChannelIfEmpty(channelId: number): Promise<void> {
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
-        if (!channel) 
+        if (!channel)
             return;
-        if (channel.type === 'general') 
+        if (channel.type === 'general')
             return;
 
+        await this.memberRepo.delete({ channel: { id: channelId } });
         const memberCount = await this.memberRepo.count({ where: { channel: { id: channelId } } });
-        if (memberCount > 0) 
+        if (memberCount > 0)
             return;
 
         await this.gameService.forceCloseGame(channelId);

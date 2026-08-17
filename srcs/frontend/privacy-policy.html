@@ -307,8 +307,9 @@
       <li><strong>Two-Factor Authentication (2FA)</strong> available via TOTP</li>
       <li>JWT access tokens with short expiry, plus refresh tokens for session renewal</li>
       <li>Failed login attempts are rate-limited</li>
+      <li>Web Application Firewall (ModSecurity with the OWASP Core Rule Set) at the reverse proxy</li>
+      <li>HashiCorp Vault for centralized secrets management</li>
     </ul>
-    <p>Two additional controls are part of the project's security architecture but are <strong>not yet active during development</strong> and will be enabled before the final evaluation: a Web Application Firewall (ModSecurity with the OWASP Core Rule Set) at the reverse proxy, and HashiCorp Vault for centralized secrets management.</p>
   </section>
 
   <section id="rights">

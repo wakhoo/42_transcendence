@@ -59,7 +59,7 @@
 
 ## Description
 
-**ft_transcendence** is a web project built as the final project of the 42 Common Core.
+**DrawDraw** is a web project built as the final project ft_transcendence of the 42 Common Core.
 
 ### Key Features
 - Real-time drawing & guessing game: one player gets a keyword and draws it, others guess in the chat
@@ -456,7 +456,7 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | Advanced Chat Features | Gaming & UX | Minor | 1 | dancel | Requires User Interaction module |
 | Spectator Mode | Gaming & UX | Minor | 1 | aboutale | Requires a game module |
 | GDPR Compliance | Data & Analytics | Minor | 1 | chajeon | — |
-| **Total** | | | **27** | | |
+| **Total** | | | **25** | | |
 
 ### Point Calculation
 - Major modules (2pt each): 8 × 2 = 16pt
@@ -755,54 +755,3 @@ A big part of the difficulty was upstream of any code: understanding a full stac
   - Privacy Policy and Terms of Service drafting
   - README structure and content
 - **Note**: All AI-generated content was reviewed, tested, and validated by the team before use.
-
-
-
-## Team Information (aboutale)
-[aboutale]
-
-Role: Full-Stack Developer (Game Engine & UI)
-
-Responsibilities: Architecting the core backend game loop (NestJS Gateways/Services), implementing the interactive frontend Canvas, managing real-time WebSocket state synchronization, and building the responsive Dashboard UI.
-
-Features List (Features you worked on)
-Core Game Engine (Backend): Real-time drawing synchronization, automated turn management, word selection, timeout events, and dynamic scoring system.
-
-Interactive Canvas (Frontend): High-performance real-time drawing interface with stroke transmission and rendering. 
-
-Real-Time Dashboard Synchronization: Live updates of active game rooms, player presence, and room states.
-
-
-
-
-
-------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-### Individual Contributions 
-
-Backend Game Architecture: Developed game.gateway.ts and game.service.ts. Managed complex game states, including turn rotation, timer events, hint generation, and graceful handling of unexpected player disconnections (e.g., transferring admin rights, auto-canceling empty games).
-
-Frontend Game Mechanics: Built the HTML5 Canvas integration to accurately capture, scale, and broadcast drawing coordinates in real-time across all connected clients.
-
-Dashboard & Chat Integration: Connected the UI to backend WebSocket events (channel_deleted, presenceChanged) to ensure the frontend strictly mirrors the database state. Built the responsive layout and profile modals using Tailwind CSS.
-
-Frontend Anti-Crash System: Implemented strict data validation (Array.isArray()) to protect React from crashing when receiving HTTP 429 (Too Many Requests) errors instead of expected data arrays during high server load.
-
-### Challenges Faced & Solutions Overcome:
-
-Challenge: "Ghost Timers" and Race Conditions in Game Logic. When a player was kicked or disconnected at the exact millisecond a round timer ended, the server would trigger setTimeout callbacks for a canceled game, sending empty hints or crashing the round.
-
-Solution: Implemented strict state checks before executing delayed functions and ensured all active timeouts were cleared when a room became empty or a game was forced to close.
-
-Challenge: Canvas Synchronization & Performance. Broadcasting every single pixel movement over WebSockets caused network congestion and lag.
-
-Solution: Optimized the frontend Canvas logic to batch coordinate events and emit drawing strokes efficiently, ensuring smooth rendering for all clients.
-
-Challenge: "White Screen of Death" (React Crashes) during UI spam. Rapid interactions triggered backend Throttler rate limits, replacing JSON arrays with error objects on the frontend, breaking .map() functions.
-
-Solution: Added strict array type-checking before updating React states, allowing the UI to safely ignore error payloads and freeze gracefully until the rate limit expired.

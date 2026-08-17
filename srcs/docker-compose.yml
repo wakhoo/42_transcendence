@@ -31,7 +31,6 @@ services:
     env_file: .env
     restart: unless-stopped
     healthcheck:
-      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
       test: ["CMD", "nginx", "-t"]
       interval: 30s
       timeout: 10s
@@ -51,7 +50,6 @@ services:
     env_file: .env
     restart: unless-stopped
     healthcheck:
-      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
@@ -87,7 +85,6 @@ services:
     env_file: .env
     restart: unless-stopped
     healthcheck:
-      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
@@ -109,7 +106,6 @@ services:
     env_file: .env
     restart: unless-stopped
     healthcheck:
-      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
       test: ["CMD", "mariadb-admin", "ping", "-u", "root", "-p${MARIADB_ROOT_PASSWORD}", "--silent"]
       interval: 10s
       timeout: 5s
@@ -136,7 +132,6 @@ services:
       - IPC_LOCK
     restart: unless-stopped
     healthcheck:
-      # Ensures the container is not just running but actually ready to accept connections before dependent services start.
       test: ["CMD", "vault", "status"]
       interval: 10s
       timeout: 5s
@@ -159,25 +154,13 @@ networks:
 volumes:
   mariadb_data:
     driver: local
-    # driver_opts:
-    #   type: none
-    #   o: bind
-    #   device: /home/dancel/data/mariadb
 
   vault_data:
     driver: local
-    # driver_opts:
-    #   type: none
-    #   o: bind
-    #   device: /home/dancel/data/vault
 
   nginx_logs:
     driver: local
 
-  # vault (container, runs as root) writes into these at runtime — as
-  # Docker-managed named volumes instead of host bind mounts, no
-  # root-owned directory ever lands inside the project tree, so no
-  # sudo is needed to create, read, or reset them.
   vault_certs:
     driver: local
 

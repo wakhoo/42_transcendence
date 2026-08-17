@@ -146,15 +146,11 @@ export default function GameChat({ channelId, isSpectator }: GameChatProps) {
   };
 
   return (
-    // Reproduction exacte du design de la colonne droite du Dashboard
     <div className="flex flex-col h-full bg-gray-900 rounded-xl border border-gray-800 text-white overflow-hidden">
       
-      {/* En-tête du chat */}
       <div className="px-4 py-3 bg-black rounded-t-xl border-b border-gray-800 shrink-0">
         <span className="text-gray-400 text-sm font-semibold">{roomName}</span>
       </div>
-
-      {/* Zone des messages */}
 
       <div 
         ref={chatContainerRef}

@@ -7,8 +7,7 @@ import { toDataURL } from 'qrcode';
 import { UserService } from '../user/user.service';
 import { GoogleProfile } from './strategies/google.strategy';
 import { SessionService } from './session.service';
-
-const BCRYPT_ROUNDS = 12;
+import { BCRYPT_ROUNDS } from '../common/constants';
 
 type TokenPair = { accessToken: string; refreshToken: string };
 type LoginResult = TokenPair | { twoFactorRequired: true; partialToken: string };

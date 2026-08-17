@@ -32,9 +32,6 @@ export default function GamePage() {
   const [openProfileId, setOpenProfileId] = useState<number | null>(null);
   
 
- // const queryParam = new URLSearchParams(window.location.search);
- // const reelChannelId = Number(queryParam.get('channelId')) || 1;
-
  const [reelChannelId] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return Number(params.get('channelId'));
@@ -53,9 +50,6 @@ export default function GamePage() {
         socket.emit('leave_room', {channelId: reelChannelId});
 
       navigate('/dashboard');
-      // setTimeout(() => {
-      // window.location.href = '/dashboard';
-      // });
     };
 
   useEffect(() => {
@@ -121,8 +115,7 @@ export default function GamePage() {
         setTempsRestant(0);
         setIsGameStarted(false)
         setIsGameStarted(false);
-       // window.location.href = "/dashboard";
-
+  
       };
 
        
@@ -146,7 +139,6 @@ export default function GamePage() {
       setMaxmembers(data.maxMembers);
     });
 
-    // Reçu quand on (re)rejoint un salon dans lequel une partie est déjà en cours
     // (typiquement après un refresh de page) : on restaure l'état local
     socket.on('game_state_sync', (data) => {
 
@@ -241,10 +233,7 @@ export default function GamePage() {
 
     socket.on('kicked_from_game', (data: { userId: number }) => {
 
-      // Pour le spec, myIdRef peut ne pas encore être initialisé au moment du join
-      // (kick reçu avant la réponse de get_my_id), donc on redirige directement
       if(actionType === 'spec' || Number(data.userId) === Number(myIdRef.current)){
-       // alert("You have been kicked from the channel by admin");
         window.location.href = '/dashboard';
       }
 
@@ -266,23 +255,18 @@ export default function GamePage() {
 
     });
 
-    
     socket.on('new_admin', ( data : {adminId: number }) => {
 
-   
         if(Number(data.adminId) === Number(myIdRef.current))
           setIsAdmin(true);
         else 
           setIsAdmin(false);
     });
 
-
     socket.on('game_cancelled', handleGameCancelled);
     })();
 
     
-
-
     return () => {
       cancelled = true;
 
@@ -429,7 +413,6 @@ export default function GamePage() {
       <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-50 bg-red-500/90 text-white px-6 py-3 rounded-full shadow-2xl border border-red-400 flex items-center gap-3 animate-bounce backdrop-blur-sm">
         <span className="text-xl">⚠️</span>
         <span className="font-bold text-sm tracking-wide">
-          {/* SÉCURITÉ ANTI-CRASH : Si le backend envoie un objet, on affiche seulement sa propriété message (ou on le convertit en texte lisible !) */}
           {typeof message === 'object' 
             ? (message.message || JSON.stringify(message)) 
             : message}
@@ -442,16 +425,13 @@ export default function GamePage() {
         </button>
       </div>
       )}
-      {/* 2. BARRE SUPÉRIEURE : Logo, Timer, Mot Secret et Bouton */}
       <header className="bg-slate-950 px-6 py-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between gap-4">
         
-        {/* 👉 SECTION GAUCHE : Le Logo ET le Timer bien alignés côte à côte */}
         <div className="flex items-center gap-6">
           <h1 className="text-2xl font-black tracking-wider text-indigo-600 flex items-center gap-2">
             <DrawDrawLogo className="text-2xl" />
           </h1>
 
-          {/* Le Timer (Fini la position absolute !) */}
           <div className={`flex items-center gap-2 text-xl font-bold px-4 py-1.5 rounded-lg border-2 shadow-sm ${
             tempsRestant <= 10 ? 'bg-red-50 border-red-500 text-red-600 animate-pulse' : 'bg-slate-950 border-slate-300 text-slate-700'
           }`}>
@@ -472,7 +452,6 @@ export default function GamePage() {
             </div>
           )}
 
-        {/* 👉 SECTION CENTRALE : Le Mot Secret / Indice */}
         <div className="text-center flex-1">
           {wordDisplay()}
         </div>
@@ -528,7 +507,6 @@ export default function GamePage() {
                     {scores[joueur.id] || 0} pts
                   </span>
                   
-                  {/* Icône crayon si c'est le dessinateur (sécurisé avec Number) */}
                   {drawerInfo && Number(drawerInfo.drawerId) === Number(joueur.id) && (
                     <span title="Dessinateur" className="text-sm drop-shadow-sm animate-pulse">✏️</span>
                   )}
@@ -591,7 +569,6 @@ export default function GamePage() {
               <div className="w-full max-w-md bg-slate-950 border border-slate-800/80 rounded-2xl p-4 shadow-inner flex flex-col gap-2.5 max-h-[50vh] overflow-y-auto">
                 {finalClassement.map((joueur: any, index: number) => {
                   const isWinner = index === 0;
-                  // Assignation des médailles pour le Top 3, sinon #4, #5...
                   const medaille = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : `#${index + 1}`;
 
                   return (
@@ -624,7 +601,6 @@ export default function GamePage() {
                 })}
               </div>
 
-              {/* BOUTON RETOUR AU LOBBY */}
               <button
                 onClick={() => {
                   window.location.href = "/dashboard";
@@ -633,7 +609,6 @@ export default function GamePage() {
               >
                 <span>⬅️ Return To Lobby</span>
               </button>
-              {/* Play Again masqué pour le spectateur : il ne peut pas relancer une partie */}
               {!isSpectator && (
               <button
                 onClick={handlePlayAgain}
@@ -669,7 +644,6 @@ export default function GamePage() {
         </aside>
       </main>
 
-      {/* Modal de profil — clic sur un joueur dans la liste */}
       {openProfileId !== null && (
         <div
           className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center"
