@@ -1,4 +1,5 @@
 import { IsOptional, IsString, Length, MaxLength, MinLength } from 'class-validator';
+import { IsNoInvisibleChars } from '../../common/validators/no-invisible-chars.validator';
 
 export class ChangePasswordDto {
     @IsOptional()
@@ -8,6 +9,7 @@ export class ChangePasswordDto {
     @IsString()
     @MinLength(8)
     @MaxLength(128)
+    @IsNoInvisibleChars()
     newPassword!: string;
 
     @IsOptional()
