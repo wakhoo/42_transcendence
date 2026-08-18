@@ -1,30 +1,12 @@
-import {
-    BadRequestException,
-    Body,
-    ConflictException,
-    Controller,
-    Delete,
-    Get,
-    Patch,
-    Query,
-    Req,
-    UnauthorizedException,
-    UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
-import * as bcrypt from 'bcrypt';
-import { authenticator } from 'otplib';
 import { JwtGuard, JwtPayload } from '../auth/guards/jwt.guard';
-import { User } from './user.entity';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { GdprAuditService } from './gdpr-audit.service';
-import { MailService } from '../mail/mail.service';
-import { BCRYPT_ROUNDS } from '../common/constants';
 
 type AuthedRequest = Request & { user: JwtPayload };
 
@@ -33,138 +15,38 @@ type AuthedRequest = Request & { user: JwtPayload };
 @Controller('user')
 @UseGuards(JwtGuard)
 export class UserController {
-    constructor(
-        private readonly userService: UserService,
-        private readonly gdprAudit: GdprAuditService,
-        private readonly mail: MailService,
-    ) {}
+    constructor(private readonly userService: UserService) {}
 
     @Get('me')
-    async getMe(@Req() req: AuthedRequest) {
-        const user = await this.userService.findById(req.user.sub);
-        if (!user) throw new UnauthorizedException();
-        return this.toSafeProfile(user);
+    getMe(@Req() req: AuthedRequest) {
+        return this.userService.getProfile(req.user.sub);
     }
 
     @Get()
-    async getAll() {
-        const users = await this.userService.findAll();
-        return users.map(u => this.toPublicProfile(u));
+    getAll() {
+        return this.userService.getAllProfiles();
     }
 
     @Patch('me')
-    async updateMe(@Req() req: AuthedRequest, @Body() dto: UpdateUserDto) {
-        const userId = req.user.sub;
-        const user = await this.userService.findById(userId);
-        if (!user) throw new UnauthorizedException();
-
-        const changingEmail = dto.email !== undefined && dto.email !== user.email;
-        const changingUsername = dto.username !== undefined && dto.username !== user.username;
-
-        if ((changingEmail || changingUsername) && user.totpEnabled) {
-            if (!dto.code) throw new BadRequestException('2FA code required');
-            const valid = authenticator.verify({ token: dto.code, secret: user.totpSecret! });
-            if (!valid) throw new UnauthorizedException('Invalid 2FA code');
-        }
-
-        if (changingEmail) {
-            const existing = await this.userService.findByEmail(dto.email!);
-            if (existing && existing.id !== userId) throw new ConflictException('Email already in use');
-        }
-        if (changingUsername) {
-            const existing = await this.userService.findByUsername(dto.username!);
-            if (existing && existing.id !== userId) throw new ConflictException('Username already in use');
-        }
-
-        const updated = await this.userService.update(userId, {
-            email: dto.email,
-            username: dto.username,
-            avatarUrl: dto.avatarUrl,
-        });
-        await this.gdprAudit.logDataChanged(userId, req.ip);
-        void this.mail.sendProfileChangedEmail(updated.email);
-        return this.toSafeProfile(updated);
+    updateMe(@Req() req: AuthedRequest, @Body() dto: UpdateUserDto) {
+        return this.userService.updateProfile(req.user.sub, dto, req.ip ?? null);
     }
 
     @Patch('me/password')
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
-    async changePassword(@Req() req: AuthedRequest, @Body() dto: ChangePasswordDto) {
-        const userId = req.user.sub;
-        const user = await this.userService.findById(userId);
-        if (!user) throw new UnauthorizedException();
-
-        if (user.passwordHash) {
-            if (!dto.currentPassword) throw new BadRequestException('Current password required');
-            const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
-            if (!valid) throw new UnauthorizedException('Invalid current password');
-        }
-
-        if (user.totpEnabled) {
-            if (!dto.code) throw new BadRequestException('2FA code required');
-            const valid = authenticator.verify({ token: dto.code, secret: user.totpSecret! });
-            if (!valid) throw new UnauthorizedException('Invalid 2FA code');
-        }
-
-        const newHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
-        await this.userService.setPasswordHash(userId, newHash);
-        await this.gdprAudit.logDataChanged(userId, req.ip);
-        void this.mail.sendProfileChangedEmail(user.email);
-        return { success: true };
+    changePassword(@Req() req: AuthedRequest, @Body() dto: ChangePasswordDto) {
+        return this.userService.changePassword(req.user.sub, dto, req.ip ?? null);
     }
 
     @Get('me/export')
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
-    async exportMe(@Req() req: AuthedRequest, @Query('code') code?: string) {
-        const user = await this.userService.findById(req.user.sub);
-        if (!user) throw new UnauthorizedException();
-
-        if (user.totpEnabled) {
-            if (!code) throw new BadRequestException('2FA code required');
-            const valid = authenticator.verify({ token: code, secret: user.totpSecret! });
-            if (!valid) throw new UnauthorizedException('Invalid 2FA code');
-        }
-
-        await this.gdprAudit.logDataExported(user.id, req.ip);
-        void this.mail.sendDataExportedEmail(user.email);
-        return {
-            messages: await this.userService.getUserMessage(user.id),
-            profile: this.toSafeProfile(user),
-            exportedAt: new Date().toISOString(),
-        };
+    exportMe(@Req() req: AuthedRequest, @Query('code') code?: string) {
+        return this.userService.exportUserData(req.user.sub, code, req.ip ?? null);
     }
 
     @Delete('me')
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
-    async deleteMe(@Req() req: AuthedRequest, @Body() dto: DeleteAccountDto) {
-        const userId = req.user.sub;
-        const user = await this.userService.findById(userId);
-        if (!user) throw new UnauthorizedException();
-
-        if (user.passwordHash) {
-            if (!dto?.password) throw new BadRequestException('Password confirmation required');
-            const valid = await bcrypt.compare(dto.password, user.passwordHash);
-            if (!valid) throw new UnauthorizedException('Invalid password');
-        }
-
-        if (user.totpEnabled) {
-            if (!dto?.code) throw new BadRequestException('2FA code required');
-            const valid = authenticator.verify({ token: dto.code, secret: user.totpSecret! });
-            if (!valid) throw new UnauthorizedException('Invalid 2FA code');
-        }
-
-        const deletedEmail = user.email;
-        await this.userService.remove(userId);
-        await this.gdprAudit.logAccountDeleted(userId, req.ip);
-        void this.mail.sendAccountDeletedEmail(deletedEmail);
-    }
-
-    private toSafeProfile(user: User) {
-        const { passwordHash, totpSecret, ...safe } = user;
-        return { ...safe, hasPassword: !!passwordHash };
-    }
-
-    private toPublicProfile(user: User) {
-        const { id, username, avatarUrl, profileColor } = user;
-        return { id, username, avatarUrl, profileColor };
+    deleteMe(@Req() req: AuthedRequest, @Body() dto: DeleteAccountDto) {
+        return this.userService.deleteAccount(req.user.sub, dto, req.ip ?? null);
     }
 }
