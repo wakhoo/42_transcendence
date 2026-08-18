@@ -11,7 +11,7 @@ import { UpdateUserDto } from "./dto/update-user.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { DeleteAccountDto } from "./dto/delete-account.dto";
 import { BCRYPT_ROUNDS } from "../common/constants";
-import { emitUserCreated } from "../common/user-events";
+import { emitUserCreated, emitUserUpdated } from "../common/user-events";
 
 function randomColor(): string {
   return '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
@@ -147,6 +147,7 @@ export class UserService {
             username: dto.username,
             avatarUrl: dto.avatarUrl,
         });
+        emitUserUpdated(this.toPublicProfile(updated));
         await this.gdprAudit.logDataChanged(userId, ip);
         void this.mail.sendProfileChangedEmail(updated.email);
         return this.toSafeProfile(updated);

@@ -167,6 +167,10 @@ export default function DashboardPage() {
             socket.on('userCreated', (profile: UserProfile) => {
                 setUsers(prev => (prev.some(u => u.id === profile.id) ? prev : [...prev, profile]));
             });
+
+            socket.on('userUpdated', (profile: UserProfile) => {
+                setUsers(prev => prev.map(u => (u.id === profile.id ? profile : u)));
+            });
         })();
 
         return (() => {

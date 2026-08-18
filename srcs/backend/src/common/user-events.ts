@@ -18,3 +18,11 @@ export function emitUserCreated(profile: PublicUserProfile): void {
 export function onUserCreated(handler: (profile: PublicUserProfile) => void): void {
     userEvents.on('userCreated', handler);
 }
+
+export function emitUserUpdated(profile: PublicUserProfile): void {
+    userEvents.emit('userUpdated', profile);
+}
+
+export function onUserUpdated(handler: (profile: PublicUserProfile) => void): void {
+    userEvents.on('userUpdated', handler);
+}
