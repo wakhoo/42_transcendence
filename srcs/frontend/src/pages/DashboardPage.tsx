@@ -158,15 +158,14 @@ export default function DashboardPage() {
                     else next.delete(data.userId);
                     return next;
                 });
-                authHeaders().then(headers =>
-                    fetch('/api/user', { headers })
-                        .then(r => r.json())
-                        .then((data: UserProfile[]) => setUsers(data))
-                );
             });
 
             socket.on('gameRoomsChanged', () => {
                 loadGameRooms();
+            });
+
+            socket.on('userCreated', (profile: UserProfile) => {
+                setUsers(prev => (prev.some(u => u.id === profile.id) ? prev : [...prev, profile]));
             });
         })();
 

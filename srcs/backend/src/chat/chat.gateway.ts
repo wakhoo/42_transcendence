@@ -14,6 +14,7 @@ import { JoinChannelDto, ChannelIdDto, SendMessageDto, SendDmDto } from './dto/w
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 import { UserService } from '../user/user.service';
+import { onUserCreated } from '../common/user-events';
 
 export const socketUserMap = new Map<string, number>();
 
@@ -30,6 +31,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     afterInit(server: Server) {
         this.chatService.server = server;
+        onUserCreated(profile => server.emit('userCreated', profile));
         console.log('ChatGateway initialized');
     }
 

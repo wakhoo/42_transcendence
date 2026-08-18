@@ -11,6 +11,7 @@ import { UpdateUserDto } from "./dto/update-user.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { DeleteAccountDto } from "./dto/delete-account.dto";
 import { BCRYPT_ROUNDS } from "../common/constants";
+import { emitUserCreated } from "../common/user-events";
 
 function randomColor(): string {
   return '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
@@ -29,7 +30,7 @@ export class UserService {
     private readonly mail: MailService,
   ) {}
 
-  create(
+  async create(
     email: string,
     username: string,
     hashedPassword: string,
@@ -40,7 +41,9 @@ export class UserService {
       passwordHash: hashedPassword,
       profileColor: randomColor(),
     });
-    return this.repo.save(user);
+    const saved = await this.repo.save(user);
+    emitUserCreated(this.toPublicProfile(saved));
+    return saved;
   }
 
   findAll(): Promise<User[]> {
@@ -92,7 +95,9 @@ export class UserService {
         avatarUrl: string | null,
     ): Promise<User> {
         const user = this.repo.create({ email, username, oauthProvider: provider, oauthId, avatarUrl, profileColor: randomColor() });
-        return this.repo.save(user);
+        const saved = await this.repo.save(user);
+        emitUserCreated(this.toPublicProfile(saved));
+        return saved;
     }
 
     async update(userId: number, data: { email?: string; username?: string; avatarUrl?: string }): Promise<User> {
