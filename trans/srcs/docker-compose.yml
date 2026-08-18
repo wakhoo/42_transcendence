@@ -1,0 +1,168 @@
+name: ft_transcendence
+
+# ============================================================
+#  Services
+# ============================================================
+services:
+
+  # ----------------------------------------------------------
+  #  WAF — Nginx + ModSecurity
+  #  Only container with external ports open
+  # ----------------------------------------------------------
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: nginx
+    networks:
+      - dmz
+      - internal
+    ports:
+      - "8443:8443"
+      - "8080:8080"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/modsecurity:/etc/nginx/modsecurity:ro
+      - ./nginx/certs:/etc/nginx/certs
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - frontend
+      - backend
+    env_file: .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ----------------------------------------------------------
+  #  Frontend — React (Vite)
+  #  No external port — accessed through WAF only
+  # ----------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    networks:
+      - internal
+    env_file: .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ----------------------------------------------------------
+  #  Backend — Nest.js (API Routes)
+  #  Connected to internal + db + vault networks
+  #  No external port — accessed through WAF only
+  # ----------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend
+    networks:
+      - internal
+      - db
+      - vault_net
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      vault:
+        condition: service_healthy
+    volumes:
+      - vault_approle:/vault/approle:ro
+      - vault_certs:/vault/certs:ro
+    environment:
+      VAULT_ADDR: https://vault:8200
+      VAULT_CACERT: /vault/certs/cert.pem
+      VAULT_ROLE_ID_FILE: /vault/approle/role_id
+      VAULT_SECRET_ID_FILE: /vault/approle/secret_id
+    env_file: .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ----------------------------------------------------------
+  #  MariaDB — Database
+  #  db network only — no external access
+  # ----------------------------------------------------------
+  mariadb:
+    build:
+      context: ./mariadb
+      dockerfile: Dockerfile
+    container_name: mariadb
+    networks:
+      - db
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    env_file: .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-u", "root", "-p${MARIADB_ROOT_PASSWORD}", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # ----------------------------------------------------------
+  #  HashiCorp Vault — Secret management
+  #  vault_net only — backend access only
+  # ----------------------------------------------------------
+  vault:
+    build:
+      context: ./vault
+      dockerfile: Dockerfile
+    container_name: vault
+    networks:
+      - vault_net
+    volumes:
+      - vault_data:/vault/data
+      - ./vault/config:/vault/config:ro
+      - vault_certs:/vault/certs
+      - vault_approle:/vault/approle
+    cap_add:
+      - IPC_LOCK
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+
+# ============================================================
+#  Networks — 4-layer isolation
+# ============================================================
+networks:
+  dmz:
+  internal:
+  db:
+  vault_net:
+
+# ============================================================
+#  Volumes — bind mount to host path (Inception style)
+# ============================================================
+volumes:
+  mariadb_data:
+    driver: local
+
+  vault_data:
+    driver: local
+
+  nginx_logs:
+    driver: local
+
+  vault_certs:
+    driver: local
+
+  vault_approle:
+    driver: local

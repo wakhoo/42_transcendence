@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy — ft_transcendence</title>
+  <style>
+    :root {
+      --canvas: #d9d9dc;
+      --paper: #ffffff;
+      --border: #c7c7ca;
+      --border-light: #e3e3e5;
+      --text: #1a1a1a;
+      --text-muted: #444444;
+      --text-faint: #6e6e70;
+      --link: #1155cc;
+      --table-head: #f2f2f2;
+      --font: Calibri, Carlito, "Segoe UI", Optima, Arial, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --canvas: #0e0e10;
+        --paper: #1f2023;
+        --border: #3d3e42;
+        --border-light: #2e2f33;
+        --text: #e8e8ea;
+        --text-muted: #c6c6c9;
+        --text-faint: #97979b;
+        --link: #8ab4f8;
+        --table-head: #2a2b2f;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--canvas); }
+
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    .wrapper {
+      max-width: 780px;
+      margin: 40px auto 80px;
+      background: var(--paper);
+      border: 1px solid var(--border-light);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 2px 12px rgba(0, 0, 0, 0.08);
+      padding: 72px 80px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .site-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 10px;
+    }
+
+    header h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .meta {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--text-faint);
+    }
+
+    .notice {
+      font-size: 14px;
+      font-style: italic;
+      color: var(--text-faint);
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    nav.toc {
+      margin-bottom: 44px;
+      font-size: 15px;
+    }
+
+    nav.toc .toc-title {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+
+    nav.toc ol {
+      margin: 0;
+      padding-left: 24px;
+    }
+
+    nav.toc li { margin-bottom: 5px; }
+
+    nav.toc a { color: var(--link); text-decoration: underline; }
+    nav.toc a:hover { text-decoration: none; }
+
+    section {
+      margin-bottom: 32px;
+      scroll-margin-top: 24px;
+    }
+
+    section h2 {
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0 0 12px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    section:first-of-type h2 { border-top: none; padding-top: 0; }
+
+    section h3 {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 18px 0 8px;
+    }
+
+    p { margin: 0 0 12px; color: var(--text-muted); text-align: justify; }
+
+    ul, ol { margin: 0 0 12px; padding-left: 24px; color: var(--text-muted); }
+    li { margin-bottom: 4px; }
+
+    a { color: var(--link); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 14px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--table-head);
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    td { color: var(--text-muted); }
+
+    strong { color: var(--text); font-weight: 700; }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.9em;
+      background: var(--table-head);
+      border: 1px solid var(--border-light);
+      padding: 1px 5px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border-light);
+      margin: 32px 0;
+    }
+
+    footer {
+      margin-top: 44px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+
+    footer a { color: var(--text-faint); }
+
+    @media (max-width: 640px) {
+      .wrapper { padding: 40px 24px; margin: 0; box-shadow: none; border: none; }
+      header h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="site-label">DrawDraw · Legal</div>
+    <h1>Privacy Policy</h1>
+    <div class="meta">Last updated: August 2026 &nbsp;·&nbsp; Version 1.0</div>
+  </header>
+
+  <div class="notice">
+    This service is a student project built for the 42 School Common Core curriculum and is provided for educational purposes only. It is not a commercial product.
+  </div>
+
+  <nav class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#introduction">Introduction</a></li>
+      <li><a href="#data-we-collect">Data We Collect</a></li>
+      <li><a href="#legal-basis">Legal Basis for Processing</a></li>
+      <li><a href="#how-we-use">How We Use Your Data</a></li>
+      <li><a href="#retention">Data Retention</a></li>
+      <li><a href="#security">Security Measures</a></li>
+      <li><a href="#rights">Your Rights Under GDPR</a></li>
+      <li><a href="#third-party">Third-Party Services</a></li>
+      <li><a href="#storage">Cookies &amp; Local Storage</a></li>
+      <li><a href="#changes">Changes to This Policy</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+  </nav>
+
+  <section id="introduction">
+    <h2>1. Introduction</h2>
+    <p><strong>DrawDraw</strong> is a real-time multiplayer drawing-and-guessing game with chat, profiles, and friends, built as the final project of the 42 School Common Core. We are committed to protecting your personal data in accordance with the <strong>General Data Protection Regulation (GDPR)</strong> and applicable data protection laws.</p>
+    <p>This Privacy Policy explains what data we collect, why we collect it, how we use it, and what rights you have regarding your data.</p>
+  </section>
+
+  <section id="data-we-collect">
+    <h2>2. Data We Collect</h2>
+    <p>When you use DrawDraw, we collect the following personal data:</p>
+    <table>
+      <thead>
+        <tr><th>Data</th><th>Purpose</th><th>Source</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Email address</td><td>Account registration and login</td><td>User input / Google OAuth</td></tr>
+        <tr><td>Username</td><td>Display name in the application</td><td>User input / Google OAuth</td></tr>
+        <tr><td>Password (bcrypt hash)</td><td>Authentication — never stored in plain text</td><td>User input</td></tr>
+        <tr><td>Avatar</td><td>Profile display</td><td>Randomly assigned color by default; you may pick one of 20 preset images at any time</td></tr>
+        <tr><td>TOTP secret</td><td>Two-factor authentication, only if you enable it</td><td>Auto-generated</td></tr>
+        <tr><td>Game &amp; match history</td><td>Round results, scores, and rankings</td><td>Auto-generated</td></tr>
+        <tr><td>Chat messages</td><td>In-game and friend chat</td><td>User input</td></tr>
+        <tr><td>Friends list &amp; online status</td><td>Social features</td><td>Auto-generated</td></tr>
+        <tr><td>IP address</td><td>Security logging and abuse prevention</td><td>Auto-collected</td></tr>
+        <tr><td>Access &amp; refresh tokens (JWT)</td><td>Maintaining your login session</td><td>Auto-generated</td></tr>
+      </tbody>
+    </table>
+    <p>We do <strong>not</strong> collect payment information, location data, or any special category of personal data as defined under GDPR Article 9.</p>
+  </section>
+
+  <section id="legal-basis">
+    <h2>3. Legal Basis for Processing</h2>
+    <p>We process your personal data under the following legal bases (GDPR Article 6):</p>
+    <ul>
+      <li><strong>Contract performance</strong> (Art. 6(1)(b)) — processing necessary to provide the service you signed up for.</li>
+      <li><strong>Consent</strong> (Art. 6(1)(a)) — optional features such as Google OAuth login and 2FA.</li>
+      <li><strong>Legitimate interests</strong> (Art. 6(1)(f)) — security logging and abuse prevention.</li>
+      <li><strong>Legal obligation</strong> (Art. 6(1)(c)) — compliance with applicable laws.</li>
+    </ul>
+  </section>
+
+  <section id="how-we-use">
+    <h2>4. How We Use Your Data</h2>
+    <ul>
+      <li>Create and manage your account</li>
+      <li>Authenticate your identity, including two-factor authentication (2FA) if enabled</li>
+      <li>Display your profile, stats, and match history to other users</li>
+      <li>Enable real-time gameplay, drawing rounds, and chat</li>
+      <li>Maintain your friends list and online status</li>
+      <li>Maintain security and prevent unauthorized access</li>
+    </ul>
+    <p>We do <strong>not</strong> sell, rent, or share your personal data with third parties for marketing purposes.</p>
+  </section>
+
+  <section id="retention">
+    <h2>5. Data Retention</h2>
+    <table>
+      <thead>
+        <tr><th>Data</th><th>Retention period</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Account data</td><td>Until account deletion</td></tr>
+        <tr><td>Game &amp; chat history</td><td>Until account deletion</td></tr>
+        <tr><td>Security logs (IP)</td><td>30 days</td></tr>
+        <tr><td>Access token</td><td>1 hour, or until logout</td></tr>
+        <tr><td>Refresh token</td><td>Until logout or expiry</td></tr>
+      </tbody>
+    </table>
+    <p>Upon account deletion, your personal data is permanently removed within <strong>30 days</strong>.</p>
+  </section>
+
+  <section id="security">
+    <h2>6. Security Measures</h2>
+    <p>The following controls protect your data:</p>
+    <ul>
+      <li>Passwords hashed with <strong>bcrypt</strong> (cost factor 12) — never stored in plain text</li>
+      <li>All connections encrypted via <strong>HTTPS / TLS 1.3</strong></li>
+      <li>4-layer Docker network isolation — the database is never exposed externally and is only reachable from the backend</li>
+      <li><strong>Two-Factor Authentication (2FA)</strong> available via TOTP</li>
+      <li>JWT access tokens with short expiry, plus refresh tokens for session renewal</li>
+      <li>Failed login attempts are rate-limited</li>
+      <li>Web Application Firewall (ModSecurity with the OWASP Core Rule Set) at the reverse proxy</li>
+      <li>HashiCorp Vault for centralized secrets management</li>
+    </ul>
+  </section>
+
+  <section id="rights">
+    <h2>7. Your Rights Under GDPR</h2>
+    <table>
+      <thead>
+        <tr><th>Right</th><th>Article</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Right of access</td><td>Art. 15</td><td>Request a copy of the personal data we hold about you.</td></tr>
+        <tr><td>Right to rectification</td><td>Art. 16</td><td>Request correction of inaccurate personal data.</td></tr>
+        <tr><td>Right to erasure</td><td>Art. 17</td><td>Request deletion of your data ("right to be forgotten").</td></tr>
+        <tr><td>Right to restriction</td><td>Art. 18</td><td>Request that we limit how we process your data.</td></tr>
+        <tr><td>Data portability</td><td>Art. 20</td><td>Request your data in a machine-readable format (JSON).</td></tr>
+        <tr><td>Right to object</td><td>Art. 21</td><td>Object to processing based on legitimate interests.</td></tr>
+      </tbody>
+    </table>
+    <p>We aim to respond to all requests within <strong>30 days</strong>. You can delete your own account at any time from the account settings page; to exercise any other right, contact us below.</p>
+  </section>
+
+  <section id="third-party">
+    <h2>8. Third-Party Services</h2>
+    <table>
+      <thead>
+        <tr><th>Service</th><th>Purpose</th><th>Data shared</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Google LLC</td><td>OAuth authentication (sign in with Google)</td><td>Email address, display name</td></tr>
+      </tbody>
+    </table>
+    <p>We do not use advertising networks, analytics platforms, or data brokers. No personal data is sold or shared for marketing purposes.</p>
+  </section>
+
+  <section id="storage">
+    <h2>9. Cookies &amp; Local Storage</h2>
+    <p>ft_transcendence does not use tracking, advertising, or analytics cookies. Your session is kept using your browser's <strong>session storage</strong>, not cookies:</p>
+    <table>
+      <thead>
+        <tr><th>Item</th><th>Purpose</th><th>Duration</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>token</code></td><td>Short-lived access token used to authenticate API and WebSocket requests</td><td>1 hour</td></tr>
+        <tr><td><code>refreshToken</code></td><td>Used to obtain a new access token without logging in again</td><td>Until logout or expiry</td></tr>
+      </tbody>
+    </table>
+    <p>Both values are cleared automatically when you log out or close the browser tab.</p>
+  </section>
+
+  <section id="changes">
+    <h2>10. Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. We will notify you of significant changes via the application. Continued use of the service after changes are posted constitutes acceptance of the updated policy.</p>
+  </section>
+
+  <section id="contact">
+    <h2>11. Contact</h2>
+    <p>For privacy-related inquiries or to exercise your rights, contact the project team:</p>
+    <p><strong>Email:</strong> <a href="mailto:ft-transcendence-team@42.fr">ft-transcendence-team@42.fr</a><br>
+    <strong>Project:</strong> DrawDraw(ft_transcendence) — 42 School Common Core</p>
+  </section>
+
+  <footer>
+    <span>© DrawDraw — 42 School Project</span>
+    <span>
+      <a href="/privacy-policy">Privacy Policy</a> ·
+      <a href="/terms-of-service">Terms of Service</a>
+    </span>
+  </footer>
+
+</div>
+</body>
+</html>
