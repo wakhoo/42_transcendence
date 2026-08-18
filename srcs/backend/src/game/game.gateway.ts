@@ -34,15 +34,10 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
       this.gameService.server = server;
 
-      // Authentification en middleware namespace : elle s'exécute AVANT que le
-      // client ne reçoive l'event 'connect', donc gameSocketUserMap est garanti
-      // rempli avant que le client puisse émettre join_room/get_my_id/etc.
-      // (avant, l'auth se faisait dans handleConnection, un hook post-connexion :
-      // le client recevait déjà 'connect' pendant que le JWT/DB check tournait
-      // encore en arrière-plan, d'où les erreurs "User non identify" sporadiques,
-      // surtout visibles quand la boucle d'event était chargée par une reconnexion.)
       server.use(async (client: Socket, next) => {
         try {
+
+          //recuperer le token
           const authHeader = client.handshake.auth?.token || client.handshake.headers?.authorization;
           if (!authHeader) {
             return next(new Error('Unauthorized'));
@@ -76,7 +71,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
             clearTimeout(pending);
             this.pendingDisconnects.delete(userId);
           }
-
           next();
         } catch {
           next(new Error('Unauthorized'));
@@ -253,7 +247,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
     }
 
 
-    
     @SubscribeMessage('clear_canvas')
     async handleClearCanvas(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
 

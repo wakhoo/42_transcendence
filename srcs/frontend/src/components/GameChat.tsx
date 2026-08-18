@@ -27,7 +27,7 @@ export default function GameChat({ channelId, isSpectator }: GameChatProps) {
   const [roomName, setRoomName] = useState(`Game ${channelId}`);
   const { handleCommand, cmdMsg, error, setError } = useChatCommands(channelId, users, socketRef); //ca c'est pour utiliser les commandes chat
 
-  // 1. Connexion indépendante au namespace /chat exactement comme le Dashboard
+  // Connexion indépendante au namespace /chat exactement comme le Dashboard
   useEffect(() => {
     let socket: Socket | null = null;
     let cancelled = false;
@@ -118,7 +118,7 @@ export default function GameChat({ channelId, isSpectator }: GameChatProps) {
         .catch(() => {});
     })();
   }, [channelId]);
-  // 2. Scroll automatique tout en bas
+  //  Scroll automatique tout en bas
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTo({
@@ -127,7 +127,7 @@ export default function GameChat({ channelId, isSpectator }: GameChatProps) {
       });
     }
   }, [messages]);
-  // 3. Envoi du message (qui sera analysé par checkGuess côté serveur !)
+  // Envoi du message (qui sera analysé par checkGuess côté serveur !)
   const sendMessage = () => {
     if (!input.trim() || !socketRef.current || !channelId) return;
 

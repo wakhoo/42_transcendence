@@ -152,6 +152,8 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 	}, [socket, isDrawer]);
 
 
+
+	// efface le canvas et previens les autres  
 	const handleEmitClear = () => {
 
 
@@ -174,6 +176,8 @@ export default function GameCanvas({isDrawer , socket, channelId}: GameCanvasPro
 		prevPos.current = null;
 	};
 
+
+	//efface tout les pixel du canvas
 	const clearCanvas = () => {
 
 		const canvas =canvasRef.current;
