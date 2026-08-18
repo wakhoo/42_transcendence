@@ -63,10 +63,29 @@ export default function DashboardPage() {
 
     const loadGameRooms = useCallback(async () => {
         const res = await fetch('/api/chat/game-rooms', { headers: await authHeaders() });
+        if (!res.ok) {
+            console.warn('loadGameRooms failed', res.status);
+            return;
+        }
         const data = await res.json();
         if (Array.isArray(data))
             setGameRooms(data);
     }, []);
+
+    const loadUsers = useCallback(async () => {
+        const r = await fetch('/api/user', { headers: await authHeaders() });
+        if (r.status === 401) {
+            clearSession();
+            navigate('/login');
+            return;
+        }
+        if (!r.ok) {
+            console.warn('loadUsers failed', r.status);
+            return;
+        }
+        const data: UserProfile[] = await r.json();
+        if (Array.isArray(data)) setUsers(data);
+    }, [navigate]);
 
     useEffect(() => {
         (async () => {
@@ -75,21 +94,9 @@ export default function DashboardPage() {
                 navigate('/login');
                 return;
             }
-
-            fetch('/api/user', { headers: await authHeaders() })
-                .then(r => {
-                    if (r.status === 401) {
-                        clearSession();
-                        navigate('/login');
-                        return null;
-                    }
-                    return r.json();
-                })
-                .then((data: UserProfile[] | null) => {
-                    if (Array.isArray(data)) setUsers(data);
-                });
+            loadUsers();
         })();
-    }, [])
+    }, [loadUsers, navigate])
 
     useEffect(() => {
         let socket: Socket | null = null;
@@ -113,8 +120,12 @@ export default function DashboardPage() {
 
                 authHeaders().then(headers =>
                     fetch(`/api/chat/channels/${generalChannelId}/messages`, { headers })
-                        .then(r => r.json())
-                        .then((data: Message[]) => setMessages(data.reverse()))
+                        .then(r => (r.ok ? r.json() : null))
+                        .then((data: Message[] | null) => {
+                            if (Array.isArray(data)) setMessages(data.reverse());
+                            else if (data !== null) console.warn('Unexpected messages payload', data);
+                        })
+                        .catch(err => console.warn('Failed to load messages', err))
                 );
             });
 
