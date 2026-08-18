@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Server } from 'socket.io';
 import * as bcrypt from 'bcrypt';
 import { Channel } from './entities/channel.entity';
 import { ChannelMember } from './entities/channel-member.entity';
@@ -21,6 +22,8 @@ import { BCRYPT_ROUNDS } from '../common/constants';
 
 @Injectable()
 export class ChatService implements OnModuleInit {
+    public server!: Server;
+
     constructor(
         @InjectRepository(Channel)
         private readonly channelRepo: Repository<Channel>,
@@ -94,6 +97,10 @@ export class ChatService implements OnModuleInit {
 
         const membership = this.memberRepo.create({ user: { id: userId }, channel: { id: saved.id }, role: 'admin'});
         await this.memberRepo.save(membership);
+
+        if (type === 'game') {
+            this.server.emit('gameRoomsChanged');
+        }
 
         return saved;
     }
@@ -225,6 +232,10 @@ export class ChatService implements OnModuleInit {
 
         await this.gameService.forceCloseGame(channelId);
         await this.channelRepo.remove(channel);
+
+        if (channel.type === 'game') {
+            this.server.emit('gameRoomsChanged');
+        }
     }
 
     async deleteChannelIfEmpty(channelId: number): Promise<void> {
@@ -241,7 +252,10 @@ export class ChatService implements OnModuleInit {
 
         await this.gameService.forceCloseGame(channelId);
         await this.channelRepo.remove(channel);
-        this.gameService.server.emit('channel_deleted', {channelId: channelId});
+
+        if (channel.type === 'game') {
+            this.server.emit('gameRoomsChanged');
+        }
     }
 
 
