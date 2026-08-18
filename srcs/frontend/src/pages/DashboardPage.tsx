@@ -151,6 +151,11 @@ export default function DashboardPage() {
                     else next.delete(data.userId);
                     return next;
                 });
+                authHeaders().then(headers =>
+                    fetch('/api/user', { headers })
+                        .then(r => r.json())
+                        .then((data: UserProfile[]) => setUsers(data))
+                );
             });
 
             socket.on('channel_deleted', (data: {channelId: number}) => {

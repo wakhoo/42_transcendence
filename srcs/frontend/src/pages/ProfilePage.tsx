@@ -92,7 +92,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
             fetch('/api/chat/friends/pending',  { headers }),
         ]);
 
-        if (!meRes.ok) { //utile si token expire ou si le back ne repond pas
+        if (!meRes.ok) {
             navigate('/login'); 
             return; 
         }
@@ -110,7 +110,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
         setPending(pendingData);
     }
 
-    useEffect(() => { loadAll(); }, []); // le [] c'est pour lancer loadAll au demarage
+    useEffect(() => { loadAll(); }, []);
 
     async function saveProfile(code?: string) {
         if (savingProfile) return;
@@ -127,16 +127,16 @@ export function ProfileContent({ userId }: { userId?: number }) {
                 method: 'PATCH',
                 headers: await authHeaders(),
                 body: JSON.stringify(code ? { username, email, code } : { username, email }),
-            }); //stringify c'est pour transformer en json
+            });
             const data = await res.json();
-            if (res.ok) {  //res.ok veut dire que le code http est compris entre 200 et 299 donc que tout s'est bien passe
+            if (res.ok) {
                 setMe(data);
                 setMsg('Profile updated');
                 setAwaitingProfileCode(false);
                 setProfileCode('');
                 window.location.reload();
             }
-            else setMsg(data.message ?? 'Error'); //dans le json de la requete retour message contient le code http et le message d'erreur lance par mes exceptions
+            else setMsg(data.message ?? 'Error');
         } finally {
             setSavingProfile(false);
         }
@@ -237,7 +237,6 @@ export function ProfileContent({ userId }: { userId?: number }) {
                     body: JSON.stringify({ refreshToken }),
                 });
             } catch {
-                // best-effort — the session is cleared locally below regardless
             }
         }
         clearSession();
