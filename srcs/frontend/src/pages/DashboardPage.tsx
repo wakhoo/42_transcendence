@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import { ProfileContent } from './ProfilePage';
@@ -60,7 +60,14 @@ export default function DashboardPage() {
     const [gameRooms, setGameRooms]                     = useState<GameRoom[]>([]);
     const [joinPwdRoomId, setJoinPwdRoomId]             = useState<number | null>(null);
     const [joinPwdInput, setJoinPwdInput]               = useState('');
- 
+
+    const loadGameRooms = useCallback(async () => {
+        const res = await fetch('/api/chat/game-rooms', { headers: await authHeaders() });
+        const data = await res.json();
+        if (Array.isArray(data))
+            setGameRooms(data);
+    }, []);
+
     useEffect(() => {
         (async () => {
             const token = await getAccessToken();
@@ -153,19 +160,16 @@ export default function DashboardPage() {
                 });
             });
 
-            socket.on('channel_deleted', (data: {channelId: number}) => {
-
-                setGameRooms(prevRoom => prevRoom.filter(room => room.id !== data.channelId));
-
-
-            })
+            socket.on('gameRoomsChanged', () => {
+                loadGameRooms();
+            });
         })();
 
         return (() => {
             cancelled = true;
             socket?.disconnect();
         });
-    }, [navigate]);
+    }, [navigate, loadGameRooms]);
 
 
     useEffect(() => {
@@ -173,16 +177,10 @@ export default function DashboardPage() {
     }, [messages]);
 
     useEffect(() => {
-        const load = async () => {
-            const res = await fetch('/api/chat/game-rooms', { headers: await authHeaders() });
-            const data = await res.json();
-            if (Array.isArray(data))
-                setGameRooms(data);
-        };
-        load();
-        const interval = setInterval(load, 5000);
+        loadGameRooms();
+        const interval = setInterval(loadGameRooms, 20000);
         return () => clearInterval(interval);
-    }, []);
+    }, [loadGameRooms]);
 
     async function handleJoinRoom(roomId: number, password?: string) {
         try {

@@ -28,7 +28,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         private readonly userService: UserService,
     ) {}
 
-    afterInit() {
+    afterInit(server: Server) {
+        this.chatService.server = server;
         console.log('ChatGateway initialized');
     }
 
