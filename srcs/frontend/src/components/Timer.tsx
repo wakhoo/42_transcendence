@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import GameChat from './GameChat';
 import { useNavigate } from 'react-router-dom';
 import GameCanvas from './GameCanvas';
-import { getAccessToken } from '../lib/session';
+import { authHeaders, getAccessToken } from '../lib/session';
 import { ProfileContent } from '../pages/ProfilePage';
 import DrawDrawLogo from './DrawDraw';
 
@@ -41,7 +41,7 @@ export default function GamePage() {
     const params = new URLSearchParams(window.location.search);
     return params.get('action');
   });
-  const navigate                  = useNavigate();
+  const navigate = useNavigate();
 
 
   const handleLeave = () => {
@@ -64,6 +64,24 @@ export default function GamePage() {
       navigate('/dashboard', {replace: true});
       return;
     }
+    try {
+        const headers = await authHeaders();
+        const res = await fetch(`/api/chat/channels/${reelChannelId}/join`, { 
+            method: 'POST', 
+            headers,
+            body: JSON.stringify({ password: '' })
+        });
+
+        if (!res.ok) {
+            alert("Access denied. You don't have permission to join this room.");
+            navigate('/dashboard');
+            return; 
+        }
+      } catch (err) {
+        navigate('/dashboard');
+        return;
+      }
+    
 
     if (cancelled) return;
 
