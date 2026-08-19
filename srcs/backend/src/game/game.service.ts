@@ -240,9 +240,8 @@ export class GameService implements OnModuleInit {
             session.turnTimeout = undefined;
         }
     }
-    const socketsInRoom = await this.server.in(channelId.toString()).fetchSockets();
-    const connectedUserIds = [...new Set(socketsInRoom.map(s => gameSocketUserMap.get(s.id)).filter((id): id is number => id !== undefined))];
-    if (connectedUserIds.length < 2) {
+    const registeredPlayerIds = Object.keys(session.scores).map(Number);
+    if (registeredPlayerIds.length < 2) {
       this.server.to(channelId.toString()).emit('message_channel', 'Not enough player');
       return;
     }
@@ -256,7 +255,7 @@ export class GameService implements OnModuleInit {
     session.currentDrawerId = -1;
     session.currentHint = '';
 
-    connectedUserIds.forEach((id) => {
+    registeredPlayerIds.forEach((id) => {
         session.scores[id] = 0;
     });
     await this.handleNextTurn(channelId);

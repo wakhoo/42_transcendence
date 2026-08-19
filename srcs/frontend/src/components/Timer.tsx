@@ -64,23 +64,25 @@ export default function GamePage() {
       navigate('/dashboard', {replace: true});
       return;
     }
-    try {
-        const headers = await authHeaders();
-        const res = await fetch(`/api/chat/channels/${reelChannelId}/join`, { 
-            method: 'POST', 
-            headers,
-            body: JSON.stringify({ password: '' })
-        });
+    if (actionType !== 'spec') {
+      try {
+          const headers = await authHeaders();
+          const res = await fetch(`/api/chat/channels/join`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ channelId: reelChannelId, password: '' })
+          });
 
-        if (!res.ok) {
-            alert("Access denied. You don't have permission to join this room.");
-            navigate('/dashboard');
-            return; 
-        }
+          if (!res.ok) {
+              alert("Access denied. You don't have permission to join this room.");
+              navigate('/dashboard');
+              return;
+          }
       } catch (err) {
-        navigate('/dashboard');
-        return;
+          navigate('/dashboard');
+          return;
       }
+    }
     
 
     if (cancelled) return;
