@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Generated,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { Exclude } from "class-transformer";
@@ -10,6 +11,10 @@ import { Exclude } from "class-transformer";
 export class User {
   @PrimaryGeneratedColumn()
   id!: number;
+
+  @Column({ name: 'public_id', type: 'varchar', length: 36, unique: true })
+  @Generated('uuid')
+  publicId!: string;
 
   @Column({ unique: true })
   email!: string;

@@ -14,6 +14,7 @@ import * as bcrypt from 'bcrypt';
 import { Channel } from './entities/channel.entity';
 import { ChannelMember } from './entities/channel-member.entity';
 import { Message } from './entities/message.entity';
+import { User } from '../user/user.entity';
 import { Friendship } from './entities/friendship.entity';
 import { BadWord } from './entities/bad-word.entity';
 import { BAD_WORDS } from './words.seed';
@@ -308,11 +309,19 @@ export class ChatService implements OnModuleInit {
 
         const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
         const saved = await this.messageRepo.save(message);
-        return this.messageRepo.findOneOrFail({ where: { id: saved.id }, relations: { sender: true } });
+        const full = await this.messageRepo.findOneOrFail({ where: { id: saved.id }, relations: { sender: true } });
+        return { ...full, sender: this.toPublicSender(full.sender) };
     }
 
-    async getMessages(channelId: number, limit = 50): Promise<Message[]> {
-        return this.messageRepo.find({ where: { channel: { id: channelId } }, relations: { sender: true }, order: { createdAt: 'DESC' }, take: limit });
+    async getMessages(channelId: number, limit = 50) {
+        const messages = await this.messageRepo.find({ where: { channel: { id: channelId } }, relations: { sender: true }, order: { createdAt: 'DESC' }, take: limit });
+        return messages.map((m) => ({ ...m, sender: this.toPublicSender(m.sender) }));
+    }
+
+    private toPublicSender(user: User | null) {
+        if (!user) return null;
+        const { publicId, username, avatarUrl, profileColor } = user;
+        return { id: publicId, username, avatarUrl, profileColor };
     }
 
 
