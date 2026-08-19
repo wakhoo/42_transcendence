@@ -7,7 +7,8 @@ type UserProfile = { id: number; username: string; profileColor: string };
 export function useChatCommands(
     channelId: number | null,
     users: UserProfile[],
-    socketRef: React.RefObject<Socket | null>
+    socketRef: React.RefObject<Socket | null>,
+    hasPassword: boolean = false,
 ) {
     const [cmdMsg, setCmdMsg] = useState('');
     const [error,  setError]  = useState('');
@@ -42,7 +43,7 @@ export function useChatCommands(
         }
 
         if (cmd === 'help') {
-            ok('Admin: /kick <user>  /mute <user> [min]  /pass <password>  /close  /(un)private  /limit <n>\nUser:  /msg <user> <message>  /invite <user>  /add <user>  /(un)block <user>');
+            ok('Admin: /kick <user>  /mute <user> [min]  /pass <oldpw> [newpw]  /close  /(un)private  /limit <n>\nUser:  /msg <user> <message>  /invite <user>  /add <user>  /(un)block <user>');
             return;
         }
 
@@ -70,9 +71,21 @@ export function useChatCommands(
         }
 
         if (cmd === 'pass') {
-            const password = args[0] ?? null;
-            const r = await api(`/api/chat/channels/password`, 'PATCH', { channelId, password });
-            r.ok ? ok(password ? 'Password set' : 'Password removed') : err(r.msg || 'Error');
+            if (!args[0]) { err(hasPassword ? 'Usage: /pass <oldpw> [newpw]' : 'Usage: /pass <newpw>'); return; }
+            let body: Record<string, unknown>;
+            let successMsg: string;
+            if (!hasPassword) {
+                body = { channelId, password: args[0] };
+                successMsg = 'Password set';
+            } else if (args[1]) {
+                body = { channelId, oldPassword: args[0], password: args[1] };
+                successMsg = 'Password changed';
+            } else {
+                body = { channelId, oldPassword: args[0] };
+                successMsg = 'Password removed';
+            }
+            const r = await api(`/api/chat/channels/password`, 'PATCH', body);
+            r.ok ? ok(successMsg) : err(r.msg || 'Error');
             return;
         }
 

@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 
 export class DeleteAccountDto {
     @IsBoolean()
@@ -6,6 +6,7 @@ export class DeleteAccountDto {
 
     @IsOptional()
     @IsString()
+    @MaxLength(128)
     password?: string;
 
     @IsOptional()

@@ -6,7 +6,6 @@ headers = {
     'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjMsImVtYWlsIjoiYkBiLmZyIiwiaWF0IjoxNzg3MTYwNzUxLCJleHAiOjE3ODcxNjQzNTF9.FD2dYRDtQS64DnCUSsrYEUp_m3an1gjB8AaikDwrkKY',
     'Connection': 'keep-alive',
     'Content-Type': 'application/json',
-    'Origin': 'https://localhost:8443',
     'Referer': 'https://localhost:8443/dashboard',
     'Sec-Fetch-Dest': 'empty',
     'Sec-Fetch-Mode': 'cors',
@@ -17,15 +16,6 @@ headers = {
     'sec-ch-ua-platform': '"Linux"',
 }
 
-json_data = {
-    'avatarUrl': '/avatars/avatar19.png',
-}
-
-response = requests.patch('https://localhost:8443/api/user/me', headers=headers, json=json_data, verify=False)
-
-# Note: json_data will not be serialized by requests
-# exactly as it was in the original request.
-#data = '{"avatarUrl":"/avatars/avatar19.png"}'
-#response = requests.patch('https://localhost:8443/api/user/me', headers=headers, data=data, verify=False)
+response = requests.get('https://localhost:8443/api/chat/friends/pending', headers=headers, verify=False)
 
 print(response);

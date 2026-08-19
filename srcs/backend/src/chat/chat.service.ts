@@ -19,6 +19,7 @@ import { Friendship } from './entities/friendship.entity';
 import { BadWord } from './entities/bad-word.entity';
 import { BAD_WORDS } from './words.seed';
 import { GameService } from '../game/game.service';
+import { UserService } from '../user/user.service';
 import { BCRYPT_ROUNDS } from '../common/constants';
 
 @Injectable()
@@ -43,6 +44,8 @@ export class ChatService implements OnModuleInit {
 
         @Inject(forwardRef(() => GameService))
         private readonly gameService: GameService,
+
+        private readonly userService: UserService,
     ) {}
 
 
@@ -170,6 +173,11 @@ export class ChatService implements OnModuleInit {
         }
     }
 
+    private async requireUserExists(userId: number): Promise<void> {
+        const user = await this.userService.findById(userId);
+        if (!user) throw new NotFoundException('User not found');
+    }
+
     async kickMember(adminId: number, channelId: number, targetUserId: number): Promise<void> {
         await this.requireAdmin(adminId, channelId);
         this.gameService.banUserFromChannel(channelId, targetUserId);
@@ -181,6 +189,7 @@ export class ChatService implements OnModuleInit {
 
     async inviteUser(adminId: number, channelId: number, targetUserId: number): Promise<ChannelMember> {
         await this.requireAdmin(adminId, channelId);
+        await this.requireUserExists(targetUserId);
         const existing = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } } });
         if (existing) throw new BadRequestException('User is already in this channel');
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
@@ -203,12 +212,18 @@ export class ChatService implements OnModuleInit {
         await this.memberRepo.save(target);
     }
 
-    async setChannelPassword(adminId: number, channelId: number, password: string | null): Promise<void> {
+    async setChannelPassword(adminId: number, channelId: number, oldPassword: string | undefined, password: string | undefined): Promise<void> {
         await this.requireAdmin(adminId, channelId);
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
         if (!channel) throw new NotFoundException('Channel not found');
+        if (channel.passwordHash) {
+            if (!oldPassword) throw new ForbiddenException('Current password required');
+            const valid = await bcrypt.compare(oldPassword, channel.passwordHash);
+            if (!valid) throw new ForbiddenException('Wrong current password');
+        }
         channel.passwordHash = password ? await bcrypt.hash(password, BCRYPT_ROUNDS) : null;
         await this.channelRepo.save(channel);
+        this.gameService.updateSessionHasPassword(channelId, !!channel.passwordHash);
     }
 
     async setChannelPrivacy(adminId: number, channelId: number, isPrivate: boolean): Promise<void> {
@@ -334,6 +349,7 @@ export class ChatService implements OnModuleInit {
 
         let channel = await this.channelRepo.findOne({ where: { name: dmName } });
         if (!channel) {
+            await this.requireUserExists(targetUserId);
             channel = await this.channelRepo.save(this.channelRepo.create({ name: dmName, type: 'dm', isPrivate: true }));
             await this.memberRepo.save([
                 this.memberRepo.create({ user: { id: userId }, channel: { id: channel.id }, role: 'member' }),
@@ -348,6 +364,7 @@ export class ChatService implements OnModuleInit {
 
     async sendFriendRequest(requesterId: number, addresseeId: number): Promise<Friendship> {
         if (requesterId === addresseeId) throw new BadRequestException('Cannot add yourself');
+        await this.requireUserExists(addresseeId);
 
         const existing = await this.friendshipRepo.findOne({
             where: [
@@ -388,6 +405,8 @@ export class ChatService implements OnModuleInit {
     }
 
     async blockUser(userId: number, targetUserId: number): Promise<Friendship> {
+        if (userId === targetUserId) throw new BadRequestException('Cannot block yourself');
+        await this.requireUserExists(targetUserId);
         const existing = await this.friendshipRepo.findOne({ where: [{ requester: { id: userId }, addressee: { id: targetUserId } },
             { requester: { id: targetUserId }, addressee: { id: userId } },],});
         if (existing) await this.friendshipRepo.remove(existing);

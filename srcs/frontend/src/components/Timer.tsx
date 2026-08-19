@@ -26,6 +26,7 @@ export default function GamePage() {
   const [isGameStarted, setIsGameStarted] = useState(false);
   const [roomType, setRoomType] = useState<'public' | 'private' | undefined>(undefined);
   const [maxMembers, setMaxmembers] = useState<number | null>(null);
+  const [channelHasPassword, setChannelHasPassword] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isRoundBreak, setIsRoundBreak] = useState(false);
   const [foundWord, setWordFound] = useState<string | null>(null);
@@ -145,9 +146,10 @@ export default function GamePage() {
       setListeJoueurs(listeVenantDuBack);
     });
 
-    socket.on('room_info', (data: { type: 'public' | 'private', maxMembers: number | null, code?: string }) => {
+    socket.on('room_info', (data: { type: 'public' | 'private', maxMembers: number | null, code?: string, hasPassword?: boolean }) => {
       setRoomType(data.type);
       setMaxmembers(data.maxMembers);
+      setChannelHasPassword(data.hasPassword ?? false);
     });
 
     // (typiquement après un refresh de page) : on restaure l'état local
@@ -647,7 +649,7 @@ export default function GamePage() {
           </h3>
 
           <div className="flex-1 overflow-hidden min-h-0">
-            <GameChat channelId={reelChannelId} isSpectator={isSpectator} />
+            <GameChat channelId={reelChannelId} isSpectator={isSpectator} hasPassword={channelHasPassword} />
           </div>
 
         </aside>

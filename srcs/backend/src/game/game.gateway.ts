@@ -142,7 +142,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
       const session = this.gameService.getSession(data.channelId);
       if (session) {
-        client.emit('room_info', { type: session.type, maxMembers: session.maxMembers, code: session.code });
+        client.emit('room_info', { type: session.type, maxMembers: session.maxMembers, code: session.code, hasPassword: session.hasPassword ?? false });
       }
 
       // Pour que handleDisconnection sache que ce joueur fait partie du salon

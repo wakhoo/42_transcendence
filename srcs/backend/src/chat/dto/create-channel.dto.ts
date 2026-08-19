@@ -1,9 +1,10 @@
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min, Max, MinLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Matches, MaxLength, Min, Max, MinLength } from 'class-validator';
 
 export class CreateChannelDto {
     @IsString()
     @MinLength(2)
     @MaxLength(50)
+    @Matches(/\S/)
     name!: string;
 
     @IsEnum(['general', 'game', 'dm'])
@@ -15,6 +16,7 @@ export class CreateChannelDto {
     isPrivate?: boolean;
 
     @IsString()
+    @MaxLength(128)
     @IsOptional()
     password?: string;
 

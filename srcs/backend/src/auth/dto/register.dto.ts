@@ -9,6 +9,7 @@ import { IsNoInvisibleChars } from "../../common/validators/no-invisible-chars.v
 
 export class RegisterDto {
   @IsEmail()
+  @MaxLength(254)
   @IsNoInvisibleChars()
   email!: string;
 

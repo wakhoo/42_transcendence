@@ -1,10 +1,11 @@
-import { IsInt, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class JoinChannelDto {
     @IsInt()
     channelId!: number;
 
     @IsString()
+    @MaxLength(128)
     @IsOptional()
     password?: string;
 }
@@ -21,6 +22,7 @@ export class SendMessageDto {
     @IsString()
     @MinLength(1)
     @MaxLength(2000)
+    @Matches(/\S/)
     content!: string;
 }
 
@@ -31,5 +33,6 @@ export class SendDmDto {
     @IsString()
     @MinLength(1)
     @MaxLength(2000)
+    @Matches(/\S/)
     content!: string;
 }

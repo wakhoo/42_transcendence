@@ -32,6 +32,7 @@ export interface GameSession {
   currentHint: string;
   maxMembers?: number | null;
   code?: string;
+  hasPassword?: boolean;
   // mutex pour eviter deux appels handleNextTurn simultanement (race condition sur les await DB)
   isHandlingTurn?: boolean;
 }
@@ -87,6 +88,7 @@ export class GameService implements OnModuleInit {
         type: isPrivate ? 'private' : 'public',
         maxMembers: channel.maxMembers,
         code: isPrivate ? this.generateUniqueCode() : undefined,
+        hasPassword: !!password,
         creatorId: creatorId,
         secretWord: '',
         currentDrawerId: 0,
@@ -151,6 +153,18 @@ export class GameService implements OnModuleInit {
         return;
     if (session.scores[userId] === undefined)
         session.scores[userId] = 0;
+  }
+
+  updateSessionHasPassword(channelId: number, hasPassword: boolean): void {
+    const session = this.activeGames.get(channelId);
+    if (!session) return;
+    session.hasPassword = hasPassword;
+    this.server.to(channelId.toString()).emit('room_info', {
+      type: session.type,
+      maxMembers: session.maxMembers,
+      code: session.code,
+      hasPassword,
+    });
   }
 
       

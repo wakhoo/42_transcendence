@@ -89,7 +89,7 @@ export class ChatController {
 
     @Patch('channels/password')
     setPassword(@CurrentUser() user: JwtPayload, @Body() dto: SetPasswordDto) {
-        return this.chatService.setChannelPassword(user.sub, dto.channelId, dto.password);
+        return this.chatService.setChannelPassword(user.sub, dto.channelId, dto.oldPassword, dto.password);
     }
 
     @Patch('channels/privacy')

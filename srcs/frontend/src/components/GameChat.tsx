@@ -16,16 +16,17 @@ type UserProfile = { id: number; username: string; profileColor: string };
 interface GameChatProps {
   channelId: number;
   isSpectator?: boolean;
+  hasPassword?: boolean;
 }
 
-export default function GameChat({ channelId, isSpectator }: GameChatProps) {
+export default function GameChat({ channelId, isSpectator, hasPassword }: GameChatProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput]       = useState('');
   const [users, setUsers]       = useState<UserProfile[]>([]);
   const socketRef               = useRef<Socket | null>(null);
   const chatContainerRef        = useRef<HTMLDivElement>(null);
   const [roomName, setRoomName] = useState(`Game ${channelId}`);
-  const { handleCommand, cmdMsg, error, setError } = useChatCommands(channelId, users, socketRef); //ca c'est pour utiliser les commandes chat
+  const { handleCommand, cmdMsg, error, setError } = useChatCommands(channelId, users, socketRef, hasPassword); //ca c'est pour utiliser les commandes chat
 
   // Connexion indépendante au namespace /chat exactement comme le Dashboard
   useEffect(() => {

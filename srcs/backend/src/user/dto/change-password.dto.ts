@@ -4,6 +4,7 @@ import { IsNoInvisibleChars } from '../../common/validators/no-invisible-chars.v
 export class ChangePasswordDto {
     @IsOptional()
     @IsString()
+    @MaxLength(128)
     currentPassword?: string;
 
     @IsString()

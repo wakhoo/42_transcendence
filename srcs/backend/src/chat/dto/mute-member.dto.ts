@@ -1,4 +1,4 @@
-import { IsInt, Min } from 'class-validator';
+import { IsInt, Max, Min } from 'class-validator';
 
 export class MuteMemberDto {
     @IsInt()
@@ -8,6 +8,7 @@ export class MuteMemberDto {
     targetUserId!: number;
 
     @IsInt()
-    @Min(0)
+    @Min(1)
+    @Max(60)
     minutes!: number;
 }
