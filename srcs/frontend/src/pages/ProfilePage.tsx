@@ -157,6 +157,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                 method: 'DELETE',
                 headers: await authHeaders(),
                 body: JSON.stringify({
+                    confirm: true,
                     ...(deletePassword ? { password: deletePassword } : {}),
                     ...(deleteCode ? { code: deleteCode } : {}),
                 }),

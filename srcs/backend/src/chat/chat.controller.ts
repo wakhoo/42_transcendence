@@ -1,6 +1,7 @@
 import {
     Body,
     Controller,
+    ForbiddenException,
     Get,
     NotFoundException,
     Patch,
@@ -56,7 +57,9 @@ export class ChatController {
     }
 
     @Post('channels/messages')
-    getMessages(@Body() dto: ChannelIdDto) {
+    async getMessages(@CurrentUser() user: JwtPayload, @Body() dto: ChannelIdDto) {
+        const role = await this.chatService.getMemberRole(user.sub, dto.channelId);
+        if (!role) throw new ForbiddenException('Not a member of this channel');
         return this.chatService.getMessages(dto.channelId);
     }
 

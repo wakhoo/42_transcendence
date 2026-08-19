@@ -142,11 +142,14 @@ export class UserService {
             if (existing && existing.id !== userId) throw new ConflictException('Username already in use');
         }
 
-        const updated = await this.update(userId, {
-            email: dto.email,
-            username: dto.username,
-            avatarUrl: dto.avatarUrl,
-        });
+        const updates: { email?: string; username?: string; avatarUrl?: string } = {};
+        if (dto.email !== undefined) updates.email = dto.email;
+        if (dto.username !== undefined) updates.username = dto.username;
+        if (dto.avatarUrl !== undefined) updates.avatarUrl = dto.avatarUrl;
+        if (Object.keys(updates).length === 0) 
+            return this.toSafeProfile(user);
+
+        const updated = await this.update(userId, updates);
         emitUserUpdated(this.toPublicProfile(updated));
         await this.gdprAudit.logDataChanged(userId, ip);
         void this.mail.sendProfileChangedEmail(updated.email);
@@ -195,9 +198,10 @@ export class UserService {
         };
     }
 
-    async deleteAccount(userId: number, dto: DeleteAccountDto | undefined, ip: string | null): Promise<void> {
+    async deleteAccount(userId: number, dto: DeleteAccountDto, ip: string | null): Promise<void> {
         const user = await this.findById(userId);
         if (!user) throw new UnauthorizedException();
+        if (!dto.confirm) throw new BadRequestException('Confirmation required');
 
         if (user.passwordHash) {
             if (!dto?.password) throw new BadRequestException('Password confirmation required');
