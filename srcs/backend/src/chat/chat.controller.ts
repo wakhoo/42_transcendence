@@ -18,6 +18,8 @@ import { CreateChannelDto } from './dto/create-channel.dto';
 import { JoinChannelDto } from './dto/join-channel.dto';
 import { MuteMemberDto } from './dto/mute-member.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
+import { SetPrivacyDto } from './dto/set-privacy.dto';
+import { SetMaxMembersDto } from './dto/set-max-members.dto';
 import { GameService } from '../game/game.service';
 import { CreateGameRoomDto } from './dto/create-game-room.dto';
 
@@ -86,13 +88,13 @@ export class ChatController {
     }
 
     @Patch('channels/:id/privacy')
-    setPrivacy( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Body('isPrivate') isPrivate: boolean) {
-        return this.chatService.setChannelPrivacy(user.sub, channelId, isPrivate);
+    setPrivacy( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Body() dto: SetPrivacyDto) {
+        return this.chatService.setChannelPrivacy(user.sub, channelId, dto.isPrivate);
     }
 
     @Patch('channels/:id/max-members')
-    setMaxMembers( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Body('maxMembers') maxMembers: number) {
-        return this.chatService.setMaxMember(user.sub, channelId, maxMembers);
+    setMaxMembers( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Body() dto: SetMaxMembersDto) {
+        return this.chatService.setMaxMember(user.sub, channelId, dto.maxMembers);
     }
 
     @Delete('channels/:id')
