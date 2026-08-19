@@ -19,6 +19,7 @@ import { JoinChannelDto } from './dto/join-channel.dto';
 import { MuteMemberDto } from './dto/mute-member.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { GameService } from '../game/game.service';
+import { CreateGameRoomDto } from './dto/create-game-room.dto';
 
 @ApiTags('chat')
 @ApiBearerAuth()
@@ -142,7 +143,7 @@ export class ChatController {
     }
 
     @Post('create-game')
-    async createGameRoom(@CurrentUser() user: JwtPayload, @Body() body: { name?: string; isPrivate?: boolean; maxMembers?: number; password?: string; rounds?: number }) {
+    async createGameRoom(@CurrentUser() user: JwtPayload, @Body() body: CreateGameRoomDto) {
         const roomName = body.name || `Game Room ${Math.floor(Math.random() * 1000)}`;
         const session = await this.gameService.createGameSession(user.sub, roomName, body.isPrivate ?? false, body.maxMembers, body.password, body.rounds);
         return session;

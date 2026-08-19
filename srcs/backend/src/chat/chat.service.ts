@@ -196,6 +196,8 @@ export class ChatService implements OnModuleInit {
         await this.requireAdmin(adminId, channelId);
         const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
         if (!target) throw new NotFoundException('Target user is not in this channel');
+        if (minutes > 60) 
+            minutes = 60;
         target.mutedUntil = minutes > 0 ? new Date(Date.now() + minutes * 60000) : null;
         await this.memberRepo.save(target);
     }
