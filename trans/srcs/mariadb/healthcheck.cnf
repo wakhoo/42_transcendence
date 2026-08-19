@@ -1,0 +1,3 @@
+[mariadb-admin]
+user=healthcheck
+host=localhost

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service — ft_transcendence</title>
+  <style>
+    :root {
+      --canvas: #d9d9dc;
+      --paper: #ffffff;
+      --border: #c7c7ca;
+      --border-light: #e3e3e5;
+      --text: #1a1a1a;
+      --text-muted: #444444;
+      --text-faint: #6e6e70;
+      --link: #1155cc;
+      --table-head: #f2f2f2;
+      --font: Calibri, Carlito, "Segoe UI", Optima, Arial, sans-serif;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --canvas: #0e0e10;
+        --paper: #1f2023;
+        --border: #3d3e42;
+        --border-light: #2e2f33;
+        --text: #e8e8ea;
+        --text-muted: #c6c6c9;
+        --text-faint: #97979b;
+        --link: #8ab4f8;
+        --table-head: #2a2b2f;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--canvas); }
+
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.7;
+      font-size: 16px;
+    }
+
+    .wrapper {
+      max-width: 780px;
+      margin: 40px auto 80px;
+      background: var(--paper);
+      border: 1px solid var(--border-light);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 2px 12px rgba(0, 0, 0, 0.08);
+      padding: 72px 80px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .site-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 10px;
+    }
+
+    header h1 {
+      font-size: 26px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .meta {
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--text-faint);
+    }
+
+    .notice {
+      font-size: 14px;
+      font-style: italic;
+      color: var(--text-faint);
+      margin-bottom: 40px;
+      text-align: center;
+    }
+
+    nav.toc {
+      margin-bottom: 44px;
+      font-size: 15px;
+    }
+
+    nav.toc .toc-title {
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+
+    nav.toc ol {
+      margin: 0;
+      padding-left: 24px;
+    }
+
+    nav.toc li { margin-bottom: 5px; }
+
+    nav.toc a { color: var(--link); text-decoration: underline; }
+    nav.toc a:hover { text-decoration: none; }
+
+    section {
+      margin-bottom: 32px;
+      scroll-margin-top: 24px;
+    }
+
+    section h2 {
+      font-size: 17px;
+      font-weight: 700;
+      margin: 0 0 12px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-light);
+    }
+
+    section:first-of-type h2 { border-top: none; padding-top: 0; }
+
+    section h3 {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 18px 0 8px;
+    }
+
+    p { margin: 0 0 12px; color: var(--text-muted); text-align: justify; }
+
+    ul, ol { margin: 0 0 12px; padding-left: 24px; color: var(--text-muted); }
+    li { margin-bottom: 4px; }
+
+    a { color: var(--link); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 20px;
+      font-size: 14px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--table-head);
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    td { color: var(--text-muted); }
+
+    strong { color: var(--text); font-weight: 700; }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.9em;
+      background: var(--table-head);
+      border: 1px solid var(--border-light);
+      padding: 1px 5px;
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border-light);
+      margin: 32px 0;
+    }
+
+    footer {
+      margin-top: 44px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+
+    footer a { color: var(--text-faint); }
+
+    @media (max-width: 640px) {
+      .wrapper { padding: 40px 24px; margin: 0; box-shadow: none; border: none; }
+      header h1 { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="site-label">DrawDraw · Legal</div>
+    <h1>Terms of Service</h1>
+    <div class="meta">Last updated: August 2026 &nbsp;·&nbsp; Version 1.0</div>
+  </header>
+
+  <div class="notice">
+    This service is a student project built for the 42 School Common Core curriculum and is provided for educational purposes only. It is not a commercial product and may be discontinued once academic evaluation is complete.
+  </div>
+
+  <nav class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#acceptance">Acceptance of Terms</a></li>
+      <li><a href="#description">Description of Service</a></li>
+      <li><a href="#registration">Account Registration</a></li>
+      <li><a href="#conduct">Prohibited Conduct</a></li>
+      <li><a href="#content">User Content</a></li>
+      <li><a href="#termination">Account Termination</a></li>
+      <li><a href="#warranties">Disclaimer of Warranties</a></li>
+      <li><a href="#liability">Limitation of Liability</a></li>
+      <li><a href="#privacy">Privacy</a></li>
+      <li><a href="#changes">Changes to Terms</a></li>
+      <li><a href="#law">Governing Law</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ol>
+  </nav>
+
+  <section id="acceptance">
+    <h2>1. Acceptance of Terms</h2>
+    <p>By creating an account or using <strong>DrawDraw</strong> ("the Service"), you agree to be bound by these Terms of Service. If you do not agree, do not use the Service.</p>
+    <p>The Service is a student project created as part of the <strong>42 School Common Core curriculum</strong> and is provided for educational purposes only.</p>
+  </section>
+
+  <section id="description">
+    <h2>2. Description of Service</h2>
+    <p>DrawDraw is a web-based platform that provides:</p>
+    <ul>
+      <li>A real-time multiplayer drawing-and-guessing game — one player receives a keyword and draws it, other players guess it in the chat</li>
+      <li>Remote multiplayer matches with 2 or more players and live reconnection support</li>
+      <li>User accounts with email/password login, Google OAuth, and optional two-factor authentication (2FA)</li>
+      <li>User profiles, match history, a friends list, and online status</li>
+      <li>Real-time chat</li>
+    </ul>
+  </section>
+
+  <section id="registration">
+    <h2>3. Account Registration</h2>
+    <p>To use the Service, you must:</p>
+    <ul>
+      <li>Provide a valid email address</li>
+      <li>Choose a unique username</li>
+      <li>Create a password of at least 8 characters, or sign in with your Google account</li>
+    </ul>
+    <p>You are responsible for maintaining the confidentiality of your account credentials. You must notify us immediately of any unauthorized use of your account.</p>
+  </section>
+
+  <section id="conduct">
+    <h2>4. Prohibited Conduct</h2>
+    <p>You agree <strong>not</strong> to:</p>
+    <ul>
+      <li>Use the Service for any unlawful purpose</li>
+      <li>Attempt to gain unauthorized access to other accounts or systems</li>
+      <li>Upload malicious code, viruses, or harmful content</li>
+      <li>Harass, threaten, or abuse other players in chat or in-game</li>
+      <li>Use automated tools (bots) to play, draw, or interact with the Service</li>
+      <li>Attempt to reverse engineer or exploit the Service</li>
+      <li>Draw or share content that is offensive, discriminatory, or illegal</li>
+    </ul>
+    <p>Violation of these rules may result in immediate account suspension or termination.</p>
+  </section>
+
+  <section id="content">
+    <h2>5. User Content</h2>
+    <p>By submitting content to the Service — including your username, avatar, chat messages, and in-game drawings — you grant us a limited license to display and store that content for the purpose of providing the Service (for example, showing your drawing to other players in the same round).</p>
+    <p>You retain ownership of your content. We do not claim ownership over user-generated content, and in-game drawings are not retained beyond the round they were created in.</p>
+  </section>
+
+  <section id="termination">
+    <h2>6. Account Termination</h2>
+    <p>We reserve the right to suspend or terminate accounts that:</p>
+    <ul>
+      <li>Violate these Terms of Service</li>
+      <li>Engage in abusive behavior toward other users</li>
+      <li>Attempt to compromise the security or integrity of the Service</li>
+    </ul>
+    <p>You may delete your account at any time via the account settings page. Upon deletion, your data is removed in accordance with our Privacy Policy.</p>
+  </section>
+
+  <section id="warranties">
+    <h2>7. Disclaimer of Warranties</h2>
+    <p>The Service is provided <strong>"as is"</strong> without warranties of any kind. As a student project, we do not guarantee:</p>
+    <ul>
+      <li>Continuous or uninterrupted availability</li>
+      <li>Freedom from bugs or errors</li>
+      <li>Fitness for any particular purpose</li>
+    </ul>
+  </section>
+
+  <section id="liability">
+    <h2>8. Limitation of Liability</h2>
+    <p>To the fullest extent permitted by law, we are not liable for any indirect, incidental, or consequential damages arising from your use of the Service.</p>
+  </section>
+
+  <section id="privacy">
+    <h2>9. Privacy</h2>
+    <p>Your use of the Service is also governed by our <strong>Privacy Policy</strong>, which is incorporated into these Terms by reference. Please review our <a href="/privacy-policy">Privacy Policy</a> to understand our data practices.</p>
+  </section>
+
+  <section id="changes">
+    <h2>10. Changes to Terms</h2>
+    <p>We reserve the right to modify these Terms at any time. Continued use of the Service after changes are posted constitutes acceptance of the updated Terms.</p>
+  </section>
+
+  <section id="law">
+    <h2>11. Governing Law</h2>
+    <p>These Terms are governed by the laws of the <strong>European Union</strong> and applicable local law. Any disputes shall be resolved in accordance with GDPR and applicable regulations.</p>
+  </section>
+
+  <section id="contact">
+    <h2>12. Contact</h2>
+    <p>For questions regarding these Terms, contact the project team:</p>
+    <p><strong>Email:</strong> <a href="mailto:ft-transcendence-team@42.fr">ft-transcendence-team@42.fr</a><br>
+    <strong>Project:</strong> DrawDraw(ft_transcendence) — 42 School Common Core</p>
+  </section>
+
+  <footer>
+    <span>© DrawDraw — 42 School Project</span>
+    <span>
+      <a href="/privacy-policy">Privacy Policy</a> ·
+      <a href="/terms-of-service">Terms of Service</a>
+    </span>
+  </footer>
+
+</div>
+</body>
+</html>
