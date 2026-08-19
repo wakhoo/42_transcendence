@@ -119,7 +119,7 @@ export default function DashboardPage() {
                 setOnlineUserId(new Set(onlineUserIds));
 
                 authHeaders().then(headers =>
-                    fetch(`/api/chat/channels/${generalChannelId}/messages`, { headers })
+                    fetch(`/api/chat/channels/messages`, { method: 'POST', headers, body: JSON.stringify({ channelId: generalChannelId }) })
                         .then(r => (r.ok ? r.json() : null))
                         .then((data: Message[] | null) => {
                             if (Array.isArray(data)) setMessages(data.reverse());
@@ -203,10 +203,10 @@ export default function DashboardPage() {
 
     async function handleJoinRoom(roomId: number, password?: string) {
         try {
-            const response = await fetch(`${window.location.origin}/api/chat/channels/${roomId}/join`, {
+            const response = await fetch(`${window.location.origin}/api/chat/channels/join`, {
                 method: 'POST',
                 headers: await authHeaders(),
-                body: JSON.stringify({ password: password ?? '' })
+                body: JSON.stringify({ channelId: roomId, password: password ?? '' })
             });
             if (!response.ok) {
                 const err = await response.json().catch(() => ({ message: 'Error' }));

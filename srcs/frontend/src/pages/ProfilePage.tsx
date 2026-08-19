@@ -301,7 +301,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
     }
 
     async function addFriend(userId: number) {
-        const res = await fetch(`/api/chat/friends/${userId}`, { method: 'POST', headers: await authHeaders() });
+        const res = await fetch(`/api/chat/friends`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ userId }) });
         const data = await res.json();
         setMsg(res.ok ? 'Invitation sent' : (data.message ?? 'Error'));
         if (res.ok) 
@@ -309,14 +309,14 @@ export function ProfileContent({ userId }: { userId?: number }) {
     }
 
     async function acceptFriend(friendshipId: number) {
-        const res = await fetch(`/api/chat/friends/${friendshipId}/accept`, { method: 'PATCH', headers: await authHeaders() });
+        const res = await fetch(`/api/chat/friends/accept`, { method: 'PATCH', headers: await authHeaders(), body: JSON.stringify({ friendshipId }) });
         setMsg(res.ok ? 'Friend accepted' : 'Error');
         if (res.ok) 
             loadAll();
     }
 
     async function removeFriend(friendshipId: number) {
-        await fetch(`/api/chat/friends/${friendshipId}`, { method: 'DELETE', headers: await authHeaders() });
+        await fetch(`/api/chat/friends/remove`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ friendshipId }) });
         loadAll();
     }
 

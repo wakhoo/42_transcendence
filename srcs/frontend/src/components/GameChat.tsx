@@ -49,8 +49,10 @@ export default function GameChat({ channelId, isSpectator }: GameChatProps) {
       })
 
       // Charger l'historique des messages du salon de jeu
-      fetch(`/api/chat/channels/${channelId}/messages`, {
-        headers: await authHeaders()
+      fetch(`/api/chat/channels/messages`, {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({ channelId: Number(channelId) })
       })
         .then(r => r.json())
         .then((data: Message[]) => {

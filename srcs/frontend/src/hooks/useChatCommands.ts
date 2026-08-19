@@ -52,7 +52,7 @@ export function useChatCommands(
                 err(`User "${args[0]}" not found`); 
                 return; 
             }
-            const r = await api(`/api/chat/channels/${channelId}/kick/${target.id}`, 'DELETE');
+            const r = await api(`/api/chat/channels/kick`, 'POST', { channelId, userId: target.id });
             r.ok ? ok(`${target.username} has been kicked`) : err(r.msg || 'Error');
             return;
         }
@@ -64,32 +64,32 @@ export function useChatCommands(
                 return; 
             }
             const minutes = parseInt(args[1]) || 5;
-            const r = await api(`/api/chat/channels/${channelId}/mute/${target.id}`, 'PATCH', { minutes });
+            const r = await api(`/api/chat/channels/mute`, 'PATCH', { channelId, targetUserId: target.id, minutes });
             r.ok ? ok(`${target.username} muted for ${minutes} min`) : err(r.msg || 'Error');
             return;
         }
 
         if (cmd === 'pass') {
             const password = args[0] ?? null;
-            const r = await api(`/api/chat/channels/${channelId}/password`, 'PATCH', { password });
+            const r = await api(`/api/chat/channels/password`, 'PATCH', { channelId, password });
             r.ok ? ok(password ? 'Password set' : 'Password removed') : err(r.msg || 'Error');
             return;
         }
 
         if (cmd === 'close') {
-            const r = await api(`/api/chat/channels/${channelId}`, 'DELETE');
+            const r = await api(`/api/chat/channels/delete`, 'POST', { channelId });
             r.ok ? ok('Channel closed') : err(r.msg || 'Error');
             return;
         }
 
         if (cmd === 'private') {
-            const r = await api(`/api/chat/channels/${channelId}/privacy`, 'PATCH', { isPrivate: true });
+            const r = await api(`/api/chat/channels/privacy`, 'PATCH', { channelId, isPrivate: true });
             r.ok ? ok('Channel set to private') : err(r.msg || 'Error');
             return;
         }
 
         if (cmd === 'unprivate') {
-            const r = await api(`/api/chat/channels/${channelId}/privacy`, 'PATCH', { isPrivate: false });
+            const r = await api(`/api/chat/channels/privacy`, 'PATCH', { channelId, isPrivate: false });
             r.ok ? ok('Channel set to public') : err(r.msg || 'Error');
             return;
         }
@@ -118,7 +118,7 @@ export function useChatCommands(
                 err(`User "${args[0]}" not found`); 
                 return; 
             }
-            const r = await api(`/api/chat/channels/${channelId}/invite/${target.id}`, 'POST');
+            const r = await api(`/api/chat/channels/invite`, 'POST', { channelId, userId: target.id });
             r.ok ? ok(`${target.username} invited`) : err(r.msg || 'Error');
             return;
         }
@@ -129,7 +129,7 @@ export function useChatCommands(
                 err(`User "${args[0]}" not found`); 
                 return; 
             }
-            const r = await api(`/api/chat/friends/${target.id}`, 'POST');
+            const r = await api(`/api/chat/friends`, 'POST', { userId: target.id });
             r.ok ? ok(`Friend request sent to ${target.username}`) : err(r.msg || 'Error');
             return;
         }
@@ -140,7 +140,7 @@ export function useChatCommands(
                 err(`User "${args[0]}" not found`); 
                 return; 
             }
-            const r = await api(`/api/chat/block/${target.id}`, 'POST');
+            const r = await api(`/api/chat/block`, 'POST', { userId: target.id });
             r.ok ? ok(`${target.username} blocked`) : err(r.msg || 'Error');
             return;
         }
@@ -151,7 +151,7 @@ export function useChatCommands(
                 err(`User "${args[0]}" not found`); 
                 return; 
             }
-            const r = await api(`/api/chat/block/${target.id}`, 'DELETE');
+            const r = await api(`/api/chat/block/remove`, 'POST', { userId: target.id });
             r.ok ? ok(`${target.username} unblocked`) : err(r.msg || 'Error');
             return;
         }
@@ -162,7 +162,7 @@ export function useChatCommands(
                 err('Usage: /limit <number> (min 2, max 8)'); 
                 return; 
             }
-            const r = await api(`/api/chat/channels/${channelId}/max-members`, 'PATCH', { maxMembers: n });
+            const r = await api(`/api/chat/channels/max-members`, 'PATCH', { channelId, maxMembers: n });
             r.ok ? ok(`Max players : ${n}`) : err(r.msg || 'Error');
             return;
         }

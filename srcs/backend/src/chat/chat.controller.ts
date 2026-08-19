@@ -1,11 +1,8 @@
 import {
     Body,
     Controller,
-    Delete,
     Get,
     NotFoundException,
-    Param,
-    ParseIntPipe,
     Patch,
     Post,
     UseGuards,
@@ -20,6 +17,11 @@ import { MuteMemberDto } from './dto/mute-member.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { SetPrivacyDto } from './dto/set-privacy.dto';
 import { SetMaxMembersDto } from './dto/set-max-members.dto';
+import { ChannelIdDto } from './dto/channel-id.dto';
+import { ChannelUserDto } from './dto/channel-user.dto';
+import { UserIdDto } from './dto/user-id.dto';
+import { FriendshipIdDto } from './dto/friendship-id.dto';
+import { FindPrivateGameDto } from './dto/find-private-game.dto';
 import { GameService } from '../game/game.service';
 import { CreateGameRoomDto } from './dto/create-game-room.dto';
 
@@ -43,63 +45,63 @@ export class ChatController {
         return this.chatService.createChannel(user.sub, dto.name, dto.type ?? 'general', dto.isPrivate ?? false, dto.password, dto.maxMembers);
     }
 
-    @Post('channels/:id/join')
-    joinChannel( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Body() dto: JoinChannelDto) {
-        return this.chatService.joinChannel(user.sub, channelId, dto.password);
+    @Post('channels/join')
+    joinChannel(@CurrentUser() user: JwtPayload, @Body() dto: JoinChannelDto) {
+        return this.chatService.joinChannel(user.sub, dto.channelId, dto.password);
     }
 
-    @Delete('channels/:id/leave')
-    leaveChannel( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number) {
-        return this.chatService.leaveChannel(user.sub, channelId);
+    @Post('channels/leave')
+    leaveChannel(@CurrentUser() user: JwtPayload, @Body() dto: ChannelIdDto) {
+        return this.chatService.leaveChannel(user.sub, dto.channelId);
     }
 
-    @Get('channels/:id/messages')
-    getMessages(@Param('id', ParseIntPipe) channelId: number) {
-        return this.chatService.getMessages(channelId);
+    @Post('channels/messages')
+    getMessages(@Body() dto: ChannelIdDto) {
+        return this.chatService.getMessages(dto.channelId);
     }
 
-    @Get('find-private-game/:code')
-    async findPrivateGame(@Param('code') code: string) {
-        const channelId = this.gameService.findRoomByCode(code);
+    @Post('find-private-game')
+    async findPrivateGame(@Body() dto: FindPrivateGameDto) {
+        const channelId = this.gameService.findRoomByCode(dto.code);
         if (!channelId) throw new NotFoundException('Invalid code or room closed');
         return { channelId };
     }
 
     // ── Actions admin ─────────────────────────────────────────────────────────
 
-    @Delete('channels/:id/kick/:userId')
-    kickMember( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Param('userId', ParseIntPipe) targetUserId: number) {
-        return this.chatService.kickMember(user.sub, channelId, targetUserId);
+    @Post('channels/kick')
+    kickMember(@CurrentUser() user: JwtPayload, @Body() dto: ChannelUserDto) {
+        return this.chatService.kickMember(user.sub, dto.channelId, dto.userId);
     }
 
-    @Post('channels/:id/invite/:userId')
-    inviteUser( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Param('userId', ParseIntPipe) targetUserId: number) {
-        return this.chatService.inviteUser(user.sub, channelId, targetUserId);
+    @Post('channels/invite')
+    inviteUser(@CurrentUser() user: JwtPayload, @Body() dto: ChannelUserDto) {
+        return this.chatService.inviteUser(user.sub, dto.channelId, dto.userId);
     }
 
-    @Patch('channels/:id/mute/:userId')
-    muteMember( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Param('userId', ParseIntPipe) targetUserId: number, @Body() dto: MuteMemberDto) {
-        return this.chatService.muteMember(user.sub, channelId, targetUserId, dto.minutes);
+    @Patch('channels/mute')
+    muteMember(@CurrentUser() user: JwtPayload, @Body() dto: MuteMemberDto) {
+        return this.chatService.muteMember(user.sub, dto.channelId, dto.targetUserId, dto.minutes);
     }
 
-    @Patch('channels/:id/password')
-    setPassword( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Body() dto: SetPasswordDto) {
-        return this.chatService.setChannelPassword(user.sub, channelId, dto.password);
+    @Patch('channels/password')
+    setPassword(@CurrentUser() user: JwtPayload, @Body() dto: SetPasswordDto) {
+        return this.chatService.setChannelPassword(user.sub, dto.channelId, dto.password);
     }
 
-    @Patch('channels/:id/privacy')
-    setPrivacy( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Body() dto: SetPrivacyDto) {
-        return this.chatService.setChannelPrivacy(user.sub, channelId, dto.isPrivate);
+    @Patch('channels/privacy')
+    setPrivacy(@CurrentUser() user: JwtPayload, @Body() dto: SetPrivacyDto) {
+        return this.chatService.setChannelPrivacy(user.sub, dto.channelId, dto.isPrivate);
     }
 
-    @Patch('channels/:id/max-members')
-    setMaxMembers( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number, @Body() dto: SetMaxMembersDto) {
-        return this.chatService.setMaxMember(user.sub, channelId, dto.maxMembers);
+    @Patch('channels/max-members')
+    setMaxMembers(@CurrentUser() user: JwtPayload, @Body() dto: SetMaxMembersDto) {
+        return this.chatService.setMaxMember(user.sub, dto.channelId, dto.maxMembers);
     }
 
-    @Delete('channels/:id')
-    deleteChannel( @CurrentUser() user: JwtPayload, @Param('id', ParseIntPipe) channelId: number) {
-        return this.chatService.deleteChannel(user.sub, channelId);
+    @Post('channels/delete')
+    deleteChannel(@CurrentUser() user: JwtPayload, @Body() dto: ChannelIdDto) {
+        return this.chatService.deleteChannel(user.sub, dto.channelId);
     }
 
     // ── Amis ──────────────────────────────────────────────────────────────────
@@ -114,29 +116,29 @@ export class ChatController {
         return this.chatService.getPendingRequests(user.sub);
     }
 
-    @Post('friends/:userId')
-    sendFriendRequest( @CurrentUser() user: JwtPayload, @Param('userId', ParseIntPipe) addresseeId: number) {
-        return this.chatService.sendFriendRequest(user.sub, addresseeId);
+    @Post('friends')
+    sendFriendRequest(@CurrentUser() user: JwtPayload, @Body() dto: UserIdDto) {
+        return this.chatService.sendFriendRequest(user.sub, dto.userId);
     }
 
-    @Patch('friends/:friendshipId/accept')
-    acceptFriendRequest( @CurrentUser() user: JwtPayload, @Param('friendshipId', ParseIntPipe) friendshipId: number) {
-        return this.chatService.acceptFriendRequest(user.sub, friendshipId);
+    @Patch('friends/accept')
+    acceptFriendRequest(@CurrentUser() user: JwtPayload, @Body() dto: FriendshipIdDto) {
+        return this.chatService.acceptFriendRequest(user.sub, dto.friendshipId);
     }
 
-    @Delete('friends/:friendshipId')
-    rejectFriendRequest( @CurrentUser() user: JwtPayload, @Param('friendshipId', ParseIntPipe) friendshipId: number) {
-        return this.chatService.rejectFriendRequest(user.sub, friendshipId);
+    @Post('friends/remove')
+    rejectFriendRequest(@CurrentUser() user: JwtPayload, @Body() dto: FriendshipIdDto) {
+        return this.chatService.rejectFriendRequest(user.sub, dto.friendshipId);
     }
 
-    @Post('block/:userId')
-    blockUser( @CurrentUser() user: JwtPayload, @Param('userId', ParseIntPipe) targetUserId: number) {
-        return this.chatService.blockUser(user.sub, targetUserId);
+    @Post('block')
+    blockUser(@CurrentUser() user: JwtPayload, @Body() dto: UserIdDto) {
+        return this.chatService.blockUser(user.sub, dto.userId);
     }
 
-    @Delete('block/:userId')
-    unblockUser( @CurrentUser() user: JwtPayload, @Param('userId', ParseIntPipe) targetUserId: number) {
-        return this.chatService.unblockUser(user.sub, targetUserId);
+    @Post('block/remove')
+    unblockUser(@CurrentUser() user: JwtPayload, @Body() dto: UserIdDto) {
+        return this.chatService.unblockUser(user.sub, dto.userId);
     }
 
     @Get('game-rooms')
