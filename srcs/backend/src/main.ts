@@ -4,6 +4,7 @@ import { NestExpressApplication } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { AppModule } from "./app.module";
 import { loadVaultSecrets } from "./vault-loader";
+import { QueryFailedFilter } from "./common/filters/query-failed.filter";
 
 async function bootstrap() {
   await loadVaultSecrets();
@@ -15,6 +16,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
+  app.useGlobalFilters(new QueryFailedFilter());
 
   if (process.env.NODE_ENV !== "production") {
     const swaggerConfig = new DocumentBuilder()
