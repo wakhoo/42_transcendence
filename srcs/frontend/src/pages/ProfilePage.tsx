@@ -51,6 +51,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
 
     const [awaitingProfileCode, setAwaitingProfileCode] = useState(false);
     const [profileCode, setProfileCode]                 = useState('');
+    const [profilePassword, setProfilePassword]         = useState('');
 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [deletePassword, setDeletePassword]       = useState('');
@@ -112,11 +113,11 @@ export function ProfileContent({ userId }: { userId?: number }) {
 
     useEffect(() => { loadAll(); }, []);
 
-    async function saveProfile(code?: string) {
+    async function saveProfile(code?: string, password?: string) {
         if (savingProfile) return;
 
         const changingIdentity = me != null && (username !== me.username || email !== me.email);
-        if (changingIdentity && me?.totpEnabled && !code) {
+        if (changingIdentity && ((me?.totpEnabled && !code) || (me?.hasPassword && !password))) {
             setAwaitingProfileCode(true);
             return;
         }
@@ -126,7 +127,12 @@ export function ProfileContent({ userId }: { userId?: number }) {
             const res = await fetch('/api/user/me', {
                 method: 'PATCH',
                 headers: await authHeaders(),
-                body: JSON.stringify(code ? { username, email, code } : { username, email }),
+                body: JSON.stringify({
+                    username,
+                    email,
+                    ...(code ? { code } : {}),
+                    ...(password ? { currentPassword: password } : {}),
+                }),
             });
             const data = await res.json();
             if (res.ok) {
@@ -134,6 +140,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                 setMsg('Profile updated');
                 setAwaitingProfileCode(false);
                 setProfileCode('');
+                setProfilePassword('');
                 window.location.reload();
             }
             else setMsg(data.message ?? 'Error');
@@ -145,6 +152,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
     function cancelProfileCode() {
         setAwaitingProfileCode(false);
         setProfileCode('');
+        setProfilePassword('');
     }
 
     async function handleDeleteAccount(e: FormEvent) {
@@ -215,6 +223,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                 setConfirmPassword('');
                 setPasswordCode('');
                 setAwaitingPasswordCode(false);
+                setMe(prev => prev ? { ...prev, hasPassword: true } : prev);
             } else {
                 setPasswordError(data.message ?? 'Failed to update password');
             }
@@ -396,6 +405,11 @@ export function ProfileContent({ userId }: { userId?: number }) {
 
             {isMe ? (
                 <>
+                    {!me.hasPassword && !me.totpEnabled && (
+                        <div className="mb-4 bg-amber-950 border border-amber-800 text-amber-300 text-sm px-4 py-2 rounded-lg">
+                            ⚠️ Your account is very vulnerable: you signed in with a third-party account and have no password or two-factor authentication set up. Please add a password or enable 2FA below to secure your account.
+                        </div>
+                    )}
                     <div className="flex items-center gap-3 mb-6">
                         <AvatarPicker
                             currentAvatar={me.avatarUrl}
@@ -502,21 +516,36 @@ export function ProfileContent({ userId }: { userId?: number }) {
                         )}
                         {awaitingProfileCode && (
                             <form
-                                onSubmit={e => { e.preventDefault(); saveProfile(profileCode); }}
+                                onSubmit={e => { e.preventDefault(); saveProfile(profileCode, profilePassword); }}
                                 className="flex flex-col gap-3"
                             >
-                                <p className="text-yellow-400 text-xs">Enter your 2FA code to confirm this change.</p>
-                                <input
-                                    value={profileCode}
-                                    onChange={e => setProfileCode(e.target.value)}
-                                    placeholder="6-digit code"
-                                    maxLength={6}
-                                    className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
-                                />
+                                <p className="text-yellow-400 text-xs">
+                                    {me.hasPassword && me.totpEnabled && 'Confirm your password and 2FA code to change your username/email.'}
+                                    {me.hasPassword && !me.totpEnabled && 'Confirm your password to change your username/email.'}
+                                    {!me.hasPassword && me.totpEnabled && 'Confirm your 2FA code to change your username/email.'}
+                                </p>
+                                {me.hasPassword && (
+                                    <input
+                                        type="password"
+                                        value={profilePassword}
+                                        onChange={e => setProfilePassword(e.target.value)}
+                                        placeholder="Password"
+                                        className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm"
+                                    />
+                                )}
+                                {me.totpEnabled && (
+                                    <input
+                                        value={profileCode}
+                                        onChange={e => setProfileCode(e.target.value)}
+                                        placeholder="6-digit code"
+                                        maxLength={6}
+                                        className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
+                                    />
+                                )}
                                 <div className="flex gap-2">
                                     <button
                                         type="submit"
-                                        disabled={profileCode.length !== 6 || savingProfile}
+                                        disabled={(me.hasPassword && !profilePassword) || (me.totpEnabled && profileCode.length !== 6) || savingProfile}
                                         className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors disabled:opacity-50"
                                     >
                                         Confirm

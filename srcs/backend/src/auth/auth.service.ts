@@ -97,9 +97,15 @@ export class AuthService {
         return this.issueTokens(user.id, user.email);
     }
 
-    async setupTotp(userId: number): Promise<{ otpauthUrl: string; secret: string; qrCode: string }> {
+    async setupTotp(userId: number, code?: string): Promise<{ otpauthUrl: string; secret: string; qrCode: string }> {
         const user = await this.userService.findById(userId);
         if (!user) throw new UnauthorizedException();
+
+        if (user.totpEnabled) {
+            if (!code) throw new BadRequestException('Current 2FA code required to reset 2FA');
+            const valid = authenticator.verify({ token: code, secret: user.totpSecret! });
+            if (!valid) throw new UnauthorizedException('Invalid 2FA code');
+        }
 
         const secret = authenticator.generateSecret();
         await this.userService.setTotpSecret(userId, secret);

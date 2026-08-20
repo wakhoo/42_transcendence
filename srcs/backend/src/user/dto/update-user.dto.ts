@@ -25,4 +25,9 @@ export class UpdateUserDto {
     @Length(6, 6)
     code?: string;
 
+    @IsOptional()
+    @IsString()
+    @MaxLength(128)
+    currentPassword?: string;
+
 }

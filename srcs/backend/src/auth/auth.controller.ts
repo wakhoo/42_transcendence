@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
+import { SetupTotpDto } from './dto/setup-totp.dto';
 import { TotpDto } from './dto/totp.dto';
 import { JwtGuard, JwtPayload } from './guards/jwt.guard';
 import { Pending2faGuard } from './guards/pending2fa.guard';
@@ -72,8 +73,9 @@ export class AuthController {
     @Post('2fa/setup')
     @UseGuards(JwtGuard)
     @ApiBearerAuth()
-    setup2fa(@Req() req: { user: JwtPayload }) {
-        return this.authService.setupTotp(req.user.sub);
+    @Throttle({ default: { limit: 5, ttl: 60_000 } })
+    setup2fa(@Req() req: { user: JwtPayload }, @Body() dto: SetupTotpDto) {
+        return this.authService.setupTotp(req.user.sub, dto.code);
     }
 
     @Post('2fa/enable')

@@ -129,6 +129,12 @@ export class UserService {
         const changingEmail = dto.email !== undefined && dto.email !== user.email;
         const changingUsername = dto.username !== undefined && dto.username !== user.username;
 
+        if ((changingEmail || changingUsername) && user.passwordHash) {
+            if (!dto.currentPassword) throw new BadRequestException('Current password required');
+            const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+            if (!valid) throw new UnauthorizedException('Invalid current password');
+        }
+
         if ((changingEmail || changingUsername) && user.totpEnabled) {
             if (!dto.code) throw new BadRequestException('2FA code required');
             const valid = authenticator.verify({ token: dto.code, secret: user.totpSecret! });
