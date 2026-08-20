@@ -36,6 +36,7 @@ function TwoFactorSetupPage() {
             <div className="bg-gray-900 p-10 rounded-xl flex flex-col gap-4 max-w-sm text-center">
                 <h1 className="text-white text-2xl font-bold">Scan this QR code</h1>
                 <TotpEnrollForm
+                    hasPassword
                     onEnabled={() => navigate('/dashboard')}
                     onCancel={() => navigate('/dashboard')}
                 />

@@ -196,6 +196,11 @@ export class UserService {
             if (!valid) throw new UnauthorizedException('Invalid 2FA code');
         }
 
+        if (!user.passwordHash && !user.totpEnabled) {
+            if (!dto.code) throw new BadRequestException('Email verification code required');
+            await this.verifyEmailCode(userId, dto.code);
+        }
+
         const newHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
         await this.setPasswordHash(userId, newHash);
         await this.sessionService.deleteAllForUser(userId);
@@ -219,7 +224,7 @@ export class UserService {
         return { success: true };
     }
 
-    private async verifyEmailCode(userId: number, code: string): Promise<void> {
+    async verifyEmailCode(userId: number, code: string): Promise<void> {
         const record = await this.verificationRepo.findOne({ where: { userId }, order: { createdAt: 'DESC' } });
         if (!record || record.expiresAt < new Date() || record.codeHash !== this.hashCode(code)) {
             throw new UnauthorizedException('Invalid or expired verification code');

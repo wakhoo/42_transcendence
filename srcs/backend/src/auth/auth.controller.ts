@@ -10,6 +10,7 @@ import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto } from './dto/register.dto';
 import { SetupTotpDto } from './dto/setup-totp.dto';
 import { TotpDto } from './dto/totp.dto';
+import { EnableTotpDto } from './dto/enable-totp.dto';
 import { JwtGuard, JwtPayload } from './guards/jwt.guard';
 import { Pending2faGuard } from './guards/pending2fa.guard';
 import { GoogleProfile } from './strategies/google.strategy';
@@ -85,8 +86,8 @@ export class AuthController {
     @UseGuards(JwtGuard)
     @ApiBearerAuth()
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
-    enable2fa(@Req() req: { user: JwtPayload }, @Body() dto: TotpDto) {
-        return this.authService.enableTotp(req.user.sub, dto.code);
+    enable2fa(@Req() req: { user: JwtPayload }, @Body() dto: EnableTotpDto) {
+        return this.authService.enableTotp(req.user.sub, dto.code, dto.currentPassword, dto.emailCode);
     }
 
     @Post('2fa/disable')

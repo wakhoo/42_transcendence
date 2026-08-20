@@ -2,16 +2,33 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { authHeaders } from '../lib/session';
 
 type Props = {
+    hasPassword: boolean;
     onEnabled: () => void;
     onCancel: () => void;
 };
 
-export function TotpEnrollForm({ onEnabled, onCancel }: Props) {
+export function TotpEnrollForm({ hasPassword, onEnabled, onCancel }: Props) {
     const [qrCode, setQrCode] = useState('');
     const [secret, setSecret] = useState('');
     const [code, setCode] = useState('');
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [emailCode, setEmailCode] = useState('');
+    const [emailCodeMsg, setEmailCodeMsg] = useState('');
+    const [sendingEmailCode, setSendingEmailCode] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
+
+    async function requestEmailCode() {
+        setSendingEmailCode(true);
+        setEmailCodeMsg('');
+        try {
+            const res = await fetch('/api/user/me/verification-code', { method: 'POST', headers: await authHeaders() });
+            const data = await res.json().catch(() => ({}));
+            setEmailCodeMsg(res.ok ? 'Code sent — check your email.' : (data.message ?? 'Failed to send code'));
+        } finally {
+            setSendingEmailCode(false);
+        }
+    }
 
     useEffect(() => {
         (async () => {
@@ -39,7 +56,11 @@ export function TotpEnrollForm({ onEnabled, onCancel }: Props) {
             const res = await fetch('/api/auth/2fa/enable', {
                 method: 'POST',
                 headers: await authHeaders(),
-                body: JSON.stringify({ code }),
+                body: JSON.stringify({
+                    code,
+                    ...(hasPassword ? { currentPassword } : {}),
+                    ...(!hasPassword ? { emailCode } : {}),
+                }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -66,14 +87,43 @@ export function TotpEnrollForm({ onEnabled, onCancel }: Props) {
                 <input
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                    placeholder="6-digit code"
+                    placeholder="6-digit code from your authenticator app"
                     maxLength={6}
                     className="w-full bg-transparent border border-white text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
                 />
+                {hasPassword && (
+                    <input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Current password"
+                        className="w-full bg-transparent border border-white text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm"
+                    />
+                )}
+                {!hasPassword && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={requestEmailCode}
+                            disabled={sendingEmailCode}
+                            className="self-center px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 hover:bg-gray-700 border border-gray-700 transition-colors disabled:opacity-50"
+                        >
+                            {sendingEmailCode ? 'Sending…' : 'Send code to my email'}
+                        </button>
+                        {emailCodeMsg && <p className="text-gray-400 text-xs">{emailCodeMsg}</p>}
+                        <input
+                            value={emailCode}
+                            onChange={(e) => setEmailCode(e.target.value)}
+                            placeholder="6-digit code from email"
+                            maxLength={6}
+                            className="w-full bg-transparent border border-white text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
+                        />
+                    </>
+                )}
                 <div className="flex gap-2 w-full">
                     <button
                         type="submit"
-                        disabled={code.length !== 6}
+                        disabled={code.length !== 6 || (hasPassword && !currentPassword) || (!hasPassword && emailCode.length !== 6)}
                         className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors disabled:opacity-50"
                     >
                         Confirm

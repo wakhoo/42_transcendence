@@ -117,7 +117,7 @@ export class AuthService {
         return { otpauthUrl, secret, qrCode };
     }
 
-    async enableTotp(userId: number, code: string): Promise<void> {
+    async enableTotp(userId: number, code: string, currentPassword?: string, emailCode?: string): Promise<void> {
         const user = await this.userService.findById(userId);
         if (!user || !user.totpSecret) {
             throw new BadRequestException('2FA setup not started. Call POST /auth/2fa/setup first.');
@@ -125,6 +125,17 @@ export class AuthService {
 
         const valid = authenticator.verify({ token: code, secret: user.totpSecret });
         if (!valid) throw new UnauthorizedException('Invalid 2FA code');
+
+        if (user.passwordHash) {
+            if (!currentPassword) throw new BadRequestException('Current password required');
+            const validPassword = await bcrypt.compare(currentPassword, user.passwordHash);
+            if (!validPassword) throw new UnauthorizedException('Invalid current password');
+        }
+
+        if (!user.passwordHash && !user.totpEnabled) {
+            if (!emailCode) throw new BadRequestException('Email verification code required');
+            await this.userService.verifyEmailCode(userId, emailCode);
+        }
 
         await this.userService.enableTotp(userId);
     }

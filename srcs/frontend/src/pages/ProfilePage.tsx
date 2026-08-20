@@ -216,7 +216,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
             return;
         }
 
-        if (me?.totpEnabled && !code) {
+        if ((me?.totpEnabled || !me?.hasPassword) && !code) {
             setAwaitingPasswordCode(true);
             return;
         }
@@ -252,6 +252,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
     function cancelPasswordCode() {
         setAwaitingPasswordCode(false);
         setPasswordCode('');
+        setEmailCodeMsg('');
     }
 
     async function handleLogout() {
@@ -657,11 +658,24 @@ export function ProfileContent({ userId }: { userId?: string }) {
                                         onSubmit={e => { e.preventDefault(); changePassword(passwordCode); }}
                                         className="flex flex-col gap-3"
                                     >
-                                        <p className="text-yellow-400 text-xs">Enter your 2FA code to confirm this change.</p>
+                                        <p className="text-yellow-400 text-xs">
+                                            {me.totpEnabled ? 'Enter your 2FA code to confirm this change.' : 'Enter the code emailed to you to confirm this change.'}
+                                        </p>
+                                        {!me.totpEnabled && (
+                                            <button
+                                                type="button"
+                                                onClick={requestEmailCode}
+                                                disabled={sendingEmailCode}
+                                                className="self-start px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 hover:bg-gray-700 border border-gray-700 transition-colors disabled:opacity-50"
+                                            >
+                                                {sendingEmailCode ? 'Sending…' : 'Send code to my email'}
+                                            </button>
+                                        )}
+                                        {emailCodeMsg && <p className="text-gray-400 text-xs">{emailCodeMsg}</p>}
                                         <input
                                             value={passwordCode}
                                             onChange={e => setPasswordCode(e.target.value)}
-                                            placeholder="6-digit code"
+                                            placeholder={me.totpEnabled ? '6-digit 2FA code' : '6-digit code from email'}
                                             maxLength={6}
                                             className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
                                         />
@@ -716,6 +730,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
 
                         {totpAction === 'enable' && (
                             <TotpEnrollForm
+                                hasPassword={me.hasPassword}
                                 onEnabled={() => {
                                     setMe(prev => prev ? { ...prev, totpEnabled: true } : prev);
                                     setTotpAction('none');
