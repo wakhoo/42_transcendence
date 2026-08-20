@@ -7,9 +7,9 @@ export class CreateChannelDto {
     @Matches(/\S/)
     name!: string;
 
-    @IsEnum(['general', 'game', 'dm'])
+    @IsEnum(['general', 'game'])
     @IsOptional()
-    type?: 'general' | 'game' | 'dm';
+    type?: 'general' | 'game';
 
     @IsBoolean()
     @IsOptional()

@@ -11,7 +11,7 @@ import { RegisterDto } from './dto/register.dto';
 import { SetupTotpDto } from './dto/setup-totp.dto';
 import { TotpDto } from './dto/totp.dto';
 import { EnableTotpDto } from './dto/enable-totp.dto';
-import { JwtGuard, JwtPayload } from './guards/jwt.guard';
+import { AuthenticatedUser, JwtGuard } from './guards/jwt.guard';
 import { Pending2faGuard } from './guards/pending2fa.guard';
 import { GoogleProfile } from './strategies/google.strategy';
 
@@ -77,8 +77,8 @@ export class AuthController {
     @UseGuards(JwtGuard)
     @ApiBearerAuth()
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
-    setup2fa(@Req() req: { user: JwtPayload }, @Body() dto: SetupTotpDto) {
-        return this.authService.setupTotp(req.user.sub, dto.code);
+    setup2fa(@Req() req: { user: AuthenticatedUser }, @Body() dto: SetupTotpDto) {
+        return this.authService.setupTotp(req.user.id, dto.code);
     }
 
     @Post('2fa/enable')
@@ -86,8 +86,8 @@ export class AuthController {
     @UseGuards(JwtGuard)
     @ApiBearerAuth()
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
-    enable2fa(@Req() req: { user: JwtPayload }, @Body() dto: EnableTotpDto) {
-        return this.authService.enableTotp(req.user.sub, dto.code, dto.currentPassword, dto.emailCode);
+    enable2fa(@Req() req: { user: AuthenticatedUser }, @Body() dto: EnableTotpDto) {
+        return this.authService.enableTotp(req.user.id, dto.code, dto.currentPassword, dto.emailCode);
     }
 
     @Post('2fa/disable')
@@ -95,15 +95,15 @@ export class AuthController {
     @UseGuards(JwtGuard)
     @ApiBearerAuth()
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
-    disable2fa(@Req() req: { user: JwtPayload }, @Body() dto: TotpDto) {
-        return this.authService.disableTotp(req.user.sub, dto.code);
+    disable2fa(@Req() req: { user: AuthenticatedUser }, @Body() dto: TotpDto) {
+        return this.authService.disableTotp(req.user.id, dto.code);
     }
 
     @Post('2fa/verify')
     @UseGuards(Pending2faGuard)
     @ApiBearerAuth()
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
-    verify2fa(@Req() req: { user: JwtPayload }, @Body() dto: TotpDto) {
-        return this.authService.verifyTotp(req.user.sub, req.user.email, dto.code);
+    verify2fa(@Req() req: { user: AuthenticatedUser }, @Body() dto: TotpDto) {
+        return this.authService.verifyTotp(req.user.id, dto.code);
     }
 }

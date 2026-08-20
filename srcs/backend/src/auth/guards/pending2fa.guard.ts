@@ -1,13 +1,17 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
-import { JwtPayload } from './jwt.guard';
+import { UserService } from '../../user/user.service';
+import { AuthenticatedUser, JwtPayload } from './jwt.guard';
 
 @Injectable()
 export class Pending2faGuard implements CanActivate {
-    constructor(private readonly jwtService: JwtService) {}
+    constructor(
+        private readonly jwtService: JwtService,
+        private readonly userService: UserService,
+    ) {}
 
-    canActivate(context: ExecutionContext): boolean {
+    async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest<Request>();
         const token = this.extractToken(request);
         if (!token) throw new UnauthorizedException('Missing token');
@@ -15,7 +19,11 @@ export class Pending2faGuard implements CanActivate {
         try {
             const payload = this.jwtService.verify<JwtPayload>(token);
             if (!payload.pending2fa) throw new UnauthorizedException('Invalid token type');
-            request.user = payload;
+
+            const user = await this.userService.findByPublicId(payload.sub);
+            if (!user) throw new UnauthorizedException('User no longer exists');
+
+            request.user = { id: user.id, publicId: user.publicId } satisfies AuthenticatedUser;
             return true;
         } catch {
             throw new UnauthorizedException('Invalid or expired token');

@@ -3,10 +3,17 @@ import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { UserService } from '../../user/user.service';
 
+// The token subject is the user's public UUID, not the internal numeric id or
+// email — the JWT itself should carry no more identity than necessary.
 export interface JwtPayload {
-    sub: number;
-    email: string;
+    sub: string;
     pending2fa?: boolean;
+}
+
+// What guards attach to the request after resolving the token subject against the DB.
+export interface AuthenticatedUser {
+    id: number;
+    publicId: string;
 }
 
 @Injectable()
@@ -32,10 +39,10 @@ export class JwtGuard implements CanActivate {
         // A signature check alone accepts tokens for users deleted after the token was
         // issued (e.g. DB reset while the access token is still within its TTL), so the
         // subject must still exist.
-        const user = await this.userService.findById(payload.sub);
+        const user = await this.userService.findByPublicId(payload.sub);
         if (!user) throw new UnauthorizedException('User no longer exists');
 
-        request.user = payload;
+        request.user = { id: user.id, publicId: user.publicId } satisfies AuthenticatedUser;
         return true;
     }
 

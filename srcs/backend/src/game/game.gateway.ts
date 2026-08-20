@@ -48,9 +48,8 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
           const token = authHeader.replace(/^Bearer\s+/i, '');
           const payload = await this.jwtService.verifyAsync(token);
-          const userId = payload.sub || payload.id;
 
-          if (!userId) {
+          if (!payload.sub) {
             return next(new Error('Unauthorized'));
           }
 
@@ -60,10 +59,12 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
           // Signature-only verification would still accept tokens for users deleted
           // after the token was issued, so the subject must still exist in the DB.
-          const user = await this.userService.findById(userId);
+          const user = await this.userService.findByPublicId(payload.sub);
           if (!user) {
             return next(new Error('Unauthorized'));
           }
+
+          const userId = user.id;
 
           // On stocke le VRAI userId dans la Map
           gameSocketUserMap.set(client.id, userId);
@@ -160,12 +161,13 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       }
      
       const roomName = data.channelId.toString();
-      client.join(roomName);
       try {
         await this.chatService.joinChannel(userId, data.channelId);
+      } catch (e: any) {
+        client.emit('error', { message: e?.message ?? 'Cannot join this channel' });
+        return;
       }
-      catch (e) {
-      }
+      client.join(roomName);
 
       const session = this.gameService.getSession(data.channelId);
       if (session) {
@@ -258,7 +260,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
         return;
       }
       await this.gameService.handleDraw(userId, data.channelId, data.drawData);
-      client.to(data.channelId.toString()).emit('draw', data.drawData);
     }
 
 
@@ -306,7 +307,11 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       // à un refresh de page de se reconnecter sans faire annuler la partie
       const timeout = setTimeout(async () => {
         this.pendingDisconnects.delete(userId);
-        await this.gameService.handleDisconnection(userId);
+        try {
+          await this.gameService.handleDisconnection(userId);
+        } catch (err) {
+          console.error(`Grace timer: handleDisconnection failed for user ${userId}:`, err);
+        }
       }, GameGateway.RECONNECT_GRACE_MS);
 
       this.pendingDisconnects.set(userId, timeout);

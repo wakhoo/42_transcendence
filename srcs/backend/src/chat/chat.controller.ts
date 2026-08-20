@@ -11,7 +11,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ChatService } from './chat.service';
 import { JwtGuard } from '../auth/guards/jwt.guard';
-import { CurrentUser, JwtPayload } from './decorators/current-user.decorator';
+import { CurrentUser, AuthenticatedUser } from './decorators/current-user.decorator';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { JoinChannelDto } from './dto/join-channel.dto';
 import { MuteMemberDto } from './dto/mute-member.dto';
@@ -37,28 +37,28 @@ export class ChatController {
 
 
     @Get('channels/mine')
-    getMyChannels(@CurrentUser() user: JwtPayload) {
-        return this.chatService.getMyChannels(user.sub);
+    getMyChannels(@CurrentUser() user: AuthenticatedUser) {
+        return this.chatService.getMyChannels(user.id);
     }
 
     @Post('channels')
-    createChannel(@CurrentUser() user: JwtPayload, @Body() dto: CreateChannelDto) {
-        return this.chatService.createChannel(user.sub, dto.name, dto.type ?? 'general', dto.isPrivate ?? false, dto.password, dto.maxMembers);
+    createChannel(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateChannelDto) {
+        return this.chatService.createChannel(user.id, dto.name, dto.type ?? 'general', dto.isPrivate ?? false, dto.password, dto.maxMembers);
     }
 
     @Post('channels/join')
-    joinChannel(@CurrentUser() user: JwtPayload, @Body() dto: JoinChannelDto) {
-        return this.chatService.joinChannel(user.sub, dto.channelId, dto.password);
+    joinChannel(@CurrentUser() user: AuthenticatedUser, @Body() dto: JoinChannelDto) {
+        return this.chatService.joinChannel(user.id, dto.channelId, dto.password);
     }
 
     @Post('channels/leave')
-    leaveChannel(@CurrentUser() user: JwtPayload, @Body() dto: ChannelIdDto) {
-        return this.chatService.leaveChannel(user.sub, dto.channelId);
+    leaveChannel(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChannelIdDto) {
+        return this.chatService.leaveChannel(user.id, dto.channelId);
     }
 
     @Post('channels/messages')
-    async getMessages(@CurrentUser() user: JwtPayload, @Body() dto: ChannelIdDto) {
-        const role = await this.chatService.getMemberRole(user.sub, dto.channelId);
+    async getMessages(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChannelIdDto) {
+        const role = await this.chatService.getMemberRole(user.id, dto.channelId);
         if (!role) throw new ForbiddenException('Not a member of this channel');
         return this.chatService.getMessages(dto.channelId);
     }
@@ -73,86 +73,86 @@ export class ChatController {
     // ── Actions admin ─────────────────────────────────────────────────────────
 
     @Post('channels/kick')
-    kickMember(@CurrentUser() user: JwtPayload, @Body() dto: ChannelUserDto) {
-        return this.chatService.kickMember(user.sub, dto.channelId, dto.userId);
+    kickMember(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChannelUserDto) {
+        return this.chatService.kickMember(user.id, dto.channelId, dto.userId);
     }
 
     @Post('channels/invite')
-    inviteUser(@CurrentUser() user: JwtPayload, @Body() dto: ChannelUserDto) {
-        return this.chatService.inviteUser(user.sub, dto.channelId, dto.userId);
+    inviteUser(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChannelUserDto) {
+        return this.chatService.inviteUser(user.id, dto.channelId, dto.userId);
     }
 
     @Patch('channels/mute')
-    muteMember(@CurrentUser() user: JwtPayload, @Body() dto: MuteMemberDto) {
-        return this.chatService.muteMember(user.sub, dto.channelId, dto.targetUserId, dto.minutes);
+    muteMember(@CurrentUser() user: AuthenticatedUser, @Body() dto: MuteMemberDto) {
+        return this.chatService.muteMember(user.id, dto.channelId, dto.targetUserId, dto.minutes);
     }
 
     @Patch('channels/password')
-    setPassword(@CurrentUser() user: JwtPayload, @Body() dto: SetPasswordDto) {
-        return this.chatService.setChannelPassword(user.sub, dto.channelId, dto.oldPassword, dto.password);
+    setPassword(@CurrentUser() user: AuthenticatedUser, @Body() dto: SetPasswordDto) {
+        return this.chatService.setChannelPassword(user.id, dto.channelId, dto.oldPassword, dto.password);
     }
 
     @Patch('channels/privacy')
-    setPrivacy(@CurrentUser() user: JwtPayload, @Body() dto: SetPrivacyDto) {
-        return this.chatService.setChannelPrivacy(user.sub, dto.channelId, dto.isPrivate);
+    setPrivacy(@CurrentUser() user: AuthenticatedUser, @Body() dto: SetPrivacyDto) {
+        return this.chatService.setChannelPrivacy(user.id, dto.channelId, dto.isPrivate);
     }
 
     @Patch('channels/max-members')
-    setMaxMembers(@CurrentUser() user: JwtPayload, @Body() dto: SetMaxMembersDto) {
-        return this.chatService.setMaxMember(user.sub, dto.channelId, dto.maxMembers);
+    setMaxMembers(@CurrentUser() user: AuthenticatedUser, @Body() dto: SetMaxMembersDto) {
+        return this.chatService.setMaxMember(user.id, dto.channelId, dto.maxMembers);
     }
 
     @Post('channels/delete')
-    deleteChannel(@CurrentUser() user: JwtPayload, @Body() dto: ChannelIdDto) {
-        return this.chatService.deleteChannel(user.sub, dto.channelId);
+    deleteChannel(@CurrentUser() user: AuthenticatedUser, @Body() dto: ChannelIdDto) {
+        return this.chatService.deleteChannel(user.id, dto.channelId);
     }
 
     // ── Amis ──────────────────────────────────────────────────────────────────
 
     @Get('friends')
-    getFriends(@CurrentUser() user: JwtPayload) {
-        return this.chatService.getFriends(user.sub);
+    getFriends(@CurrentUser() user: AuthenticatedUser) {
+        return this.chatService.getFriends(user.id);
     }
 
     @Get('friends/pending')
-    getPending(@CurrentUser() user: JwtPayload) {
-        return this.chatService.getPendingRequests(user.sub);
+    getPending(@CurrentUser() user: AuthenticatedUser) {
+        return this.chatService.getPendingRequests(user.id);
     }
 
     @Post('friends')
-    sendFriendRequest(@CurrentUser() user: JwtPayload, @Body() dto: UserIdDto) {
-        return this.chatService.sendFriendRequest(user.sub, dto.userId);
+    sendFriendRequest(@CurrentUser() user: AuthenticatedUser, @Body() dto: UserIdDto) {
+        return this.chatService.sendFriendRequest(user.id, dto.userId);
     }
 
     @Patch('friends/accept')
-    acceptFriendRequest(@CurrentUser() user: JwtPayload, @Body() dto: FriendshipIdDto) {
-        return this.chatService.acceptFriendRequest(user.sub, dto.friendshipId);
+    acceptFriendRequest(@CurrentUser() user: AuthenticatedUser, @Body() dto: FriendshipIdDto) {
+        return this.chatService.acceptFriendRequest(user.id, dto.friendshipId);
     }
 
     @Post('friends/remove')
-    rejectFriendRequest(@CurrentUser() user: JwtPayload, @Body() dto: FriendshipIdDto) {
-        return this.chatService.rejectFriendRequest(user.sub, dto.friendshipId);
+    rejectFriendRequest(@CurrentUser() user: AuthenticatedUser, @Body() dto: FriendshipIdDto) {
+        return this.chatService.rejectFriendRequest(user.id, dto.friendshipId);
     }
 
     @Post('block')
-    blockUser(@CurrentUser() user: JwtPayload, @Body() dto: UserIdDto) {
-        return this.chatService.blockUser(user.sub, dto.userId);
+    blockUser(@CurrentUser() user: AuthenticatedUser, @Body() dto: UserIdDto) {
+        return this.chatService.blockUser(user.id, dto.userId);
     }
 
     @Post('block/remove')
-    unblockUser(@CurrentUser() user: JwtPayload, @Body() dto: UserIdDto) {
-        return this.chatService.unblockUser(user.sub, dto.userId);
+    unblockUser(@CurrentUser() user: AuthenticatedUser, @Body() dto: UserIdDto) {
+        return this.chatService.unblockUser(user.id, dto.userId);
     }
 
     @Get('game-rooms')
-    getGameRooms(@CurrentUser() user: JwtPayload) {
-        return this.chatService.getGameChannels(user.sub);
+    getGameRooms(@CurrentUser() user: AuthenticatedUser) {
+        return this.chatService.getGameChannels(user.id);
     }
 
     @Post('create-game')
-    async createGameRoom(@CurrentUser() user: JwtPayload, @Body() body: CreateGameRoomDto) {
-        const roomName = body.name || `Game Room ${Math.floor(Math.random() * 1000)}`;
-        const session = await this.gameService.createGameSession(user.sub, roomName, body.isPrivate ?? false, body.maxMembers, body.password, body.rounds);
+    async createGameRoom(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateGameRoomDto) {
+        const roomName = dto.name || `Game Room ${Math.floor(Math.random() * 1000)}`;
+        const session = await this.gameService.createGameSession(user.id, roomName, dto.isPrivate ?? false, dto.maxMembers, dto.password, dto.rounds);
         return session;
     }
 }

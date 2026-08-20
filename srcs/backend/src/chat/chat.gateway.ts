@@ -8,7 +8,7 @@ import {
     WebSocketGateway,
     WebSocketServer,
 } from '@nestjs/websockets';
-import { Inject, forwardRef, ValidationPipe } from '@nestjs/common';
+import { Inject, forwardRef, ValidationPipe, HttpException } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { JoinChannelDto, ChannelIdDto, SendMessageDto, SendDmDto } from './dto/ws-chat.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -17,6 +17,12 @@ import { UserService } from '../user/user.service';
 import { onUserCreated, onUserDeleted, onUserUpdated } from '../common/user-events';
 
 export const socketUserMap = new Map<string, number>();
+
+function safeWsMessage(e: unknown): string {
+    if (e instanceof HttpException) 
+        return e.message;
+    return 'An error occurred';
+}
 // publicId (uuid) du meme utilisateur, pour tout ce qui part vers le client
 const socketPublicIdMap = new Map<string, string>();
 
@@ -69,36 +75,41 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                 return; 
             }
 
-            const payload = this.jwtService.verify<{ sub: number; pending2fa?: boolean }>(token);
+            const payload = this.jwtService.verify<{ sub: string; pending2fa?: boolean }>(token);
             if (payload.pending2fa) {
                 client.disconnect();
                 return;
             }
 
-            const user = await this.userService.findById(payload.sub);
+            const user = await this.userService.findByPublicId(payload.sub);
             if (!user) {
                 client.disconnect();
                 return;
             }
-            
-            socketUserMap.set(client.id, payload.sub);
+
+            socketUserMap.set(client.id, user.id);
             socketPublicIdMap.set(client.id, user.publicId);
 
             const isGameMode = client.handshake.query?.mode === 'game';
             const targetChannelId = client.handshake.query?.channelId;
 
             if (isGameMode && targetChannelId) {
+                const role = await this.chatService.getMemberRole(user.id, Number(targetChannelId));
+                if (!role) {
+                    client.disconnect();
+                    return;
+                }
                 void client.join(`channel_${targetChannelId}`);
-                void client.join(targetChannelId.toString());                 
-                console.log(`User ${payload.sub} connect to the game chat (room #${targetChannelId})`);
+                void client.join(targetChannelId.toString());
+                console.log(`User ${user.id} connect to the game chat (room #${targetChannelId})`);
                 return;
             }
 
             const general = await this.chatService.ensureGeneralChannel();
-            await this.chatService.joinChannel(payload.sub, general.id).catch(() => {});
+            await this.chatService.joinChannel(user.id, general.id).catch(() => {});
             void client.join(`channel_${general.id}`);
 
-            const myChannels = await this.chatService.getMyChannels(payload.sub);
+            const myChannels = await this.chatService.getMyChannels(user.id);
             for (const ch of myChannels) {
                 void client.join(`channel_${ch.id}`);
             }
@@ -106,7 +117,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             const onlineUserIds = [...new Set(socketPublicIdMap.values())];
             client.emit('ready', { generalChannelId: general.id, onlineUserIds });
             this.server.emit('presenceChanged', { userId: user.publicId, status: 'online' });
-            console.log(`User ${payload.sub} connected (socket ${client.id})`);
+            console.log(`User ${user.id} connected (socket ${client.id})`);
         } catch {
             client.disconnect();
         }
@@ -138,7 +149,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             await this.chatService.joinChannel(userId, data.channelId, data.password);
             void client.join(`channel_${data.channelId}`);
         } catch (e) {
-            client.emit('error', { message: (e as Error).message });
+            client.emit('error', { message: safeWsMessage(e) });
         }
     }
 
@@ -151,7 +162,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             await this.chatService.leaveChannel(userId, data.channelId);
             void client.leave(`channel_${data.channelId}`);
         } catch (e) {
-            client.emit('error', { message: (e as Error).message });
+            client.emit('error', { message: safeWsMessage(e) });
         }
     }
 
@@ -165,7 +176,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             const role = await this.chatService.getMemberRole(userId, data.channelId); 
             this.server.to(`channel_${data.channelId}`).emit('newMessage', { ...message, role });
         } catch (e) {
-            client.emit('error', { message: (e as Error).message });
+            client.emit('error', { message: safeWsMessage(e) });
         }
     }
 
@@ -200,7 +211,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             this.emitToUser(target.id, `newMessage`, payload);
             client.emit('newMessage', payload);
         } catch (e) {
-            client.emit('error', { message: (e as Error).message });
+            client.emit('error', { message: safeWsMessage(e) });
         }
     }
 

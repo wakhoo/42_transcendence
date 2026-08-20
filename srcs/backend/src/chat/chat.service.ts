@@ -89,6 +89,7 @@ export class ChatService implements OnModuleInit {
     }
 
     async createChannel(userId: number, name: string, type: 'general' | 'game' | 'dm', isPrivate: boolean, password?: string, maxMembers?: number): Promise<Channel> {
+        if (type === 'dm') throw new ForbiddenException('DMs are created by the server only');
         const existing = await this.channelRepo.findOne({ where: { name } });
         if (existing) throw new BadRequestException('Channel name already taken');
 
@@ -368,7 +369,13 @@ export class ChatService implements OnModuleInit {
     async getOrCreateDmChannel(userId: number, targetUserId: number): Promise<Channel> {
         const dmName = `dm_${Math.min(userId, targetUserId)}_${Math.max(userId, targetUserId)}`;
 
-        let channel = await this.channelRepo.findOne({ where: { name: dmName } });
+        let channel = await this.channelRepo.findOne({ where: { name: dmName }, relations: { members: true } });
+        if (channel) {
+            const memberIds = channel.members.map(m => m.user.id).sort((a, b) => a - b);
+            const expected = [Math.min(userId, targetUserId), Math.max(userId, targetUserId)];
+            if (memberIds.length !== 2 || memberIds[0] !== expected[0] || memberIds[1] !== expected[1])
+                channel = null;
+        }
         if (!channel) {
             await this.requireUserExists(targetUserId);
             channel = await this.channelRepo.save(this.channelRepo.create({ name: dmName, type: 'dm', isPrivate: true }));
@@ -393,6 +400,7 @@ export class ChatService implements OnModuleInit {
         const addressee = await this.userService.findByPublicId(addresseePublicId);
         if (!addressee) throw new NotFoundException('User not found');
         if (requesterId === addressee.id) throw new BadRequestException('Cannot add yourself');
+        if (await this.isBlocked(requesterId, addressee.id)) throw new ForbiddenException('Cannot send a request to this user');
 
         const existing = await this.friendshipRepo.findOne({
             where: [
