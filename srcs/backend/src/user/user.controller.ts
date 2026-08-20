@@ -39,6 +39,12 @@ export class UserController {
         return this.userService.changePassword(req.user.sub, dto, req.ip ?? null);
     }
 
+    @Post('me/verification-code')
+    @Throttle({ default: { limit: 3, ttl: 300_000 } })
+    requestVerificationCode(@Req() req: AuthedRequest) {
+        return this.userService.requestVerificationCode(req.user.sub);
+    }
+
     @Post('me/export')
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
     exportMe(@Req() req: AuthedRequest, @Body() dto: ExportDataDto) {

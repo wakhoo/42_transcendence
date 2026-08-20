@@ -78,6 +78,21 @@ export function ProfileContent({ userId }: { userId?: string }) {
     const [savingProfile, setSavingProfile]     = useState(false);
     const [deletingAccount, setDeletingAccount] = useState(false);
 
+    const [emailCodeMsg, setEmailCodeMsg]         = useState('');
+    const [sendingEmailCode, setSendingEmailCode] = useState(false);
+
+    async function requestEmailCode() {
+        setSendingEmailCode(true);
+        setEmailCodeMsg('');
+        try {
+            const res = await fetch('/api/user/me/verification-code', { method: 'POST', headers: await authHeaders() });
+            const data = await res.json().catch(() => ({}));
+            setEmailCodeMsg(res.ok ? 'Code sent — check your email.' : (data.message ?? 'Failed to send code'));
+        } finally {
+            setSendingEmailCode(false);
+        }
+    }
+
     async function loadAll() {
         const token = await getAccessToken();
         if (!token) {
@@ -117,7 +132,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
         if (savingProfile) return;
 
         const changingIdentity = me != null && (username !== me.username || email !== me.email);
-        if (changingIdentity && ((me?.totpEnabled && !code) || (me?.hasPassword && !password))) {
+        if (changingIdentity && (((me?.totpEnabled || !me?.hasPassword) && !code) || (me?.hasPassword && !password))) {
             setAwaitingProfileCode(true);
             return;
         }
@@ -153,6 +168,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
         setAwaitingProfileCode(false);
         setProfileCode('');
         setProfilePassword('');
+        setEmailCodeMsg('');
     }
 
     async function handleDeleteAccount(e: FormEvent) {
@@ -187,6 +203,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
         setDeletePassword('');
         setDeleteCode('');
         setDeleteError('');
+        setEmailCodeMsg('');
     }
 
     async function changePassword(code?: string) {
@@ -408,11 +425,6 @@ export function ProfileContent({ userId }: { userId?: string }) {
 
             {isMe ? (
                 <>
-                    {!me.hasPassword && !me.totpEnabled && (
-                        <div className="mb-4 bg-amber-950 border border-amber-800 text-amber-300 text-sm px-4 py-2 rounded-lg">
-                            ⚠️ Your account is very vulnerable: you signed in with a third-party account and have no password or two-factor authentication set up. Please add a password or enable 2FA below to secure your account.
-                        </div>
-                    )}
                     <div className="flex items-center gap-3 mb-6">
                         <AvatarPicker
                             currentAvatar={me.avatarUrl}
@@ -526,6 +538,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
                                     {me.hasPassword && me.totpEnabled && 'Confirm your password and 2FA code to change your username/email.'}
                                     {me.hasPassword && !me.totpEnabled && 'Confirm your password to change your username/email.'}
                                     {!me.hasPassword && me.totpEnabled && 'Confirm your 2FA code to change your username/email.'}
+                                    {!me.hasPassword && !me.totpEnabled && 'Confirm the code emailed to you to change your username/email.'}
                                 </p>
                                 {me.hasPassword && (
                                     <input
@@ -536,11 +549,22 @@ export function ProfileContent({ userId }: { userId?: string }) {
                                         className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm"
                                     />
                                 )}
-                                {me.totpEnabled && (
+                                {!me.hasPassword && !me.totpEnabled && (
+                                    <button
+                                        type="button"
+                                        onClick={requestEmailCode}
+                                        disabled={sendingEmailCode}
+                                        className="self-start px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 hover:bg-gray-700 border border-gray-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {sendingEmailCode ? 'Sending…' : 'Send code to my email'}
+                                    </button>
+                                )}
+                                {emailCodeMsg && <p className="text-gray-400 text-xs">{emailCodeMsg}</p>}
+                                {(me.totpEnabled || !me.hasPassword) && (
                                     <input
                                         value={profileCode}
                                         onChange={e => setProfileCode(e.target.value)}
-                                        placeholder="6-digit code"
+                                        placeholder={me.totpEnabled ? '6-digit 2FA code' : '6-digit code from email'}
                                         maxLength={6}
                                         className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
                                     />
@@ -548,7 +572,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
                                 <div className="flex gap-2">
                                     <button
                                         type="submit"
-                                        disabled={(me.hasPassword && !profilePassword) || (me.totpEnabled && profileCode.length !== 6) || savingProfile}
+                                        disabled={(me.hasPassword && !profilePassword) || ((me.totpEnabled || !me.hasPassword) && profileCode.length !== 6) || savingProfile}
                                         className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors disabled:opacity-50"
                                     >
                                         Confirm
@@ -792,7 +816,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
                                     {me.hasPassword && me.totpEnabled && ' Confirm your password and 2FA code to proceed.'}
                                     {me.hasPassword && !me.totpEnabled && ' Confirm your password to proceed.'}
                                     {!me.hasPassword && me.totpEnabled && ' Confirm your 2FA code to proceed.'}
-                                    {!me.hasPassword && !me.totpEnabled && ' Confirm to proceed.'}
+                                    {!me.hasPassword && !me.totpEnabled && ' Confirm the code emailed to you to proceed.'}
                                 </p>
                                 {deleteError && <p className="text-red-500 text-xs">{deleteError}</p>}
                                 {me.hasPassword && (
@@ -804,11 +828,22 @@ export function ProfileContent({ userId }: { userId?: string }) {
                                         className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm"
                                     />
                                 )}
-                                {me.totpEnabled && (
+                                {!me.hasPassword && !me.totpEnabled && (
+                                    <button
+                                        type="button"
+                                        onClick={requestEmailCode}
+                                        disabled={sendingEmailCode}
+                                        className="self-start px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 hover:bg-gray-700 border border-gray-700 transition-colors disabled:opacity-50"
+                                    >
+                                        {sendingEmailCode ? 'Sending…' : 'Send code to my email'}
+                                    </button>
+                                )}
+                                {emailCodeMsg && <p className="text-gray-400 text-xs">{emailCodeMsg}</p>}
+                                {(me.totpEnabled || !me.hasPassword) && (
                                     <input
                                         value={deleteCode}
                                         onChange={e => setDeleteCode(e.target.value)}
-                                        placeholder="6-digit 2FA code"
+                                        placeholder={me.totpEnabled ? '6-digit 2FA code' : '6-digit code from email'}
                                         maxLength={6}
                                         className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
                                     />
@@ -816,7 +851,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
                                 <div className="flex gap-2">
                                     <button
                                         type="submit"
-                                        disabled={(me.hasPassword && !deletePassword) || (me.totpEnabled && deleteCode.length !== 6) || deletingAccount}
+                                        disabled={(me.hasPassword && !deletePassword) || ((me.totpEnabled || !me.hasPassword) && deleteCode.length !== 6) || deletingAccount}
                                         className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-950 hover:bg-red-900 border border-red-800 text-red-300 transition-colors disabled:opacity-50"
                                     >
                                         Confirm delete

@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import * as bcrypt from "bcrypt";
 import { authenticator } from "otplib";
+import { createHash, randomInt } from "crypto";
 import { User } from "./user.entity";
 import { Message } from "../chat/entities/message.entity";
 import { GdprAuditService } from "./gdpr-audit.service";
@@ -13,6 +14,9 @@ import { ChangePasswordDto } from "./dto/change-password.dto";
 import { DeleteAccountDto } from "./dto/delete-account.dto";
 import { BCRYPT_ROUNDS } from "../common/constants";
 import { emitUserCreated, emitUserDeleted, emitUserUpdated } from "../common/user-events";
+import { VerificationCode } from "./verification-code.entity";
+
+const VERIFICATION_CODE_TTL_MINUTES = 10;
 
 function randomColor(): string {
   return '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
@@ -26,6 +30,9 @@ export class UserService {
 
     @InjectRepository(Message)
     private readonly messageRepo: Repository<Message>,
+
+    @InjectRepository(VerificationCode)
+    private readonly verificationRepo: Repository<VerificationCode>,
 
     private readonly gdprAudit: GdprAuditService,
     private readonly mail: MailService,
@@ -145,6 +152,11 @@ export class UserService {
             if (!valid) throw new UnauthorizedException('Invalid 2FA code');
         }
 
+        if ((changingEmail || changingUsername) && !user.passwordHash && !user.totpEnabled) {
+            if (!dto.code) throw new BadRequestException('Email verification code required');
+            await this.verifyEmailCode(userId, dto.code);
+        }
+
         if (changingEmail) {
             const existing = await this.findByEmail(dto.email!);
             if (existing && existing.id !== userId) throw new ConflictException('Email already in use');
@@ -192,6 +204,33 @@ export class UserService {
         return { success: true };
     }
 
+    async requestVerificationCode(userId: number): Promise<{ success: true }> {
+        const user = await this.findById(userId);
+        if (!user) throw new UnauthorizedException();
+
+        const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
+        await this.verificationRepo.delete({ userId });
+        await this.verificationRepo.save({
+            userId,
+            codeHash: this.hashCode(code),
+            expiresAt: new Date(Date.now() + VERIFICATION_CODE_TTL_MINUTES * 60_000),
+        });
+        void this.mail.sendVerificationCodeEmail(user.email, code);
+        return { success: true };
+    }
+
+    private async verifyEmailCode(userId: number, code: string): Promise<void> {
+        const record = await this.verificationRepo.findOne({ where: { userId }, order: { createdAt: 'DESC' } });
+        if (!record || record.expiresAt < new Date() || record.codeHash !== this.hashCode(code)) {
+            throw new UnauthorizedException('Invalid or expired verification code');
+        }
+        await this.verificationRepo.delete({ id: record.id });
+    }
+
+    private hashCode(code: string): string {
+        return createHash('sha256').update(code).digest('hex');
+    }
+
     async exportUserData(userId: number, code: string | undefined, ip: string | null) {
         const user = await this.findById(userId);
         if (!user) throw new UnauthorizedException();
@@ -226,6 +265,11 @@ export class UserService {
             if (!dto?.code) throw new BadRequestException('2FA code required');
             const valid = authenticator.verify({ token: dto.code, secret: user.totpSecret! });
             if (!valid) throw new UnauthorizedException('Invalid 2FA code');
+        }
+
+        if (!user.passwordHash && !user.totpEnabled) {
+            if (!dto?.code) throw new BadRequestException('Email verification code required');
+            await this.verifyEmailCode(userId, dto.code);
         }
 
         const deletedEmail = user.email;

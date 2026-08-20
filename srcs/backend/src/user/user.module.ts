@@ -7,6 +7,7 @@ import { SessionModule } from "../auth/session.module";
 import { User } from "./user.entity";
 import { Message } from "../chat/entities/message.entity";
 import { AuditLog } from "./audit-log.entity";
+import { VerificationCode } from "./verification-code.entity";
 import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { GdprAuditService } from "./gdpr-audit.service";
@@ -14,7 +15,7 @@ import { MailModule } from "../mail/mail.module";
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Message, AuditLog]),
+    TypeOrmModule.forFeature([User, Message, AuditLog, VerificationCode]),
     MailModule,
     SessionModule,
     JwtModule.registerAsync({

@@ -106,4 +106,13 @@ export class MailService {
             'Your DrawDraw account and associated data have been permanently deleted, in accordance with GDPR Article 17 (Right to Erasure).<br><br>If you didn\'t request this, please contact us immediately.',
         );
     }
+
+    sendVerificationCodeEmail(to: string, code: string): Promise<void> {
+        return this.send(
+            to,
+            'Your verification code',
+            'Your verification code',
+            `Use this code to confirm the change to your account:<br><br><b style="font-size:24px;letter-spacing:4px;">${code}</b><br><br>This code expires in 10 minutes. If you didn't request this, you can safely ignore this email.`,
+        );
+    }
 }
