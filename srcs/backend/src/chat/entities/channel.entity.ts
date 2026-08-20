@@ -5,6 +5,7 @@ import {
     OneToMany,
     PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { Message } from './message.entity';
 import { ChannelMember } from './channel-member.entity';
 
@@ -22,6 +23,7 @@ export class Channel {
     @Column({ default: false })
     isPrivate!: boolean;
 
+    @Exclude()
     @Column({ nullable: true, type: 'varchar', length: 255 })
     passwordHash: string | null = null;
 

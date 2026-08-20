@@ -29,7 +29,7 @@ type GameRoom = {
     name: string;
     type: string;
     isPrivate: boolean;
-    passwordHash: string | null;
+    hasPassword: boolean;
     maxMembers: number | null;
     members: any[];
     isUserMember: boolean;
@@ -314,7 +314,7 @@ export default function DashboardPage() {
                                     const max = room.maxMembers;
                                     const isFull = max !== null && memberCount >= max;
                                     const blocked = isFull && !room.isUserMember;
-                                    const hasPassword = !!room.passwordHash;
+                                    const hasPassword = room.hasPassword;
                                     return (
                                         <button
                                             key={room.id}

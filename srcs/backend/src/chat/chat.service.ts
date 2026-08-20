@@ -76,6 +76,7 @@ export class ChatService implements OnModuleInit {
         return channels.map(channel => ({
             ...channel,
             members: channel.members.map(m => this.toPublicUser(m.user)),
+            hasPassword: !!channel.passwordHash,
             isUserMember: channel.members.some(m => m.user?.id === userId),
             isUserKicked: this.gameService.isUserKick(channel.id, userId),
             maxRound: this.gameService.getSession(channel.id)?.maxRound,

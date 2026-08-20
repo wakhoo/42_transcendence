@@ -7,7 +7,7 @@ function GoogleTwoFactorPage() {
     const navigate = useNavigate();
     // Captured once on mount, before the URL gets scrubbed below — the OTP form still needs
     // this value for the lifetime of this page even after it's gone from the address bar.
-    const [partialToken] = useState(() => new URLSearchParams(window.location.search).get('partialToken'));
+    const [partialToken] = useState(() => new URLSearchParams(window.location.hash.slice(1)).get('partialToken'));
 
     useEffect(() => {
         // Strip the token out of the URL bar/history immediately — it shouldn't sit there
