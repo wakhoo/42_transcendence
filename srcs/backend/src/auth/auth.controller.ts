@@ -23,6 +23,7 @@ export class AuthController {
     ) {}
 
     @Post('register')
+    @Throttle({ default: { limit: 5, ttl: 60_000 } })
     register(@Body() dto: RegisterDto) {
         return this.authService.register(dto.email, dto.username, dto.password);
     }
