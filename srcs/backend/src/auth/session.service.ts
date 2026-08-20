@@ -40,6 +40,10 @@ export class SessionService {
         await this.repo.delete({ tokenHash });
     }
 
+    async deleteAllForUser(userId: number): Promise<void> {
+        await this.repo.delete({ userId });
+    }
+
     private hash(token: string): string {
         return createHash('sha256').update(token).digest('hex');
     }

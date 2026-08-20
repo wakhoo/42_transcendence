@@ -7,6 +7,7 @@ import { User } from "./user.entity";
 import { Message } from "../chat/entities/message.entity";
 import { GdprAuditService } from "./gdpr-audit.service";
 import { MailService } from "../mail/mail.service";
+import { SessionService } from "../auth/session.service";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { DeleteAccountDto } from "./dto/delete-account.dto";
@@ -28,6 +29,7 @@ export class UserService {
 
     private readonly gdprAudit: GdprAuditService,
     private readonly mail: MailService,
+    private readonly sessionService: SessionService,
   ) {}
 
   async create(
@@ -174,6 +176,7 @@ export class UserService {
 
         const newHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
         await this.setPasswordHash(userId, newHash);
+        await this.sessionService.deleteAllForUser(userId);
         await this.gdprAudit.logDataChanged(userId, ip);
         void this.mail.sendProfileChangedEmail(user.email);
         return { success: true };

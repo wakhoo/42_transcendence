@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { JwtGuard } from "../auth/guards/jwt.guard";
+import { SessionModule } from "../auth/session.module";
 import { User } from "./user.entity";
 import { Message } from "../chat/entities/message.entity";
 import { AuditLog } from "./audit-log.entity";
@@ -15,6 +16,7 @@ import { MailModule } from "../mail/mail.module";
   imports: [
     TypeOrmModule.forFeature([User, Message, AuditLog]),
     MailModule,
+    SessionModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

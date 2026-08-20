@@ -2,21 +2,19 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from '../user/user.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtGuard } from './guards/jwt.guard';
 import { Pending2faGuard } from './guards/pending2fa.guard';
-import { Session } from './session.entity';
-import { SessionService } from './session.service';
+import { SessionModule } from './session.module';
 import { GoogleStrategy } from './strategies/google.strategy';
 
 @Module({
     imports: [
         UserModule,
         PassportModule,
-        TypeOrmModule.forFeature([Session]),
+        SessionModule,
         JwtModule.registerAsync({
             inject: [ConfigService],
             useFactory: (config: ConfigService) => ({
@@ -26,7 +24,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
         }),
     ],
     controllers: [AuthController],
-    providers: [AuthService, SessionService, JwtGuard, Pending2faGuard, GoogleStrategy],
+    providers: [AuthService, JwtGuard, Pending2faGuard, GoogleStrategy],
     exports: [JwtGuard, Pending2faGuard, JwtModule],
 })
 export class AuthModule {}
