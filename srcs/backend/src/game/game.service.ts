@@ -157,6 +157,7 @@ export class GameService implements OnModuleInit {
         session.scores[userId] = 0;
   }
 
+  
   updateSessionHasPassword(channelId: number, hasPassword: boolean): void {
     const session = this.activeGames.get(channelId);
     if (!session) return;
@@ -169,7 +170,6 @@ export class GameService implements OnModuleInit {
     });
   }
 
-      
       
   // recupere un mot aleatoire dans la base de doneee
 	async getRandomWord(useWords: string[] = []): Promise<string> {

@@ -3,7 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { GameService } from './game.service';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from '../chat/chat.service';
-import { Injectable, Inject, forwardRef, ValidationPipe } from '@nestjs/common';
+import { Inject, forwardRef, ValidationPipe } from '@nestjs/common';
 import { CreateRoomDto, ChannelIdDto, DrawDto } from './dto/ws-game.dto';
 import { UserService } from '../user/user.service';
 import { onUserDeleted } from '../common/user-events';
@@ -88,8 +88,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       });
     }
 
-    // Deleted accounts must not keep occupying a seat/room state or emitting
-    // draw strokes through sockets that connected before the DB row was removed.
+    //supprimer le joueur de la memoire de la ram
     private async disconnectUser(userId: number): Promise<void> {
       const socketIds = [...gameSocketUserMap.entries()].filter(([, uid]) => uid === userId).map(([id]) => id);
       for (const socketId of socketIds) {
@@ -114,7 +113,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       const userId = gameSocketPublicIdMap.get(client.id);
       return {userId};
     }
-
 
 
  // cree une session de jeu et ajoute le createur de la room
