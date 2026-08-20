@@ -48,9 +48,8 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
           const token = authHeader.replace(/^Bearer\s+/i, '');
           const payload = await this.jwtService.verifyAsync(token);
-          const userId = payload.sub || payload.id;
 
-          if (!userId) {
+          if (!payload.sub) {
             return next(new Error('Unauthorized'));
           }
 
@@ -60,10 +59,12 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
           // Signature-only verification would still accept tokens for users deleted
           // after the token was issued, so the subject must still exist in the DB.
-          const user = await this.userService.findById(userId);
+          const user = await this.userService.findByPublicId(payload.sub);
           if (!user) {
             return next(new Error('Unauthorized'));
           }
+
+          const userId = user.id;
 
           // On stocke le VRAI userId dans la Map
           gameSocketUserMap.set(client.id, userId);

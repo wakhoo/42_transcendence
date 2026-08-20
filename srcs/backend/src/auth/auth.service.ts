@@ -31,7 +31,7 @@ export class AuthService {
         const hashed = await bcrypt.hash(password, BCRYPT_ROUNDS);
         const user = await this.userService.create(email, username, hashed);
 
-        return this.issueTokens(user.id, user.email);
+        return this.issueTokens(user.id, user.publicId);
     }
 
     async login(email: string, password: string): Promise<LoginResult> {
@@ -44,13 +44,13 @@ export class AuthService {
 
         if (user.totpEnabled) {
             const partialToken = this.jwtService.sign(
-                { sub: user.id, email: user.email, pending2fa: true },
+                { sub: user.publicId, pending2fa: true },
                 { expiresIn: 300 },
             );
             return { twoFactorRequired: true, partialToken };
         }
 
-        return this.issueTokens(user.id, user.email);
+        return this.issueTokens(user.id, user.publicId);
     }
 
     async refresh(token: string): Promise<TokenPair> {
@@ -61,7 +61,7 @@ export class AuthService {
         if (!user) throw new UnauthorizedException('Invalid or expired refresh token');
 
         await this.sessionService.delete(token);
-        return this.issueTokens(user.id, user.email);
+        return this.issueTokens(user.id, user.publicId);
     }
 
     async logout(token: string): Promise<void> {
@@ -88,13 +88,13 @@ export class AuthService {
 
         if (user.totpEnabled) {
             const partialToken = this.jwtService.sign(
-                { sub: user.id, email: user.email, pending2fa: true },
+                { sub: user.publicId, pending2fa: true },
                 { expiresIn: 300 },
             );
             return { twoFactorRequired: true, partialToken };
         }
 
-        return this.issueTokens(user.id, user.email);
+        return this.issueTokens(user.id, user.publicId);
     }
 
     async setupTotp(userId: number, code?: string): Promise<{ otpauthUrl: string; secret: string; qrCode: string }> {
@@ -150,7 +150,7 @@ export class AuthService {
         await this.userService.disableTotp(userId);
     }
 
-    async verifyTotp(userId: number, email: string, code: string): Promise<TokenPair> {
+    async verifyTotp(userId: number, code: string): Promise<TokenPair> {
         const user = await this.userService.findById(userId);
         if (!user || !user.totpEnabled || !user.totpSecret) {
             throw new UnauthorizedException('2FA not configured');
@@ -159,7 +159,7 @@ export class AuthService {
         const valid = authenticator.verify({ token: code, secret: user.totpSecret });
         if (!valid) throw new UnauthorizedException('Invalid 2FA code');
 
-        return this.issueTokens(userId, email);
+        return this.issueTokens(userId, user.publicId);
     }
 
     private async generateUsername(email: string): Promise<string> {
@@ -172,8 +172,8 @@ export class AuthService {
         return username;
     }
 
-    private async issueTokens(userId: number, email: string): Promise<TokenPair> {
-        const accessToken = this.jwtService.sign({ sub: userId, email });
+    private async issueTokens(userId: number, publicId: string): Promise<TokenPair> {
+        const accessToken = this.jwtService.sign({ sub: publicId });
         const refreshToken = await this.sessionService.create(userId);
         return { accessToken, refreshToken };
     }

@@ -1,13 +1,11 @@
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { AuthenticatedUser } from '../../auth/guards/jwt.guard';
 
-export interface JwtPayload {
-    sub: number;
-    email: string;
-}
+export type { AuthenticatedUser };
 
 export const CurrentUser = createParamDecorator(
-    (_data: unknown, ctx: ExecutionContext): JwtPayload => {
+    (_data: unknown, ctx: ExecutionContext): AuthenticatedUser => {
         const request = ctx.switchToHttp().getRequest();
-        return request.user as JwtPayload;
+        return request.user as AuthenticatedUser;
     },
 );
