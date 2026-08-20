@@ -64,6 +64,10 @@ export class UserService {
         return this.repo.findOne({ where: { id } });
     }
 
+    findByPublicId(publicId: string): Promise<User | null> {
+        return this.repo.findOne({ where: { publicId } });
+    }
+
     findByOAuthId(provider: string, oauthId: string): Promise<User | null> {
         return this.repo.findOne({ where: { oauthProvider: provider, oauthId } });
     }
@@ -232,12 +236,12 @@ export class UserService {
     }
 
     private toSafeProfile(user: User) {
-        const { passwordHash, totpSecret, ...safe } = user;
+        const { id, passwordHash, totpSecret, ...safe } = user;
         return { ...safe, hasPassword: !!passwordHash };
     }
 
     private toPublicProfile(user: User) {
-        const { id, username, avatarUrl, profileColor } = user;
-        return { id, username, avatarUrl, profileColor };
+        const { publicId, username, avatarUrl, profileColor } = user;
+        return { publicId, username, avatarUrl, profileColor };
     }
 }

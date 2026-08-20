@@ -10,8 +10,8 @@ import DrawDrawLogo from './DrawDraw';
 
 export default function GamePage() {
 
-  const [myId, setMyId] = useState<number | null>(null);
-  const myIdRef = useRef<number | null>(null);
+  const [myId, setMyId] = useState<string | null>(null);
+  const myIdRef = useRef<string | null>(null);
   const [tempsRestant, setTempsRestant] = useState(60);
   const [socket, setSocket] = useState<any>(null);
   const [drawerInfo, setDrawerInfo] = useState<any>(null);
@@ -20,7 +20,7 @@ export default function GamePage() {
   const [secretWord, setSecretWord] = useState<any>(null);
   const [roundEndMsg, setRoundEndMsg] = useState<string | null>(null);
   const [showMsg, setShowMsg] = useState(false);
-  const [scores, setScores] = useState<Record< number, number>>({});
+  const [scores, setScores] = useState<Record<string, number>>({});
   const [message, setMessage] = useState<any>(null);
   const [endGame ,setEndGame] = useState<any>(null);
   const [isGameStarted, setIsGameStarted] = useState(false);
@@ -30,7 +30,7 @@ export default function GamePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isRoundBreak, setIsRoundBreak] = useState(false);
   const [foundWord, setWordFound] = useState<string | null>(null);
-  const [openProfileId, setOpenProfileId] = useState<number | null>(null);
+  const [openProfileId, setOpenProfileId] = useState<string | null>(null);
   
 
  const [reelChannelId] = useState(() => {
@@ -98,7 +98,7 @@ export default function GamePage() {
     socket.on('connect', () => {
       console.log("Connecté au GameGateway !");
 
-      socket.emit('get_my_id', (response : {userId : number}) => {
+      socket.emit('get_my_id', (response : {userId : string}) => {
 
           if(response && response.userId){
                 setMyId(response.userId);
@@ -203,7 +203,7 @@ export default function GamePage() {
     });
 
     socket.on('word_found', (data) => {
-      if(Number(data.userId) === Number(myIdRef.current))
+      if(data.userId === myIdRef.current)
         setWordFound(data.word);
       if(data.scores)
           setScores(data.scores);
@@ -244,17 +244,17 @@ export default function GamePage() {
     });
 
 
-    socket.on('kicked_from_game', (data: { userId: number }) => {
+    socket.on('kicked_from_game', (data: { userId: string }) => {
 
-      if(actionType === 'spec' || Number(data.userId) === Number(myIdRef.current)){
+      if(actionType === 'spec' || data.userId === myIdRef.current){
         window.location.href = '/dashboard';
       }
 
     });
 
-    socket.on('game_invite', (data: { targetUserId: number, channelId: number, inviterName: string }) => {
+    socket.on('game_invite', (data: { targetUserId: string, channelId: number, inviterName: string }) => {
 
-      if(data.targetUserId == myId){
+      if(data.targetUserId === myId){
         const accept = window.confirm(`${data.inviterName} is inviting you to join a game , do you want to join ?`);
 
         if(accept)
@@ -268,11 +268,11 @@ export default function GamePage() {
 
     });
 
-    socket.on('new_admin', ( data : {adminId: number }) => {
+    socket.on('new_admin', ( data : {adminId: string }) => {
 
-        if(Number(data.adminId) === Number(myIdRef.current))
+        if(data.adminId === myIdRef.current)
           setIsAdmin(true);
-        else 
+        else
           setIsAdmin(false);
     });
 
@@ -297,7 +297,7 @@ export default function GamePage() {
 
   }, []);
 
-  const isMeTheDrawer = Number(drawerInfo?.drawerId) === Number(myId);
+  const isMeTheDrawer = drawerInfo?.drawerId === myId;
   const isSpectator   = actionType === 'spec';
 
   const handleStartGame = () => {
@@ -518,7 +518,7 @@ export default function GamePage() {
                     {scores[joueur.id] || 0} pts
                   </span>
                   
-                  {drawerInfo && Number(drawerInfo.drawerId) === Number(joueur.id) && (
+                  {drawerInfo && drawerInfo.drawerId === joueur.id && (
                     <span title="Dessinateur" className="text-sm drop-shadow-sm animate-pulse">✏️</span>
                   )}
                 </div>

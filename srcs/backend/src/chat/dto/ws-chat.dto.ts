@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class JoinChannelDto {
     @IsInt()
@@ -27,8 +27,8 @@ export class SendMessageDto {
 }
 
 export class SendDmDto {
-    @IsInt()
-    targetUserId!: number;
+    @IsUUID()
+    targetUserId!: string;
 
     @IsString()
     @MinLength(1)

@@ -1,11 +1,11 @@
-import { IsInt, Max, Min } from 'class-validator';
+import { IsInt, IsUUID, Max, Min } from 'class-validator';
 
 export class MuteMemberDto {
     @IsInt()
     channelId!: number;
 
-    @IsInt()
-    targetUserId!: number;
+    @IsUUID()
+    targetUserId!: string;
 
     @IsInt()
     @Min(1)
