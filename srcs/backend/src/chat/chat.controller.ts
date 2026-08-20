@@ -150,9 +150,9 @@ export class ChatController {
     }
 
     @Post('create-game')
-    async createGameRoom(@CurrentUser() user: JwtPayload, @Body() body: CreateGameRoomDto) {
-        const roomName = body.name || `Game Room ${Math.floor(Math.random() * 1000)}`;
-        const session = await this.gameService.createGameSession(user.sub, roomName, body.isPrivate ?? false, body.maxMembers, body.password, body.rounds);
+    async createGameRoom(@CurrentUser() user: JwtPayload, @Body() dto: CreateGameRoomDto) {
+        const roomName = dto.name || `Game Room ${Math.floor(Math.random() * 1000)}`;
+        const session = await this.gameService.createGameSession(user.sub, roomName, dto.isPrivate ?? false, dto.maxMembers, dto.password, dto.rounds);
         return session;
     }
 }

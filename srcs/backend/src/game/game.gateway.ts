@@ -261,7 +261,6 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
         return;
       }
       await this.gameService.handleDraw(userId, data.channelId, data.drawData);
-      client.to(data.channelId.toString()).emit('draw', data.drawData);
     }
 
 
@@ -309,7 +308,11 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       // à un refresh de page de se reconnecter sans faire annuler la partie
       const timeout = setTimeout(async () => {
         this.pendingDisconnects.delete(userId);
-        await this.gameService.handleDisconnection(userId);
+        try {
+          await this.gameService.handleDisconnection(userId);
+        } catch (err) {
+          console.error(`Grace timer: handleDisconnection failed for user ${userId}:`, err);
+        }
       }, GameGateway.RECONNECT_GRACE_MS);
 
       this.pendingDisconnects.set(userId, timeout);
