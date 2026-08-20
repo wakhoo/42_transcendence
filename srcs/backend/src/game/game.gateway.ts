@@ -3,7 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { GameService } from './game.service';
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from '../chat/chat.service';
-import { Inject, forwardRef, ValidationPipe } from '@nestjs/common';
+import { Inject, forwardRef, ValidationPipe, HttpException } from '@nestjs/common';
 import { CreateRoomDto, ChannelIdDto, DrawDto } from './dto/ws-game.dto';
 import { UserService } from '../user/user.service';
 import { onUserDeleted } from '../common/user-events';
@@ -163,8 +163,9 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       const roomName = data.channelId.toString();
       try {
         await this.chatService.joinChannel(userId, data.channelId);
-      } catch (e: any) {
-        client.emit('error', { message: e?.message ?? 'Cannot join this channel' });
+      } catch (e: unknown) {
+        const msg = e instanceof HttpException ? e.message : 'Cannot join this channel';
+        client.emit('error', { message: msg });
         return;
       }
       client.join(roomName);

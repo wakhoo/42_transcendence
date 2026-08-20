@@ -188,7 +188,6 @@ export class ChatService implements OnModuleInit {
         if (!user) throw new NotFoundException('User not found');
     }
 
-    // resout un publicId (uuid, tel que fourni par le client) vers l'id numerique interne
     private async resolveUserId(publicId: string): Promise<number> {
         const user = await this.userService.findByPublicId(publicId);
         if (!user) throw new NotFoundException('User not found');
@@ -358,7 +357,8 @@ export class ChatService implements OnModuleInit {
     }
 
     private toPublicUser(user: User | null) {
-        if (!user) return null;
+        if (!user) 
+            return null;
         const { publicId, username, avatarUrl, profileColor } = user;
         return { publicId, username, avatarUrl, profileColor };
     }
@@ -390,8 +390,6 @@ export class ChatService implements OnModuleInit {
 
     // AMIS
 
-    // n'expose jamais requester/addressee tels quels (eager-loaded => email/oauth inclus) :
-    // on les remplace par le profil public minimal
     private toPublicFriendship(f: Friendship) {
         return { ...f, requester: this.toPublicUser(f.requester), addressee: this.toPublicUser(f.addressee) };
     }

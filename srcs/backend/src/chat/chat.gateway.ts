@@ -16,15 +16,13 @@ import { ChatService } from './chat.service';
 import { UserService } from '../user/user.service';
 import { onUserCreated, onUserDeleted, onUserUpdated } from '../common/user-events';
 
-export const socketUserMap = new Map<string, number>();
+export const socketUserMap = new Map<string, { id: number; publicId: string }>();
 
 function safeWsMessage(e: unknown): string {
-    if (e instanceof HttpException) 
+    if (e instanceof HttpException)
         return e.message;
     return 'An error occurred';
 }
-// publicId (uuid) du meme utilisateur, pour tout ce qui part vers le client
-const socketPublicIdMap = new Map<string, string>();
 
 @WebSocketGateway({ namespace: '/chat', cors: { origin: process.env.NESTAUTH_URL } })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -51,28 +49,26 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         console.log('ChatGateway initialized');
     }
 
-    // Deleted accounts must not keep receiving room traffic through sockets
-    // that connected before the DB row was removed.
     private disconnectUser(userId: number): void {
-        const socketIds = [...socketUserMap.entries()].filter(([, uid]) => uid === userId).map(([id]) => id);
-        if (socketIds.length === 0) return;
+        const entries = [...socketUserMap.entries()].filter(([, e]) => e.id === userId);
+        if (entries.length === 0) 
+            return;
 
-        // capture avant suppression : la ligne User peut deja avoir ete supprimee en base
-        const publicId = socketPublicIdMap.get(socketIds[0]);
-        for (const socketId of socketIds) {
+        const publicId = entries[0][1].publicId;
+        for (const [socketId] of entries) {
             socketUserMap.delete(socketId);
-            socketPublicIdMap.delete(socketId);
             this.server.in(socketId).disconnectSockets(true);
         }
-        if (publicId) this.server.emit('presenceChanged', { userId: publicId, status: 'offline' });
+        if (publicId) 
+            this.server.emit('presenceChanged', { userId: publicId, status: 'offline' });
     }
 
     async handleConnection(client: Socket) {
         try {
             const token = (client.handshake.auth as { token?: string })?.token?.replace('Bearer ', '');
-            if (!token) { 
-                client.disconnect(); 
-                return; 
+            if (!token) {
+                client.disconnect();
+                return;
             }
 
             const payload = this.jwtService.verify<{ sub: string; pending2fa?: boolean }>(token);
@@ -87,8 +83,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                 return;
             }
 
-            socketUserMap.set(client.id, user.id);
-            socketPublicIdMap.set(client.id, user.publicId);
+            socketUserMap.set(client.id, { id: user.id, publicId: user.publicId });
 
             const isGameMode = client.handshake.query?.mode === 'game';
             const targetChannelId = client.handshake.query?.channelId;
@@ -114,7 +109,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                 void client.join(`channel_${ch.id}`);
             }
 
-            const onlineUserIds = [...new Set(socketPublicIdMap.values())];
+            const onlineUserIds = [...new Set([...socketUserMap.values()].map(e => e.publicId))];
             client.emit('ready', { generalChannelId: general.id, onlineUserIds });
             this.server.emit('presenceChanged', { userId: user.publicId, status: 'online' });
             console.log(`User ${user.id} connected (socket ${client.id})`);
@@ -124,25 +119,23 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 }
 
     handleDisconnect(client: Socket) {
-        const userId = socketUserMap.get(client.id);
-        const publicId = socketPublicIdMap.get(client.id);
+        const entry = socketUserMap.get(client.id);
         socketUserMap.delete(client.id);
-        socketPublicIdMap.delete(client.id);
 
-        if (userId !== undefined) {
-            const stillConnectedElsewhere = [...socketUserMap.values()].includes(userId);
-            if (!stillConnectedElsewhere && publicId) {
-                this.server.emit('presenceChanged', { userId: publicId, status: 'offline' });
+        if (entry) {
+            const stillConnectedElsewhere = [...socketUserMap.values()].some(e => e.id === entry.id);
+            if (!stillConnectedElsewhere) {
+                this.server.emit('presenceChanged', { userId: entry.publicId, status: 'offline' });
             }
         }
-        console.log(`User ${userId ?? '?'} disconnected (socket ${client.id})`);
+        console.log(`User ${entry?.id ?? '?'} disconnected (socket ${client.id})`);
     }
 
     // ── Événements reçus depuis le frontend ──────────────────────────────────
 
     @SubscribeMessage('joinChannel')
     async onJoinChannel(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: JoinChannelDto) {
-        const userId = socketUserMap.get(client.id);
+        const userId = socketUserMap.get(client.id)?.id;
         if (!userId)
             return;
         try {
@@ -155,7 +148,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     @SubscribeMessage('leaveChannel')
     async onLeaveChannel(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
-        const userId = socketUserMap.get(client.id);
+        const userId = socketUserMap.get(client.id)?.id;
         if (!userId)
             return;
         try {
@@ -168,12 +161,12 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     @SubscribeMessage('sendMessage')
     async onSendMessage(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: SendMessageDto) {
-        const userId = socketUserMap.get(client.id);
-        if (!userId) 
+        const userId = socketUserMap.get(client.id)?.id;
+        if (!userId)
             return;
         try {
             const message = await this.chatService.sendMessage(userId, data.channelId, data.content);
-            const role = await this.chatService.getMemberRole(userId, data.channelId); 
+            const role = await this.chatService.getMemberRole(userId, data.channelId);
             this.server.to(`channel_${data.channelId}`).emit('newMessage', { ...message, role });
         } catch (e) {
             client.emit('error', { message: safeWsMessage(e) });
@@ -181,8 +174,8 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     }
 
     private emitToUser(userId: number, event: string, payload: any) {
-        for (const [socketId, uid] of socketUserMap.entries()) {
-            if (uid === userId) {
+        for (const [socketId, entry] of socketUserMap.entries()) {
+            if (entry.id === userId) {
                 this.server.to(socketId).emit(event, payload);
             }
         }
@@ -190,7 +183,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     @SubscribeMessage('sendDm')
     async onSendDm(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: SendDmDto) {
-        const userId = socketUserMap.get(client.id);
+        const userId = socketUserMap.get(client.id)?.id;
         if (!userId)
             return;
         try {
@@ -217,10 +210,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     @SubscribeMessage('typing')
     onTyping(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
-        const userId = socketUserMap.get(client.id);
-        const publicId = socketPublicIdMap.get(client.id);
-        if (!userId || !publicId)
+        const entry = socketUserMap.get(client.id);
+        if (!entry)
             return;
-        client.to(`channel_${data.channelId}`).emit('userTyping', { userId: publicId, channelId: data.channelId });
+        client.to(`channel_${data.channelId}`).emit('userTyping', { userId: entry.publicId, channelId: data.channelId });
     }
 }
