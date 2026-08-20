@@ -6,6 +6,7 @@ import { ChatService } from '../chat/chat.service';
 import { Injectable, Inject, forwardRef, ValidationPipe } from '@nestjs/common';
 import { CreateRoomDto, ChannelIdDto, DrawDto } from './dto/ws-game.dto';
 import { UserService } from '../user/user.service';
+import { onUserDeleted } from '../common/user-events';
 
 
 
@@ -76,6 +77,30 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
           next(new Error('Unauthorized'));
         }
       });
+
+      onUserDeleted(userId => {
+        this.disconnectUser(userId).catch(err => {
+          console.error(`Failed to disconnect game sockets for deleted user ${userId}:`, err);
+        });
+      });
+    }
+
+    // Deleted accounts must not keep occupying a seat/room state or emitting
+    // draw strokes through sockets that connected before the DB row was removed.
+    private async disconnectUser(userId: number): Promise<void> {
+      const socketIds = [...gameSocketUserMap.entries()].filter(([, uid]) => uid === userId).map(([id]) => id);
+      for (const socketId of socketIds) {
+        gameSocketUserMap.delete(socketId);
+        this.server.in(socketId).disconnectSockets(true);
+      }
+
+      const pending = this.pendingDisconnects.get(userId);
+      if (pending) {
+        clearTimeout(pending);
+        this.pendingDisconnects.delete(userId);
+      }
+
+      await this.gameService.handleDisconnection(userId);
     }
 
 

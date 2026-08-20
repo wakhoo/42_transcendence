@@ -12,7 +12,7 @@ import { UpdateUserDto } from "./dto/update-user.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { DeleteAccountDto } from "./dto/delete-account.dto";
 import { BCRYPT_ROUNDS } from "../common/constants";
-import { emitUserCreated, emitUserUpdated } from "../common/user-events";
+import { emitUserCreated, emitUserDeleted, emitUserUpdated } from "../common/user-events";
 
 function randomColor(): string {
   return '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
@@ -226,6 +226,7 @@ export class UserService {
 
         const deletedEmail = user.email;
         await this.remove(userId);
+        emitUserDeleted(userId);
         await this.gdprAudit.logAccountDeleted(userId, ip);
         void this.mail.sendAccountDeletedEmail(deletedEmail);
     }

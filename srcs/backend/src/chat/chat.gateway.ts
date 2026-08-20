@@ -14,7 +14,7 @@ import { JoinChannelDto, ChannelIdDto, SendMessageDto, SendDmDto } from './dto/w
 import { JwtService } from '@nestjs/jwt';
 import { ChatService } from './chat.service';
 import { UserService } from '../user/user.service';
-import { onUserCreated, onUserUpdated } from '../common/user-events';
+import { onUserCreated, onUserDeleted, onUserUpdated } from '../common/user-events';
 
 export const socketUserMap = new Map<string, number>();
 
@@ -33,7 +33,27 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         this.chatService.server = server;
         onUserCreated(profile => server.emit('userCreated', profile));
         onUserUpdated(profile => server.emit('userUpdated', profile));
+        onUserDeleted(userId => {
+            try {
+                this.disconnectUser(userId);
+            } catch (err) {
+                console.error(`Failed to disconnect chat sockets for deleted user ${userId}:`, err);
+            }
+        });
         console.log('ChatGateway initialized');
+    }
+
+    // Deleted accounts must not keep receiving room traffic through sockets
+    // that connected before the DB row was removed.
+    private disconnectUser(userId: number): void {
+        const socketIds = [...socketUserMap.entries()].filter(([, uid]) => uid === userId).map(([id]) => id);
+        if (socketIds.length === 0) return;
+
+        for (const socketId of socketIds) {
+            socketUserMap.delete(socketId);
+            this.server.in(socketId).disconnectSockets(true);
+        }
+        this.server.emit('presenceChanged', { userId, status: 'offline' });
     }
 
     async handleConnection(client: Socket) {
