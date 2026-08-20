@@ -203,7 +203,7 @@
   <header>
     <div class="site-label">DrawDraw · Legal</div>
     <h1>Privacy Policy</h1>
-    <div class="meta">Last updated: August 2026 &nbsp;·&nbsp; Version 1.0</div>
+    <div class="meta">Last updated: August 2026 &nbsp;·&nbsp; Version 1.1</div>
   </header>
 
   <div class="notice">
@@ -246,6 +246,7 @@
         <tr><td>Password (bcrypt hash)</td><td>Authentication — never stored in plain text</td><td>User input</td></tr>
         <tr><td>Avatar</td><td>Profile display</td><td>Randomly assigned color by default; you may pick one of 20 preset images at any time</td></tr>
         <tr><td>TOTP secret</td><td>Two-factor authentication, only if you enable it</td><td>Auto-generated</td></tr>
+        <tr><td>Email verification code (hashed)</td><td>Confirm sensitive account changes (email/username, password, 2FA, deletion) on accounts with no password or 2FA set up</td><td>Auto-generated, sent to your registered email</td></tr>
         <tr><td>Game &amp; match history</td><td>Round results, scores, and rankings</td><td>Auto-generated</td></tr>
         <tr><td>Chat messages</td><td>In-game and friend chat</td><td>User input</td></tr>
         <tr><td>Friends list &amp; online status</td><td>Social features</td><td>Auto-generated</td></tr>
@@ -290,6 +291,7 @@
         <tr><td>Account data</td><td>Until account deletion</td></tr>
         <tr><td>Game &amp; chat history</td><td>Until account deletion</td></tr>
         <tr><td>Security logs (IP)</td><td>30 days</td></tr>
+        <tr><td>Email verification code (hashed)</td><td>10 minutes, or immediately after use</td></tr>
         <tr><td>Access token</td><td>1 hour, or until logout</td></tr>
         <tr><td>Refresh token</td><td>Until logout or expiry</td></tr>
       </tbody>
@@ -305,6 +307,7 @@
       <li>All connections encrypted via <strong>HTTPS / TLS 1.3</strong></li>
       <li>4-layer Docker network isolation — the database is never exposed externally and is only reachable from the backend</li>
       <li><strong>Two-Factor Authentication (2FA)</strong> available via TOTP</li>
+      <li>Email-based one-time verification codes required before sensitive changes (email/username, password, 2FA, account deletion) on accounts with no password or 2FA set up</li>
       <li>JWT access tokens with short expiry, plus refresh tokens for session renewal</li>
       <li>Failed login attempts are rate-limited</li>
       <li>Web Application Firewall (ModSecurity with the OWASP Core Rule Set) at the reverse proxy</li>

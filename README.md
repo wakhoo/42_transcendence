@@ -293,12 +293,15 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 #### users
 | Column | Type | Description |
 |--------|------|-------------|
-| id | INT | Primary key |
+| id | INT | Primary key — internal only, never exposed to clients (see `public_id`) |
+| public_id | VARCHAR(36) | Unique UUID exposed to clients in place of the internal `id`, so sequential integer IDs are never handled by the frontend or sent over chat/game events |
 | email | VARCHAR | Unique, used for login |
 | password_hash | VARCHAR | bcrypt hashed password (nullable for OAuth users) |
 | username | VARCHAR | Display name |
 | avatar_url | VARCHAR | Profile picture URL |
 | profile_color | VARCHAR | UI accent color |
+| oauth_provider | VARCHAR | OAuth provider name, e.g. `google` (nullable — null for password accounts) |
+| oauth_id | VARCHAR | Provider-side account ID (nullable) |
 | totp_secret | VARCHAR | 2FA seed (nullable) |
 | totp_enabled | BOOLEAN | 2FA toggle |
 | created_at | TIMESTAMP | Account creation date |
@@ -381,12 +384,22 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 | ip | VARCHAR(45) | Request IP (nullable) |
 | created_at | TIMESTAMP | Event date |
 
+#### verification_codes
+| Column | Type | Description |
+|--------|------|-------------|
+| id | INT | Primary key |
+| user_id | INT | References users.id — plain column, not a FK (short-lived, no cascade needed) |
+| code_hash | VARCHAR | SHA-256 hash of the one-time 6-digit code (never stored in plaintext) |
+| expires_at | DATETIME | Code expiry, 10 minutes after issue |
+| created_at | TIMESTAMP | Issue date |
+
 ### Relationships
 - users 1 — N sessions (refresh tokens, cascade delete)
 - users 1 — N channel_members — N channels (join table)
 - users 1 — N messages (as sender)
 - users 1 — N friendships (as requester or addressee)
 - users 1 — N audit_logs (by user_id, no FK constraint — see above)
+- users 1 — N verification_codes (by user_id, no FK constraint — see above)
 - channels 1 — N messages
 - channels 1 — N channel_members
 - channels 1 — N match (by channel_id, no FK constraint — game rounds played in that room)
@@ -535,9 +548,15 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 
 **2FA / TOTP Implementation** (Minor)
 - `otplib` + `qrcode`: `POST /auth/2fa/setup` generates a secret, an `otpauth://` URI, and a scannable QR code as a data URL
-- `/auth/2fa/enable` and `/2fa/disable` both require a valid TOTP code before toggling state — you can't turn 2FA off just by being logged in
+- `/auth/2fa/enable` requires the new TOTP code *plus* the account's existing re-auth factor — current password if one is set, or an emailed one-time code if the account has neither a password nor TOTP yet (a pure OAuth account); `/2fa/disable` requires a valid current TOTP code — you can't turn 2FA on or off just by being logged in
 - A login from a 2FA-enabled account gets a short-lived (5 min) `pending2fa` JWT instead of real tokens; `Pending2faGuard` accepts *only* pending tokens and `JwtGuard` rejects them outright, so a partial token can't be replayed against any other authenticated route
-- Sensitive account actions (email/username change, password change, data export, account deletion) re-check the TOTP code on top of the existing session, not just at login
+- Sensitive account actions (email/username change, password change, 2FA enable, data export, account deletion) re-check whichever factor the account actually has — current password and/or TOTP code
+- **OAuth-only re-auth gap**: an account signed up via Google with no password and no 2FA had *no* re-auth factor at all, so a stolen JWT alone was enough to change the email/username, set a first password (a durable login backdoor bypassing Google entirely), enable 2FA with an attacker-chosen secret (locking the real owner out of Google login, which also enforces TOTP), or delete the account outright. Closed by emailing a 6-digit one-time code (`verification_codes` table — SHA-256 hashed, 10-minute TTL, single-use) that these accounts must enter before any of those actions proceed
+
+**Concurrency & Data-Exposure Hardening** (bug fixes, found via mentor exam-week `curl` load testing)
+- `POST /auth/register`, `/chat/create-game`, and `/chat/friends` each did a check-then-insert (SELECT to see if a row already existed, then INSERT) with no transaction; firing ~15 identical requests at once let them all pass the check and crash with an unhandled `500` on the database's unique-constraint violation
+- `QueryFailedFilter` (`common/filters/query-failed.filter.ts`), registered globally in `main.ts`, catches MariaDB's duplicate-entry error (`errno 1062`) and converts it to a clean `409 Conflict` instead of a `500`
+- `POST /chat/channels/join` returned the raw `ChannelMember` entity with its eager-loaded `user` relation, leaking every joining member's email, OAuth provider/ID, and internal numeric ID to the room; fixed by routing the response through the same `toPublicUser()` sanitizer already used for friend/invite responses
 
 **WAF/ModSecurity + HashiCorp Vault** (Major)
 - ModSecurity runs as an nginx module in front of every route, loaded with the OWASP Core Rule Set (`crs-setup.conf`, `main.conf`)
@@ -548,8 +567,8 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 **GDPR Compliance** (Minor)
 - `GdprAuditService` writes an append-only `audit_logs` row (`data_changed`, `data_exported`, or `account_deleted`) on every profile edit, password change, export, and deletion; `user_id` is intentionally a plain column with no FK/cascade so the trail survives the account it refers to being deleted
 - `GET /user/me/export` (Article 20 — data portability) returns the user's profile and message history as JSON; gated behind a TOTP re-check when 2FA is enabled
-- `DELETE /user/me` (Article 17 — right to erasure) requires password confirmation (and TOTP code, if enabled) before the account is removed
-- `MailService` sends a confirmation email for each of the three actions (profile changed / data exported / account deleted); mail failures are caught and logged so a bounced email never blocks the underlying GDPR action itself
+- `DELETE /user/me` (Article 17 — right to erasure) requires password confirmation (and TOTP code, if enabled) — or an emailed one-time verification code for OAuth-only accounts — before the account is removed
+- `MailService` sends a confirmation email for each of the three actions (profile changed / data exported / account deleted), plus the one-time verification codes described above; mail failures are caught and logged so a bounced email never blocks the underlying GDPR action itself
 
 **README.md** (mandatory)
 - Authored and maintains the full project README: setup instructions, architecture diagrams, DB schema, module list, and this contributions section
@@ -557,6 +576,8 @@ Each container declares a healthcheck so Docker knows when it is truly ready:
 **Challenges**
 - ModSecurity's stock CRS flagged legitimate traffic (Swagger's inline scripts, Socket.IO's handshake, Google's OAuth callback) as attacks; resolved by writing narrowly-scoped exclusions per route instead of weakening the WAF project-wide
 - Keeping 2FA state consistent across login and profile-editing flows — every endpoint that could leak or change account-critical data (email, password, export, delete) needed its own TOTP re-check, not just the login path
+- Internal numeric user IDs kept leaking to clients — a mentor's testing found `POST /chat/channels/join` returning a raw `ChannelMember` with its full `user` relation (email, OAuth provider/ID, internal numeric ID) attached; fixed by routing it through the existing public-user sanitizer, on top of an earlier project-wide pass that replaced internal IDs with `publicId` (UUID) across chat/game DTOs and events so clients never handle sequential integer IDs at all
+- OAuth-only accounts turned out to have no re-auth factor at all for account-critical changes, unlike password/2FA accounts — closed by adding an emailed one-time verification code as their equivalent factor
 
 ### asdiallo — Tech Lead + Developer
 
