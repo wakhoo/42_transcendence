@@ -5,7 +5,7 @@ import { TotpEnrollForm } from '../components/TotpEnrollForm';
 import { authHeaders, getAccessToken, getRefreshToken, clearSession } from '../lib/session';
 
 type Me = {
-    id: number;
+    publicId: string;
     username: string;
     email: string;
     profileColor: string;
@@ -16,26 +16,26 @@ type Me = {
 };
 
 type PublicUser = {
-    id: number; 
-    username: string; 
-    profileColor: string; 
-    avatarUrl: string | null; 
+    publicId: string;
+    username: string;
+    profileColor: string;
+    avatarUrl: string | null;
 };
 
-type FriendUser = { 
-    id: number; 
-    username: string; 
-    profileColor: string; 
+type FriendUser = {
+    publicId: string;
+    username: string;
+    profileColor: string;
 };
 
-type Friendship = { 
-    id: number; 
-    status: 'pending' | 'accepted' | 'blocked'; 
-    requester: FriendUser; 
-    addressee: FriendUser; 
+type Friendship = {
+    id: number;
+    status: 'pending' | 'accepted' | 'blocked';
+    requester: FriendUser;
+    addressee: FriendUser;
 };
 
-export function ProfileContent({ userId }: { userId?: number }) {
+export function ProfileContent({ userId }: { userId?: string }) {
     const [me, setMe]             = useState<Me | null>(null);
     const [allUsers, setAllUsers] = useState<PublicUser[]>([]);
     const [friends, setFriends]   = useState<Friendship[]>([]);
@@ -313,7 +313,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
         setExportError('');
     }
 
-    async function addFriend(userId: number) {
+    async function addFriend(userId: string) {
         const res = await fetch(`/api/chat/friends`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ userId }) });
         const data = await res.json();
         setMsg(res.ok ? 'Invitation sent' : (data.message ?? 'Error'));
@@ -369,7 +369,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
     }
 
     function friendOf(f: Friendship) {
-        if (f.requester.id === me?.id)
+        if (f.requester.publicId === me?.publicId)
             return f.addressee;
         return f.requester;
     }
@@ -377,20 +377,20 @@ export function ProfileContent({ userId }: { userId?: number }) {
     if (!me)
         return <p>Loading...</p>;
 
-    const isMe = userId == null || userId === me.id;
-    const targetUser = isMe ? me : allUsers.find(u => u.id === userId);
+    const isMe = userId == null || userId === me.publicId;
+    const targetUser = isMe ? me : allUsers.find(u => u.publicId === userId);
 
-    if (!isMe && !targetUser) 
+    if (!isMe && !targetUser)
         return <p>User not found</p>;
 
-    const myFriendship = !isMe ? friends.find(f => friendOf(f).id === targetUser!.id) : undefined;
-    const incomingRequest = !isMe ? pending.find(f => f.requester.id === targetUser!.id) : undefined;
+    const myFriendship = !isMe ? friends.find(f => friendOf(f).publicId === targetUser!.publicId) : undefined;
+    const incomingRequest = !isMe ? pending.find(f => f.requester.publicId === targetUser!.publicId) : undefined;
 
-    const acceptedIds = friends.map(f => friendOf(f).id); //on choppe ici un tableau d'ID de frienduser deja amis
-    const pendingIds  = pending.map(f => f.requester.id); //idem avec les demandes en cours
+    const acceptedIds = friends.map(f => friendOf(f).publicId); //on choppe ici un tableau d'ID de frienduser deja amis
+    const pendingIds  = pending.map(f => f.requester.publicId); //idem avec les demandes en cours
     const friendIds   = new Set([...acceptedIds, ...pendingIds]); //on fusionne les deux tableaux d'ID dans un set
-    
-    const strangers = allUsers.filter(u => u.id !== me?.id && !friendIds.has(u.id)); //dans strangers on exclus de AllUsers nous meme nos amis et les demandes en cours
+
+    const strangers = allUsers.filter(u => u.publicId !== me?.publicId && !friendIds.has(u.publicId)); //dans strangers on exclus de AllUsers nous meme nos amis et les demandes en cours
 
     const passwordChecks = [
         { label: 'At least 8 characters', met: newPassword.length >= 8 },
@@ -421,7 +421,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                         />
                         <div>
                             <h2 className="text-lg font-bold">{me.username}</h2>
-                            <p className="text-gray-500 text-xs">ID #{me.id}</p>
+                            <p className="text-gray-500 text-xs">ID #{me.publicId}</p>
                         </div>
                     </div>
 
@@ -764,10 +764,10 @@ export function ProfileContent({ userId }: { userId?: number }) {
                     <div className="flex flex-col gap-2">
                         {strangers.length === 0 && <p className="text-gray-600 text-sm">No players availabled</p>}
                         {strangers.map(u => (
-                            <div key={u.id} className="flex items-center gap-3 bg-black rounded-lg border border-gray-800 px-3 py-2">
+                            <div key={u.publicId} className="flex items-center gap-3 bg-black rounded-lg border border-gray-800 px-3 py-2">
                                 <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: u.profileColor }} />
                                 <span className="text-sm flex-1 truncate">{u.username}</span>
-                                <button onClick={() => addFriend(u.id)} className="px-2 py-1 rounded-md text-xs font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors">+ Add</button>
+                                <button onClick={() => addFriend(u.publicId)} className="px-2 py-1 rounded-md text-xs font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors">+ Add</button>
                             </div>
                         ))}
                     </div>
@@ -861,7 +861,7 @@ export function ProfileContent({ userId }: { userId?: number }) {
                     )}
                     {!myFriendship && !incomingRequest && (
                         <button
-                            onClick={() => addFriend(targetUser!.id)}
+                            onClick={() => addFriend(targetUser!.publicId)}
                             className="px-6 py-2 rounded-lg text-sm font-semibold bg-emerald-950 hover:bg-emerald-900 border border-emerald-800 transition-colors"
                         >
                             + Add friend

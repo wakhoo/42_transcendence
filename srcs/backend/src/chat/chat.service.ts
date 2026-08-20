@@ -71,9 +71,16 @@ export class ChatService implements OnModuleInit {
 
     // CHANNELS : creation + getters
 
-    async getGameChannels(userId: number): Promise<(Channel & { isUserMember: boolean; isUserKicked: boolean; maxRound?: number })[]> {
+    async getGameChannels(userId: number) {
         const channels = await this.channelRepo.find({ where: { type: 'game' }, relations: { members: { user: true } } });
-        return channels.map(channel => ({...channel, isUserMember: channel.members.some(m => m.user?.id === userId), isUserKicked: this.gameService.isUserKick(channel.id, userId), maxRound: this.gameService.getSession(channel.id)?.maxRound}));
+        return channels.map(channel => ({
+            ...channel,
+            members: channel.members.map(m => this.toPublicUser(m.user)),
+            hasPassword: !!channel.passwordHash,
+            isUserMember: channel.members.some(m => m.user?.id === userId),
+            isUserKicked: this.gameService.isUserKick(channel.id, userId),
+            maxRound: this.gameService.getSession(channel.id)?.maxRound,
+        }));
     }
 
     async getMyChannels(userId: number): Promise<Channel[]> {
@@ -178,8 +185,16 @@ export class ChatService implements OnModuleInit {
         if (!user) throw new NotFoundException('User not found');
     }
 
-    async kickMember(adminId: number, channelId: number, targetUserId: number): Promise<void> {
+    // resout un publicId (uuid, tel que fourni par le client) vers l'id numerique interne
+    private async resolveUserId(publicId: string): Promise<number> {
+        const user = await this.userService.findByPublicId(publicId);
+        if (!user) throw new NotFoundException('User not found');
+        return user.id;
+    }
+
+    async kickMember(adminId: number, channelId: number, targetPublicId: string): Promise<void> {
         await this.requireAdmin(adminId, channelId);
+        const targetUserId = await this.resolveUserId(targetPublicId);
         this.gameService.banUserFromChannel(channelId, targetUserId);
         await this.gameService.forcedRemovePlayer(channelId, targetUserId);
         const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } } });
@@ -187,9 +202,11 @@ export class ChatService implements OnModuleInit {
             await this.memberRepo.remove(target);
     }
 
-    async inviteUser(adminId: number, channelId: number, targetUserId: number): Promise<ChannelMember> {
+    async inviteUser(adminId: number, channelId: number, targetPublicId: string) {
         await this.requireAdmin(adminId, channelId);
-        await this.requireUserExists(targetUserId);
+        const targetUser = await this.userService.findByPublicId(targetPublicId);
+        if (!targetUser) throw new NotFoundException('User not found');
+        const targetUserId = targetUser.id;
         const existing = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } } });
         if (existing) throw new BadRequestException('User is already in this channel');
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
@@ -198,12 +215,14 @@ export class ChatService implements OnModuleInit {
             if (memberCount >= channel.maxMembers) throw new BadRequestException('Channel is full');
         }
         const membership = this.memberRepo.create({ user: { id: targetUserId }, channel: { id: channelId }, role: 'member'});
-        await this.gameService.sendInviteNotif(targetUserId, channelId,"Admin");
-        return this.memberRepo.save(membership);
+        await this.gameService.sendInviteNotif(targetPublicId, channelId,"Admin");
+        const saved = await this.memberRepo.save(membership);
+        return { ...saved, user: this.toPublicUser(targetUser) };
     }
 
-    async muteMember(adminId: number, channelId: number, targetUserId: number, minutes: number): Promise<void> {
+    async muteMember(adminId: number, channelId: number, targetPublicId: string, minutes: number): Promise<void> {
         await this.requireAdmin(adminId, channelId);
+        const targetUserId = await this.resolveUserId(targetPublicId);
         const target = await this.memberRepo.findOne({ where: { user: { id: targetUserId }, channel: { id: channelId } }, });
         if (!target) throw new NotFoundException('Target user is not in this channel');
         if (minutes > 60) 
@@ -327,18 +346,18 @@ export class ChatService implements OnModuleInit {
         const message = this.messageRepo.create({content, sender: { id: userId }, channel: { id: channelId }});
         const saved = await this.messageRepo.save(message);
         const full = await this.messageRepo.findOneOrFail({ where: { id: saved.id }, relations: { sender: true } });
-        return { ...full, sender: this.toPublicSender(full.sender) };
+        return { ...full, sender: this.toPublicUser(full.sender) };
     }
 
     async getMessages(channelId: number, limit = 50) {
         const messages = await this.messageRepo.find({ where: { channel: { id: channelId } }, relations: { sender: true }, order: { createdAt: 'DESC' }, take: limit });
-        return messages.map((m) => ({ ...m, sender: this.toPublicSender(m.sender) }));
+        return messages.map((m) => ({ ...m, sender: this.toPublicUser(m.sender) }));
     }
 
-    private toPublicSender(user: User | null) {
+    private toPublicUser(user: User | null) {
         if (!user) return null;
         const { publicId, username, avatarUrl, profileColor } = user;
-        return { id: publicId, username, avatarUrl, profileColor };
+        return { publicId, username, avatarUrl, profileColor };
     }
 
 
@@ -362,33 +381,43 @@ export class ChatService implements OnModuleInit {
 
     // AMIS
 
-    async sendFriendRequest(requesterId: number, addresseeId: number): Promise<Friendship> {
-        if (requesterId === addresseeId) throw new BadRequestException('Cannot add yourself');
-        await this.requireUserExists(addresseeId);
+    // n'expose jamais requester/addressee tels quels (eager-loaded => email/oauth inclus) :
+    // on les remplace par le profil public minimal
+    private toPublicFriendship(f: Friendship) {
+        return { ...f, requester: this.toPublicUser(f.requester), addressee: this.toPublicUser(f.addressee) };
+    }
+
+    async sendFriendRequest(requesterId: number, addresseePublicId: string) {
+        const addressee = await this.userService.findByPublicId(addresseePublicId);
+        if (!addressee) throw new NotFoundException('User not found');
+        if (requesterId === addressee.id) throw new BadRequestException('Cannot add yourself');
 
         const existing = await this.friendshipRepo.findOne({
             where: [
-                { requester: { id: requesterId }, addressee: { id: addresseeId } },
-                { requester: { id: addresseeId }, addressee: { id: requesterId } },
+                { requester: { id: requesterId }, addressee: { id: addressee.id } },
+                { requester: { id: addressee.id }, addressee: { id: requesterId } },
             ],
         });
         if (existing) throw new BadRequestException('A relation already exists with this user');
 
         const friendship = this.friendshipRepo.create({
             requester: { id: requesterId },
-            addressee: { id: addresseeId },
+            addressee: { id: addressee.id },
             status: 'pending',
         });
-        return this.friendshipRepo.save(friendship);
+        const saved = await this.friendshipRepo.save(friendship);
+        const full = await this.friendshipRepo.findOneOrFail({ where: { id: saved.id } });
+        return this.toPublicFriendship(full);
     }
 
-    async acceptFriendRequest(userId: number, friendshipId: number): Promise<Friendship> {
+    async acceptFriendRequest(userId: number, friendshipId: number) {
         const friendship = await this.friendshipRepo.findOne({ where: { id: friendshipId } });
         if (!friendship) throw new NotFoundException('Friend request not found');
         if (friendship.addressee.id !== userId) throw new ForbiddenException('Not your request');
         if (friendship.status !== 'pending') throw new BadRequestException('Request is not pending');
         friendship.status = 'accepted';
-        return this.friendshipRepo.save(friendship);
+        const saved = await this.friendshipRepo.save(friendship);
+        return this.toPublicFriendship(saved);
     }
 
     async rejectFriendRequest(userId: number, friendshipId: number): Promise<void> {
@@ -398,29 +427,35 @@ export class ChatService implements OnModuleInit {
         await this.friendshipRepo.remove(friendship);
     }
 
-    async unblockUser(userId: number, targetUserId: number): Promise<void> {
+    async unblockUser(userId: number, targetPublicId: string): Promise<void> {
+        const targetUserId = await this.resolveUserId(targetPublicId);
         const block = await this.friendshipRepo.findOne({ where: { requester: { id: userId }, addressee: { id: targetUserId }, status: 'blocked' } });
         if (!block) throw new NotFoundException('No block found with this user');
         await this.friendshipRepo.remove(block);
     }
 
-    async blockUser(userId: number, targetUserId: number): Promise<Friendship> {
-        if (userId === targetUserId) throw new BadRequestException('Cannot block yourself');
-        await this.requireUserExists(targetUserId);
-        const existing = await this.friendshipRepo.findOne({ where: [{ requester: { id: userId }, addressee: { id: targetUserId } },
-            { requester: { id: targetUserId }, addressee: { id: userId } },],});
+    async blockUser(userId: number, targetPublicId: string) {
+        const target = await this.userService.findByPublicId(targetPublicId);
+        if (!target) throw new NotFoundException('User not found');
+        if (userId === target.id) throw new BadRequestException('Cannot block yourself');
+        const existing = await this.friendshipRepo.findOne({ where: [{ requester: { id: userId }, addressee: { id: target.id } },
+            { requester: { id: target.id }, addressee: { id: userId } },],});
         if (existing) await this.friendshipRepo.remove(existing);
 
-        const block = this.friendshipRepo.create({requester: { id: userId }, addressee: { id: targetUserId }, status: 'blocked'});
-        return this.friendshipRepo.save(block);
+        const block = this.friendshipRepo.create({requester: { id: userId }, addressee: { id: target.id }, status: 'blocked'});
+        const saved = await this.friendshipRepo.save(block);
+        const full = await this.friendshipRepo.findOneOrFail({ where: { id: saved.id } });
+        return this.toPublicFriendship(full);
     }
 
-    async getFriends(userId: number): Promise<Friendship[]> {
-        return this.friendshipRepo.find({ where: [ { requester: { id: userId }, status: 'accepted' }, { addressee: { id: userId }, status: 'accepted' } ] });
+    async getFriends(userId: number) {
+        const friendships = await this.friendshipRepo.find({ where: [ { requester: { id: userId }, status: 'accepted' }, { addressee: { id: userId }, status: 'accepted' } ] });
+        return friendships.map(f => this.toPublicFriendship(f));
     }
 
-    async getPendingRequests(userId: number): Promise<Friendship[]> {
-        return this.friendshipRepo.find({ where: { addressee: { id: userId }, status: 'pending' }, });
+    async getPendingRequests(userId: number) {
+        const friendships = await this.friendshipRepo.find({ where: { addressee: { id: userId }, status: 'pending' }, });
+        return friendships.map(f => this.toPublicFriendship(f));
     }
 
     async isBlocked(userId: number, targetUserId: number): Promise<boolean> {

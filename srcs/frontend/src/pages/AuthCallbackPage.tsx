@@ -6,7 +6,7 @@ function AuthCallbackPage() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams(window.location.hash.slice(1));
         const accessToken = params.get('accessToken');
         const refreshToken = params.get('refreshToken');
 

@@ -11,14 +11,14 @@ type Message = {
     id: number;
     content: string;
     createdAt: string;
-    sender: { id: number; username: string; profileColor: string } | null;
+    sender: { publicId: string; username: string; profileColor: string } | null;
     role?: 'admin' | 'member';
     channelId?: number;
     isDm?: boolean;
 };
 
 type UserProfile = {
-    id: number;
+    publicId: string;
     username: string;
     profileColor: string;
     avatarUrl: string | null;
@@ -29,7 +29,7 @@ type GameRoom = {
     name: string;
     type: string;
     isPrivate: boolean;
-    passwordHash: string | null;
+    hasPassword: boolean;
     maxMembers: number | null;
     members: any[];
     isUserMember: boolean;
@@ -48,8 +48,8 @@ export default function DashboardPage() {
     const bottomRef                                     = useRef<HTMLDivElement>(null);
     const typingTimer                                   = useRef<ReturnType<typeof setTimeout> | null>(null);
     const navigate                                      = useNavigate();
-    const [openProfileId, setOpenProfileId]             = useState<number | null>(null);
-    const [onlineUserIds, setOnlineUserId]              = useState<Set<number>>(new Set());
+    const [openProfileId, setOpenProfileId]             = useState<string | null>(null);
+    const [onlineUserIds, setOnlineUserId]              = useState<Set<string>>(new Set());
     const [showMyProfile, setShowMyProfile]             = useState<boolean>(false);
     const [showUsers, setShowUsers]                     = useState<boolean>(false);
     const [showCreateModal, setShowCreateModal]         = useState(false);
@@ -114,7 +114,7 @@ export default function DashboardPage() {
             socket = io(`${window.location.origin}/chat`, { auth: { token } });
             socketRef.current = socket;
 
-            socket.on('ready', ({ generalChannelId, onlineUserIds }: { generalChannelId: number, onlineUserIds: number[] }) => {
+            socket.on('ready', ({ generalChannelId, onlineUserIds }: { generalChannelId: number, onlineUserIds: string[] }) => {
                 setChannelId(generalChannelId);
                 setOnlineUserId(new Set(onlineUserIds));
 
@@ -148,11 +148,11 @@ export default function DashboardPage() {
                 }
             });
 
-            socket.on('userTyping', ({ userId }: { userId: number }) => {
+            socket.on('userTyping', ({ userId }: { userId: string }) => {
                 setUsers(prev => {
                     if(!Array.isArray(prev))
                             return prev;
-                    const user = prev.find(u => u.id === userId);
+                    const user = prev.find(u => u.publicId === userId);
                     if (user)
                         setTyping(`${user.username} is writing...`);
                     return prev;
@@ -162,7 +162,7 @@ export default function DashboardPage() {
                 typingTimer.current = setTimeout(() => setTyping(''), 3000);
             });
 
-            socket.on('presenceChanged', (data: { userId: number; status: 'online' | 'offline' }) => {
+            socket.on('presenceChanged', (data: { userId: string; status: 'online' | 'offline' }) => {
                 setOnlineUserId(prev => {
                     const next = new Set(prev);
                     if (data.status === 'online') next.add(data.userId);
@@ -176,11 +176,11 @@ export default function DashboardPage() {
             });
 
             socket.on('userCreated', (profile: UserProfile) => {
-                setUsers(prev => (prev.some(u => u.id === profile.id) ? prev : [...prev, profile]));
+                setUsers(prev => (prev.some(u => u.publicId === profile.publicId) ? prev : [...prev, profile]));
             });
 
             socket.on('userUpdated', (profile: UserProfile) => {
-                setUsers(prev => prev.map(u => (u.id === profile.id ? profile : u)));
+                setUsers(prev => prev.map(u => (u.publicId === profile.publicId ? profile : u)));
             });
         })();
 
@@ -261,8 +261,8 @@ export default function DashboardPage() {
                 <div className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-2">
                     {Array.isArray(users) ? users.map(user => (
                     <div
-                        key={user.id} 
-                        onClick={() => setOpenProfileId(user.id)}
+                        key={user.publicId}
+                        onClick={() => setOpenProfileId(user.publicId)}
                         className="flex items-center gap-3 px-2 py-1 rounded-lg hover:bg-gray-800 transition-colors cursor-pointer"
                     >
                     {user.avatarUrl
@@ -270,9 +270,9 @@ export default function DashboardPage() {
                         : <div className="w-8 h-8 rounded-md shrink-0" style={{ backgroundColor: user.profileColor }} />
                     }
                         <span className="text-gray-300 text-sm truncate">{user.username}</span>
-                        <span className={`ml-auto flex items-center gap-1 text-[10px] shrink-0 ${onlineUserIds.has(user.id) ? 'text-emerald-400' : 'text-gray-500'}`}>
-                            <span className={`w-2 h-2 rounded-full ${onlineUserIds.has(user.id) ? 'bg-emerald-400' : 'bg-gray-600'}`} />
-                            {onlineUserIds.has(user.id) ? 'online' : 'offline'}
+                        <span className={`ml-auto flex items-center gap-1 text-[10px] shrink-0 ${onlineUserIds.has(user.publicId) ? 'text-emerald-400' : 'text-gray-500'}`}>
+                            <span className={`w-2 h-2 rounded-full ${onlineUserIds.has(user.publicId) ? 'bg-emerald-400' : 'bg-gray-600'}`} />
+                            {onlineUserIds.has(user.publicId) ? 'online' : 'offline'}
                         </span>
                     </div>
                 )) : null}
@@ -314,7 +314,7 @@ export default function DashboardPage() {
                                     const max = room.maxMembers;
                                     const isFull = max !== null && memberCount >= max;
                                     const blocked = isFull && !room.isUserMember;
-                                    const hasPassword = !!room.passwordHash;
+                                    const hasPassword = room.hasPassword;
                                     return (
                                         <button
                                             key={room.id}

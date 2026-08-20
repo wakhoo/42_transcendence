@@ -33,6 +33,8 @@ export interface GameSession {
   maxMembers?: number | null;
   code?: string;
   hasPassword?: boolean;
+  // cache numericId -> publicId pour ne pas refaire une requete DB a chaque emit
+  players?: Map<number, string>;
   // mutex pour eviter deux appels handleNextTurn simultanement (race condition sur les await DB)
   isHandlingTurn?: boolean;
 }
@@ -122,7 +124,7 @@ export class GameService implements OnModuleInit {
         // Le créateur est déjà dans la BDD SQL : on ignore l'erreur et on continue tranquillement !
     }
     session.scores[userId] = 0;
-    this.server.to(channelId.toString()).emit('new_admin', { adminId: session.creatorId });
+    this.server.to(channelId.toString()).emit('new_admin', { adminId: await this.publicIdOf(session, session.creatorId) });
 
     // on peut chopper directement maintenant le nombre de joueurs depuis la DB
     const members = await this.chatService.getChannelMember(channelId);
@@ -184,8 +186,38 @@ export class GameService implements OnModuleInit {
 
 
 
-  // recupere les noms des users dans mariadb grace a l id
-  async getUserName(channelId: number): Promise<Array<{id: number; username: string ; avatarUrl: string | null; profileColor: string | null }>> {
+  // wrapper public pour traduire un id numerique en publicId depuis la gateway
+  async getPublicId(channelId: number, userId: number): Promise<string> {
+    const session = this.activeGames.get(channelId);
+    return this.publicIdOf(session, userId);
+  }
+
+  // traduit un id numerique interne en publicId (uuid) expose au client, avec cache par session
+  private async publicIdOf(session: GameSession | undefined, userId: number): Promise<string> {
+    let publicId = session?.players?.get(userId);
+    if (!publicId) {
+      const user = await this.userService.findById(userId);
+      publicId = user?.publicId ?? String(userId);
+      if (session) {
+        if (!session.players) session.players = new Map();
+        session.players.set(userId, publicId);
+      }
+    }
+    return publicId;
+  }
+
+  // construit une version de session.scores dont les clefs sont des publicId, pour l'envoyer au client
+  private async toPublicScores(session: GameSession): Promise<Record<string, number>> {
+    const result: Record<string, number> = {};
+    for (const [idStr, score] of Object.entries(session.scores)) {
+      const publicId = await this.publicIdOf(session, Number(idStr));
+      result[publicId] = score;
+    }
+    return result;
+  }
+
+  // recupere les noms des users dans mariadb grace a l id (et alimente le cache publicId de la session)
+  async getUserName(channelId: number): Promise<Array<{id: string; username: string ; avatarUrl: string | null; profileColor: string | null }>> {
 
     const members = await this.chatService.getChannelMember(channelId);
     if(!members || members.length === 0)
@@ -194,23 +226,15 @@ export class GameService implements OnModuleInit {
     const session = this.activeGames.get(channelId);
     const activMembers = members.filter(m => {if (session) {
       return session.scores[m.user.id] !== undefined;} return true ;});
-    // lancement de la recherche pseudo de chaque joeur dans la map jusque a ce que tout le monde a repondu plus filet de securite creation de faux joueur
-    const playerName = await Promise.all(
-      activMembers.map(async (m) => {
 
-        try {
-            const user = await this.userService.findById(m.user.id);
-            return {
+    if (session) {
+      if (!session.players) session.players = new Map();
+      for (const m of activMembers) session.players.set(m.user.id, m.user.publicId);
+    }
 
-              id: Number(user?.id || m.user.id), username: String(user?.username || `Player #${m.user.id}`),
-                 avatarUrl: user?.avatarUrl || null, profileColor: user?.profileColor || null
-            };
-          } catch {
-            return { id: m.user.id, username: `Player #${m.user.id}`, avatarUrl: null, profileColor: null}
-          }
-      })
-    );
-    return playerName;
+    return activMembers.map((m) => ({
+      id: m.user.publicId, username: m.user.username, avatarUrl: m.user.avatarUrl, profileColor: m.user.profileColor,
+    }));
   }
 
 
@@ -309,7 +333,7 @@ export class GameService implements OnModuleInit {
         currentGame.scores[userId] += currentGame.timeLeft *5;
         currentGame.guessedUsers.push(userId);
 
-        this.server.to(channelId.toString()).emit('word_found', {userId: userId, word: currentGame.secretWord, scores: currentGame.scores});
+        this.server.to(channelId.toString()).emit('word_found', {userId: await this.publicIdOf(currentGame, userId), word: currentGame.secretWord, scores: await this.toPublicScores(currentGame)});
 
         const members = await this.chatService.getChannelMember(channelId);
         if(currentGame.guessedUsers.length === members.length - 1)
@@ -319,7 +343,7 @@ export class GameService implements OnModuleInit {
             clearInterval(currentGame.timerInterval);
 
           this.server.to(channelId.toString()).emit('round_end', `Amazing ! Every players has found the word : ${currentGame.secretWord} !`);
-          this.server.to(channelId.toString()).emit('classement', currentGame.scores);
+          this.server.to(channelId.toString()).emit('classement', await this.toPublicScores(currentGame));
 
           currentGame.turnTimeout = setTimeout(() => {
             this.handleNextTurn(channelId);
@@ -369,7 +393,7 @@ export class GameService implements OnModuleInit {
           currentGame.currentRound += 1;
           if (currentGame.currentRound > currentGame.maxRound)
           {
-            this.server.to(channelId.toString()).emit('game_over',currentGame.scores);
+            this.server.to(channelId.toString()).emit('game_over', await this.toPublicScores(currentGame));
             const matchHistory = this.match.create({
               channelId: currentGame.channelId,
               scores: currentGame.scores,
@@ -380,7 +404,7 @@ export class GameService implements OnModuleInit {
           }
           else{
 
-            this.server.to(channelId.toString()).emit('round_break',currentGame.scores);
+            this.server.to(channelId.toString()).emit('round_break', await this.toPublicScores(currentGame));
             currentGame.turnTimeout = setTimeout(() =>{
               // j'ai mis a -1 sinon ca sautait le premier joueur
               currentGame.currentDrawerId = -1;
@@ -399,7 +423,7 @@ export class GameService implements OnModuleInit {
     currentGame.timeLeft = 60;
     const user = await this.userService.findById(currentGame.currentDrawerId);
     const pseudo = user ? user.username : `Player #${currentGame.currentDrawerId}`;
-    this.server.to(channelId.toString()).emit('round_start', {drawerName: pseudo, drawerId: currentGame.currentDrawerId });
+    this.server.to(channelId.toString()).emit('round_start', {drawerName: pseudo, drawerId: await this.publicIdOf(currentGame, currentGame.currentDrawerId) });
 
 		const hintLetter = "-".repeat(currentGame.secretWord.length);
 		currentGame.currentHint = hintLetter;
@@ -416,7 +440,7 @@ export class GameService implements OnModuleInit {
     }
     // j'ai enleve le timer de 10sec avant le timer, c'etait bizarre et je ne voit pas l'interet, on aurait dit un bug volontaire
     currentGame.isDrawing = true;
-    currentGame.timerInterval = setInterval(() => {
+    currentGame.timerInterval = setInterval(async () => {
       currentGame.timeLeft -= 1;
       this.server.to(channelId.toString()).emit('timer_update',currentGame.timeLeft);
       if(currentGame.timeLeft == 45){
@@ -443,7 +467,7 @@ export class GameService implements OnModuleInit {
 
         clearInterval(currentGame.timerInterval);
         this.server.to(channelId.toString()).emit('round_end',`End of time the word was ${currentGame.secretWord}`);
-        this.server.to(channelId.toString()).emit('classement',currentGame.scores);
+        this.server.to(channelId.toString()).emit('classement', await this.toPublicScores(currentGame));
         currentGame.turnTimeout = setTimeout(() =>{
           this.handleNextTurn(channelId);
         },5000);
@@ -455,8 +479,8 @@ export class GameService implements OnModuleInit {
     }
   }
 
-    //enregistre en temps reel le dessin et le diffuse au channel 
-    handleDraw(userId: number, channelId: number, drawData: any) {
+    //enregistre en temps reel le dessin et le diffuse au channel
+    async handleDraw(userId: number, channelId: number, drawData: any) {
 
       const currentGame = this.activeGames.get(channelId);
       if(!currentGame)
@@ -464,7 +488,7 @@ export class GameService implements OnModuleInit {
       if(userId === currentGame.currentDrawerId){
 
         currentGame.historicDraw.push(drawData);
-        this.server.to(channelId.toString()).emit('draw', {drawerId: currentGame.currentDrawerId , data: drawData } );
+        this.server.to(channelId.toString()).emit('draw', {drawerId: await this.publicIdOf(currentGame, currentGame.currentDrawerId) , data: drawData } );
       }
     }
 
@@ -504,7 +528,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
         }
 
       currentGame.creatorId = newAdmin;
-      this.server.to(channelID.toString()).emit('new_admin', { adminId: currentGame.creatorId });
+      this.server.to(channelID.toString()).emit('new_admin', { adminId: await this.publicIdOf(currentGame, currentGame.creatorId) });
       }
        //SI LA ROOM EST TOTALEMENT VIDE: ON SUPPRIME TOUT !
       if (remainingCount === 0) {
@@ -565,7 +589,7 @@ async handleDisconnection(userId: number): Promise<number | null> {
           clearTimeout(currentGame.turnTimeout);
 
         if (this.server) {
-          this.server.to(channelID.toString()).emit('drawer_left', { drawerLeftId: userId });
+          this.server.to(channelID.toString()).emit('drawer_left', { drawerLeftId: await this.publicIdOf(currentGame, userId) });
         }
         currentGame.turnTimeout = setTimeout(() => {
           if (this.activeGames.has(channelID)) {
@@ -602,13 +626,13 @@ async handleDisconnection(userId: number): Promise<number | null> {
     const drawerName = drawer ? drawer.username : `Player #${currentGame.currentDrawerId}`;
 
     return {
-      drawerId: currentGame.currentDrawerId,
+      drawerId: await this.publicIdOf(currentGame, currentGame.currentDrawerId),
       drawerName: drawerName,
       timeLeft: currentGame.timeLeft,
       hint: currentGame.currentHint,
       hintLength: currentGame.secretWord.length,
       historicDraw: currentGame.historicDraw,
-      scores: currentGame.scores,
+      scores: await this.toPublicScores(currentGame),
       secretWord: userId === currentGame.currentDrawerId ? currentGame.secretWord : undefined,
     };
   }
@@ -620,8 +644,10 @@ async handleDisconnection(userId: number): Promise<number | null> {
   async forcedRemovePlayer(channelId: number, kickedUserId: number) {
 
 
-    if (this.server)
-        this.server.to(channelId.toString()).emit('kicked_from_game', {userId: kickedUserId})
+    if (this.server) {
+        const session = this.activeGames.get(channelId);
+        this.server.to(channelId.toString()).emit('kicked_from_game', {userId: await this.publicIdOf(session, kickedUserId)})
+    }
 
     await this.handleDisconnection(kickedUserId);
   }
@@ -653,13 +679,13 @@ async handleDisconnection(userId: number): Promise<number | null> {
   }
 
   
-  async sendInviteNotif(targetUserId: number, channelId: number, inviterName: String){
+  async sendInviteNotif(targetPublicId: string, channelId: number, inviterName: String){
 
       if(this.server){
 
         this.server.emit('game_invite', {
 
-          targetUserId: targetUserId,
+          targetUserId: targetPublicId,
           channelId: channelId,
           inviterName: inviterName
         });
@@ -667,10 +693,10 @@ async handleDisconnection(userId: number): Promise<number | null> {
   }
 
 
-  getRoomAdmin(channelId: number): number | null {
+  async getRoomAdmin(channelId: number): Promise<string | null> {
 
     const session = this.activeGames.get(channelId);
-    return session ? session.creatorId : null;
+    return session ? this.publicIdOf(session, session.creatorId) : null;
 
   }
 }

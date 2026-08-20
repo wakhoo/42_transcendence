@@ -17,6 +17,8 @@ import { UserService } from '../user/user.service';
 import { onUserCreated, onUserDeleted, onUserUpdated } from '../common/user-events';
 
 export const socketUserMap = new Map<string, number>();
+// publicId (uuid) du meme utilisateur, pour tout ce qui part vers le client
+const socketPublicIdMap = new Map<string, string>();
 
 @WebSocketGateway({ namespace: '/chat', cors: { origin: process.env.NESTAUTH_URL } })
 export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
@@ -49,11 +51,14 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
         const socketIds = [...socketUserMap.entries()].filter(([, uid]) => uid === userId).map(([id]) => id);
         if (socketIds.length === 0) return;
 
+        // capture avant suppression : la ligne User peut deja avoir ete supprimee en base
+        const publicId = socketPublicIdMap.get(socketIds[0]);
         for (const socketId of socketIds) {
             socketUserMap.delete(socketId);
+            socketPublicIdMap.delete(socketId);
             this.server.in(socketId).disconnectSockets(true);
         }
-        this.server.emit('presenceChanged', { userId, status: 'offline' });
+        if (publicId) this.server.emit('presenceChanged', { userId: publicId, status: 'offline' });
     }
 
     async handleConnection(client: Socket) {
@@ -77,6 +82,7 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             }
             
             socketUserMap.set(client.id, payload.sub);
+            socketPublicIdMap.set(client.id, user.publicId);
 
             const isGameMode = client.handshake.query?.mode === 'game';
             const targetChannelId = client.handshake.query?.channelId;
@@ -97,9 +103,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
                 void client.join(`channel_${ch.id}`);
             }
 
-            const onlineUserIds = [...new Set(socketUserMap.values())];
+            const onlineUserIds = [...new Set(socketPublicIdMap.values())];
             client.emit('ready', { generalChannelId: general.id, onlineUserIds });
-            this.server.emit('presenceChanged', { userId: payload.sub, status: 'online' });
+            this.server.emit('presenceChanged', { userId: user.publicId, status: 'online' });
             console.log(`User ${payload.sub} connected (socket ${client.id})`);
         } catch {
             client.disconnect();
@@ -108,12 +114,14 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     handleDisconnect(client: Socket) {
         const userId = socketUserMap.get(client.id);
+        const publicId = socketPublicIdMap.get(client.id);
         socketUserMap.delete(client.id);
+        socketPublicIdMap.delete(client.id);
 
         if (userId !== undefined) {
             const stillConnectedElsewhere = [...socketUserMap.values()].includes(userId);
-            if (!stillConnectedElsewhere) {
-                this.server.emit('presenceChanged', { userId, status: 'offline' });
+            if (!stillConnectedElsewhere && publicId) {
+                this.server.emit('presenceChanged', { userId: publicId, status: 'offline' });
             }
         }
         console.log(`User ${userId ?? '?'} disconnected (socket ${client.id})`);
@@ -171,20 +179,25 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
     @SubscribeMessage('sendDm')
     async onSendDm(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: SendDmDto) {
-        const userId = socketUserMap.get(client.id); 
-        if (!userId) 
+        const userId = socketUserMap.get(client.id);
+        if (!userId)
             return;
         try {
-            const blocked = await this.chatService.isBlocked(userId, data.targetUserId);
+            const target = await this.userService.findByPublicId(data.targetUserId);
+            if (!target) {
+                client.emit('error', { message: 'User not found' });
+                return;
+            }
+            const blocked = await this.chatService.isBlocked(userId, target.id);
             if (blocked) {
                 client.emit('error', { message: 'Cannot message this user' });
                 return;
             }
-            const channel = await this.chatService.getOrCreateDmChannel(userId, data.targetUserId);
+            const channel = await this.chatService.getOrCreateDmChannel(userId, target.id);
             const message = await this.chatService.sendMessage(userId, channel.id, data.content);
             const payload = {...message, channelId: channel.id, isDm: true };
 
-            this.emitToUser(data.targetUserId, `newMessage`, payload);
+            this.emitToUser(target.id, `newMessage`, payload);
             client.emit('newMessage', payload);
         } catch (e) {
             client.emit('error', { message: (e as Error).message });
@@ -194,8 +207,9 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     @SubscribeMessage('typing')
     onTyping(@ConnectedSocket() client: Socket, @MessageBody(new ValidationPipe()) data: ChannelIdDto) {
         const userId = socketUserMap.get(client.id);
-        if (!userId)
+        const publicId = socketPublicIdMap.get(client.id);
+        if (!userId || !publicId)
             return;
-        client.to(`channel_${data.channelId}`).emit('userTyping', { userId, channelId: data.channelId });
+        client.to(`channel_${data.channelId}`).emit('userTyping', { userId: publicId, channelId: data.channelId });
     }
 }

@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 
 export type PublicUserProfile = {
-    id: number;
+    publicId: string;
     username: string;
     avatarUrl: string | null;
     profileColor: string;

@@ -7,11 +7,11 @@ type Message = {
   id: number;
   content: string;
   createdAt: string;
-  sender: { id: number; username: string; profileColor: string } | null;
+  sender: { publicId: string; username: string; profileColor: string } | null;
   isDm?: boolean;
 };
 
-type UserProfile = { id: number; username: string; profileColor: string };
+type UserProfile = { publicId: string; username: string; profileColor: string };
 
 interface GameChatProps {
   channelId: number;

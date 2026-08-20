@@ -1,6 +1,6 @@
-import { IsInt } from 'class-validator';
+import { IsUUID } from 'class-validator';
 
 export class UserIdDto {
-    @IsInt()
-    userId!: number;
+    @IsUUID()
+    userId!: string;
 }

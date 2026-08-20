@@ -12,6 +12,8 @@ import { onUserDeleted } from '../common/user-events';
 
 // creation d'une map pour lier le socket a l'user via token et mariadb
 export const gameSocketUserMap = new Map<string, number>();
+// publicId (uuid) du meme utilisateur, pour tout ce qui part vers le client
+const gameSocketPublicIdMap = new Map<string, string>();
 
 // point d'entree reseau 
 @WebSocketGateway({ cors: { origin: process.env.NESTAUTH_URL }, namespace: '/game'})
@@ -65,6 +67,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
           // On stocke le VRAI userId dans la Map
           gameSocketUserMap.set(client.id, userId);
+          gameSocketPublicIdMap.set(client.id, user.publicId);
 
           // Si un disconnect était en attente pour ce joueur (ex: refresh de page), on l'annule
           const pending = this.pendingDisconnects.get(userId);
@@ -91,6 +94,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       const socketIds = [...gameSocketUserMap.entries()].filter(([, uid]) => uid === userId).map(([id]) => id);
       for (const socketId of socketIds) {
         gameSocketUserMap.delete(socketId);
+        gameSocketPublicIdMap.delete(socketId);
         this.server.in(socketId).disconnectSockets(true);
       }
 
@@ -107,7 +111,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
     @SubscribeMessage('get_my_id')
     getId(client: Socket){
 
-      const userId = gameSocketUserMap.get(client.id);
+      const userId = gameSocketPublicIdMap.get(client.id);
       return {userId};
     }
 
@@ -133,7 +137,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
     client.emit('room_created', { channelId: session.channelId });
     this.server.to(session.channelId.toString()).emit('update_players', reelPlayer);
     client.emit('update_players', reelPlayer);
-    client.emit('new_admin', { adminId: session.creatorId });
+    client.emit('new_admin', { adminId: await this.gameService.getPublicId(session.channelId, session.creatorId) });
   }
 
 
@@ -153,7 +157,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       if(this.gameService.isUserKick(data.channelId, userId)) {
 
         client.emit('error', { message: 'You have been kicked from the channel !' });
-        client.emit('kicked_from_game', { userId: userId });
+        client.emit('kicked_from_game', { userId: await this.gameService.getPublicId(data.channelId, userId) });
         return;
       }
      
@@ -179,7 +183,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
         this.server.to(roomName).emit('update_players', realPlayer);
       }
 
-      const adminId = this.gameService.getRoomAdmin(data.channelId);
+      const adminId = await this.gameService.getRoomAdmin(data.channelId);
       if(adminId)
         client.emit('new_admin', { adminId: adminId });
       // Si une partie est deja en cours dans ce salon (ex: reconnexion apres un refresh),
@@ -202,7 +206,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
 
       if (this.gameService.isUserKick(data.channelId, userId)) {
         client.emit('error', { message: 'You have been kicked from the channel!' });
-        client.emit('kicked_from_game', { userId });
+        client.emit('kicked_from_game', { userId: await this.gameService.getPublicId(data.channelId, userId) });
         return;
       }
 
@@ -213,7 +217,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
         client.emit('room_info', { type: session.type, maxMembers: session.maxMembers, isSpectator: true });
       }
 
-      const adminId = this.gameService.getRoomAdmin(data.channelId);
+      const adminId = await this.gameService.getRoomAdmin(data.channelId);
       if (adminId) client.emit('new_admin', { adminId });
 
       // Envoyer la liste des joueurs au spec (sinon elle reste vide)
@@ -255,7 +259,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
         client.emit('error' , {message: "User non identify"});
         return;
       }
-      this.gameService.handleDraw(userId, data.channelId, data.drawData);
+      await this.gameService.handleDraw(userId, data.channelId, data.drawData);
       client.to(data.channelId.toString()).emit('draw', data.drawData);
     }
 
@@ -292,6 +296,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
         return;
       }
       gameSocketUserMap.delete(client.id);
+      gameSocketPublicIdMap.delete(client.id);
 
       // Si le joueur a un autre socket encore connecté (ex: autre onglet), on ne fait rien
       const stillConnected = [...gameSocketUserMap.values()].includes(userId);
