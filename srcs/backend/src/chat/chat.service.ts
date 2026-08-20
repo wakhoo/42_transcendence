@@ -124,13 +124,13 @@ export class ChatService implements OnModuleInit {
     }
 
 
-    async joinChannel(userId: number, channelId: number, password?: string): Promise<ChannelMember> {
+    async joinChannel(userId: number, channelId: number, password?: string) {
         const channel = await this.channelRepo.findOne({ where: { id: channelId } });
         if (!channel) throw new NotFoundException('Channel not found');
 
         const existing = await this.memberRepo.findOne({ where: { user: { id: userId }, channel: { id: channelId } } });
-        if (existing) 
-            return existing;
+        if (existing)
+            return { ...existing, user: this.toPublicUser(existing.user) };
 
         if (channel.type === 'game' && this.gameService.isUserKick(channelId, userId))
             throw new ForbiddenException('You have been kicked from this room');
@@ -149,7 +149,9 @@ export class ChatService implements OnModuleInit {
         }
 
         const membership = this.memberRepo.create({ user: { id: userId }, channel: { id: channelId }, role: 'member'});
-        return this.memberRepo.save(membership);
+        const saved = await this.memberRepo.save(membership);
+        const full = await this.memberRepo.findOneOrFail({ where: { id: saved.id } });
+        return { ...full, user: this.toPublicUser(full.user) };
     }
 
     async leaveChannel(userId: number, channelId: number): Promise<void> {
