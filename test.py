@@ -16,6 +16,7 @@ headers = {
     'sec-ch-ua-platform': '"Linux"',
 }
 
+
 response = requests.get('https://localhost:8443/api/chat/friends/pending', headers=headers, verify=False)
 
 print(response);

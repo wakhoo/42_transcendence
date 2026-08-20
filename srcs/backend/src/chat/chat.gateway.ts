@@ -88,8 +88,13 @@ export class ChatGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
             const targetChannelId = client.handshake.query?.channelId;
 
             if (isGameMode && targetChannelId) {
+                const role = await this.chatService.getMemberRole(payload.sub, Number(targetChannelId));
+                if (!role) {
+                    client.disconnect();
+                    return;
+                }
                 void client.join(`channel_${targetChannelId}`);
-                void client.join(targetChannelId.toString());                 
+                void client.join(targetChannelId.toString());
                 console.log(`User ${payload.sub} connect to the game chat (room #${targetChannelId})`);
                 return;
             }

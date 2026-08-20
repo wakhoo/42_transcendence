@@ -162,12 +162,13 @@ export class GameGateway implements OnGatewayInit, OnGatewayDisconnect{
       }
      
       const roomName = data.channelId.toString();
-      client.join(roomName);
       try {
         await this.chatService.joinChannel(userId, data.channelId);
+      } catch (e: any) {
+        client.emit('error', { message: e?.message ?? 'Cannot join this channel' });
+        return;
       }
-      catch (e) {
-      }
+      client.join(roomName);
 
       const session = this.gameService.getSession(data.channelId);
       if (session) {
