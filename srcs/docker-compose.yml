@@ -78,6 +78,7 @@ services:
       - vault_approle:/vault/approle:ro
       - vault_certs:/vault/certs:ro
     environment:
+      NODE_ENV: production
       VAULT_ADDR: https://vault:8200
       VAULT_CACERT: /vault/certs/cert.pem
       VAULT_ROLE_ID_FILE: /vault/approle/role_id

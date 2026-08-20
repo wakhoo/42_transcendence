@@ -16,18 +16,20 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle("Transcendence API")
-    .setDescription("REST API for auth, user, and chat")
-    .setVersion("1.0")
-    .addBearerAuth()
-    .build();
-  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup("api/docs", app, swaggerDocument);
+  if (process.env.NODE_ENV !== "production") {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle("Transcendence API")
+      .setDescription("REST API for auth, user, and chat")
+      .setVersion("1.0")
+      .addBearerAuth()
+      .build();
+    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup("api/docs", app, swaggerDocument);
+    console.log(`Swagger docs at http://0.0.0.0:3000/api/docs`);
+  }
 
   await app.listen(3000, "0.0.0.0");
   console.log(`Backend up on http://0.0.0.0:3000/api`);
-  console.log(`Swagger docs at http://0.0.0.0:3000/api/docs`);
 
   process.on("SIGTERM", async () => {
     await app.close();

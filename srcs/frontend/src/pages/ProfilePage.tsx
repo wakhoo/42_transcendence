@@ -267,8 +267,11 @@ export function ProfileContent({ userId }: { userId?: number }) {
         setExportLoading(true);
         setExportError('');
         try {
-            const url = code ? `/api/user/me/export?code=${encodeURIComponent(code)}` : '/api/user/me/export';
-            const res = await fetch(url, { headers: await authHeaders() });
+            const res = await fetch('/api/user/me/export', {
+                method: 'POST',
+                headers: await authHeaders(),
+                body: JSON.stringify(code ? { code } : {}),
+            });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
                 setExportError(data.message ?? 'Failed to export data');

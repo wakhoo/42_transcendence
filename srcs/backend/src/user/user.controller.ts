@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
@@ -7,6 +7,7 @@ import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ExportDataDto } from './dto/export-data.dto';
 
 type AuthedRequest = Request & { user: JwtPayload };
 
@@ -38,10 +39,10 @@ export class UserController {
         return this.userService.changePassword(req.user.sub, dto, req.ip ?? null);
     }
 
-    @Get('me/export')
+    @Post('me/export')
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
-    exportMe(@Req() req: AuthedRequest, @Query('code') code?: string) {
-        return this.userService.exportUserData(req.user.sub, code, req.ip ?? null);
+    exportMe(@Req() req: AuthedRequest, @Body() dto: ExportDataDto) {
+        return this.userService.exportUserData(req.user.sub, dto.code, req.ip ?? null);
     }
 
     @Delete('me')
