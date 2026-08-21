@@ -177,7 +177,7 @@ export class UserService {
         const updated = await this.update(userId, updates);
         emitUserUpdated(this.toPublicProfile(updated));
         await this.gdprAudit.logDataChanged(userId, ip);
-        void this.mail.sendProfileChangedEmail(updated.email);
+        if (changingEmail || changingUsername) void this.mail.sendProfileChangedEmail(updated.email);
         return this.toSafeProfile(updated);
     }
 
