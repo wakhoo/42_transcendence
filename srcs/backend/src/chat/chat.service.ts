@@ -73,14 +73,17 @@ export class ChatService implements OnModuleInit {
 
     async getGameChannels(userId: number) {
         const channels = await this.channelRepo.find({ where: { type: 'game' }, relations: { members: { user: true } } });
-        return channels.map(channel => ({
-            ...channel,
-            members: channel.members.map(m => this.toPublicUser(m.user)),
-            hasPassword: !!channel.passwordHash,
-            isUserMember: channel.members.some(m => m.user?.id === userId),
-            isUserKicked: this.gameService.isUserKick(channel.id, userId),
-            maxRound: this.gameService.getSession(channel.id)?.maxRound,
-        }));
+        return channels.map(channel => {
+            const { passwordHash, ...rest } = channel;
+            return {
+                ...rest,
+                members: channel.members.map(m => this.toPublicUser(m.user)),
+                hasPassword: !!passwordHash,
+                isUserMember: channel.members.some(m => m.user?.id === userId),
+                isUserKicked: this.gameService.isUserKick(channel.id, userId),
+                maxRound: this.gameService.getSession(channel.id)?.maxRound,
+            };
+        });
     }
 
     async getMyChannels(userId: number): Promise<Channel[]> {
