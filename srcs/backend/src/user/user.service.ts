@@ -250,7 +250,7 @@ export class UserService {
         void this.mail.sendDataExportedEmail(user.email);
         return {
             messages: await this.getUserMessage(user.id),
-            profile: this.toSafeProfile(user),
+            profile: this.toExportProfile(user),
             exportedAt: new Date().toISOString(),
         };
     }
@@ -287,6 +287,11 @@ export class UserService {
     private toSafeProfile(user: User) {
         const { publicId, email, username, avatarUrl, profileColor, totpEnabled, createdAt, passwordHash } = user;
         return { publicId, email, username, avatarUrl, profileColor, totpEnabled, createdAt, hasPassword: !!passwordHash };
+    }
+
+    private toExportProfile(user: User) {
+        const { id, passwordHash, totpSecret, ...safe } = user;
+        return { ...safe, hasPassword: !!passwordHash };
     }
 
     private toPublicProfile(user: User) {
