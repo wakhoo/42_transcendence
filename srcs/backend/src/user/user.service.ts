@@ -285,8 +285,8 @@ export class UserService {
     }
 
     private toSafeProfile(user: User) {
-        const { id, passwordHash, totpSecret, ...safe } = user;
-        return { ...safe, hasPassword: !!passwordHash };
+        const { publicId, email, username, avatarUrl, profileColor, totpEnabled, createdAt, passwordHash } = user;
+        return { publicId, email, username, avatarUrl, profileColor, totpEnabled, createdAt, hasPassword: !!passwordHash };
     }
 
     private toPublicProfile(user: User) {

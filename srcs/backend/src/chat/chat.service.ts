@@ -434,7 +434,9 @@ export class ChatService implements OnModuleInit {
     async rejectFriendRequest(userId: number, friendshipId: number): Promise<void> {
         const friendship = await this.friendshipRepo.findOne({ where: { id: friendshipId } });
         if (!friendship) throw new NotFoundException('Friend request not found');
-        if (friendship.addressee.id !== userId) throw new ForbiddenException('Not your request');
+        if (friendship.requester.id !== userId && friendship.addressee.id !== userId) {
+            throw new ForbiddenException('Not your request');
+        }
         await this.friendshipRepo.remove(friendship);
     }
 
