@@ -168,10 +168,10 @@ export class UserService {
         }
 
         const updates: { email?: string; username?: string; avatarUrl?: string } = {};
-        if (dto.email !== undefined) updates.email = dto.email;
-        if (dto.username !== undefined) updates.username = dto.username;
-        if (dto.avatarUrl !== undefined) updates.avatarUrl = dto.avatarUrl;
-        if (Object.keys(updates).length === 0) 
+        if (changingEmail) updates.email = dto.email;
+        if (changingUsername) updates.username = dto.username;
+        if (dto.avatarUrl !== undefined && dto.avatarUrl !== user.avatarUrl) updates.avatarUrl = dto.avatarUrl;
+        if (Object.keys(updates).length === 0)
             return this.toSafeProfile(user);
 
         const updated = await this.update(userId, updates);
