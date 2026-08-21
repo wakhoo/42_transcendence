@@ -17,8 +17,6 @@ listener "tcp" {
 api_addr     = "https://vault:8200"
 cluster_addr = "https://vault:8201"
 
-# IPC_LOCK is granted to this container (docker-compose.yml), so Vault's
-# memory can be locked to prevent secrets from being swapped to disk.
 disable_mlock = false
 
 ui = true

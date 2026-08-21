@@ -45,8 +45,6 @@ export default function GameChat({ channelId, isSpectator, hasPassword }: GameCh
     } });
       socketRef.current = socket;
       socket.on('connect', () => {
-       // socket.emit('joinChannel', { channelId: Number(channelId) });
-
       })
 
       // Charger l'historique des messages du salon de jeu

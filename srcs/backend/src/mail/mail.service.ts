@@ -42,9 +42,6 @@ export class MailService {
                 ],
             });
         } catch (err) {
-            // Never let a mail-delivery failure block the GDPR action itself
-            // (data change/export/erasure must still succeed even if the
-            // notification email bounces or Gmail rejects the connection).
             this.logger.error(`Failed to send mail to ${to}: ${(err as Error).message}`);
         }
     }

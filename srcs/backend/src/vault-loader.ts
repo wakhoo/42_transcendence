@@ -46,12 +46,6 @@ function httpsJson<T>(
     });
 }
 
-/**
- * Fetches secrets from Vault via AppRole login and merges them into
- * process.env before Nest's ConfigModule reads it. No-ops if VAULT_ADDR
- * isn't set, so local `npm run start:dev` outside Docker still works off
- * a plain .env file.
- */
 export async function loadVaultSecrets(): Promise<void> {
     const vaultAddr = process.env.VAULT_ADDR;
     if (!vaultAddr) return;

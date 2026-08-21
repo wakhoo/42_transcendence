@@ -144,10 +144,6 @@ export class GameService implements OnModuleInit {
     return null;
   }
 
-  // Enregistre un joueur qui rejoint via le socket 'join_room' dans le suivi de session
-  // (sans quoi handleDisconnection ne le reconnait ni comme createur ni comme membre du
-  // salon, ne l'enleve jamais correctement, et le salon ne peut jamais etre detecte comme vide).
-  // On ne touche pas au score si le joueur est deja suivi (reconnexion en plein milieu d'une manche).
   registerPlayer(channelId: number, userId: number): void {
 
     const session = this.activeGames.get(channelId);
@@ -432,10 +428,7 @@ export class GameService implements OnModuleInit {
 
       if(id === currentGame.currentDrawerId)
       {
-        
-        //setTimeout(() => {
         this.server.to(socketId).emit('secret_word', currentGame.secretWord);
-        //}, 5000);
       }
     }
     // j'ai enleve le timer de 10sec avant le timer, c'etait bizarre et je ne voit pas l'interet, on aurait dit un bug volontaire
@@ -537,10 +530,6 @@ async handleDisconnection(userId: number): Promise<number | null> {
         
         this.activeGames.delete(channelID);
         try {
-          // deleteChannel exige que currentGame.creatorId soit encore admin en base,
-          // hors on vient de retirer sa propre ligne juste au dessus (leaveChannel) :
-          // on utilise donc le nettoyage automatique, qui verifie juste que le salon
-          // est vraiment vide en base plutot que de dependre d'un check admin
           await this.chatService.deleteChannelIfEmpty(channelID);
         } catch {}
         return null;
@@ -579,9 +568,6 @@ async handleDisconnection(userId: number): Promise<number | null> {
         // On s'arrête là pour cette room (la partie est stoppée, mais la room reste en RAM pour le survivant)
         return null; 
       }
-
-      // S'IL RESTE AU MOINS 2 JOUEURS : LA PARTIE CONTINUE !
-      // Mais si c'était le dessinateur qui est parti, on doit passer au tour suivant :
       if (userId === currentGame.currentDrawerId&& currentGame.currentRound <= currentGame.maxRound && currentGame.currentRound > 0 ) {
         if (currentGame.timerInterval)
           clearInterval(currentGame.timerInterval);
@@ -613,9 +599,6 @@ async handleDisconnection(userId: number): Promise<number | null> {
       return game.currentDrawerId === userId;
   }
 
-  // Reconstitue l'etat courant d'une partie deja en cours pour un joueur qui
-  // (re)rejoint le salon (ex: refresh de page en plein milieu d'une manche),
-  // pour qu'il retrouve son chrono, le dessin deja fait et ses outils si c'est lui qui dessine.
   async getGameStateSnapshot(channelId: number, userId: number) {
 
     const currentGame = this.activeGames.get(channelId);

@@ -1,9 +1,5 @@
 import { registerDecorator, ValidationOptions } from 'class-validator';
 
-// Code points that render as nothing or as an ordinary-looking space, so they
-// can be used to smuggle whitespace-equivalent content past a plain length check
-// (zero-width space/non-joiner/joiner, word joiner, BOM/zero-width no-break space,
-// soft hyphen).
 const INVISIBLE_CODEPOINTS = new Set([0x200b, 0x200c, 0x200d, 0x2060, 0xfeff, 0x00ad]);
 
 function containsInvisibleOrWhitespace(value: string): boolean {

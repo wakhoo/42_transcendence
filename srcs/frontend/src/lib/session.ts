@@ -1,9 +1,3 @@
-// Central place for reading/refreshing the access token. Every page/component that needs
-// an auth header or a token for a socket connection should go through getAccessToken()
-// (or authHeaders()) instead of reading sessionStorage('token') directly, so the 1-hour
-// access token gets silently renewed from the 7-day refresh token instead of forcing a
-// re-login every hour.
-
 function decodeExpiry(token: string): number | null {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]));
@@ -29,9 +23,6 @@ function clearTokens() {
     sessionStorage.removeItem('refreshToken');
 }
 
-// Multiple components can notice an expired token around the same time (e.g. on page
-// load); de-dupe so they all wait on the same in-flight refresh instead of racing to
-// spend the same refresh token multiple times.
 let refreshPromise: Promise<string | null> | null = null;
 
 async function refreshAccessToken(): Promise<string | null> {

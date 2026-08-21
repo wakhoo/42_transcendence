@@ -79,25 +79,16 @@ vault write auth/approle/role/backend-role \
 
 mkdir -p /vault/approle
 vault read -field=role_id auth/approle/role/backend-role/role-id > /vault/approle/role_id
-# 644, not 600: this file is read cross-container by the backend's own
-# unprivileged user over a bind mount (different UID than this
-# container's), and /vault/approle isn't reachable from outside the two
-# containers that mount it. role_id alone is not a usable credential
-# without the matching secret_id.
+
 chmod 644 /vault/approle/role_id
 
-# Only mint a secret_id once — it's long-lived (secret_id_ttl=0), so
-# regenerating it on every restart would just accumulate valid
-# credentials in Vault instead of reusing the one the backend has.
+
 if [ ! -f /vault/approle/secret_id ]; then
     echo "[vault-entrypoint] minting backend secret_id"
     vault write -f -field=secret_id auth/approle/role/backend-role/secret-id > /vault/approle/secret_id
     chmod 644 /vault/approle/secret_id
 fi
 
-# Seed application secrets exactly once. seed.env is a first-boot input,
-# not a live source of truth — later changes should go through Vault
-# directly (`vault kv put`), not by re-editing seed.env.
 if ! vault kv get -format=json secret/ft_transcendence >/dev/null 2>&1; then
     if [ -f /vault/config/seed.env ]; then
         echo "[vault-entrypoint] seeding secret/ft_transcendence from seed.env"

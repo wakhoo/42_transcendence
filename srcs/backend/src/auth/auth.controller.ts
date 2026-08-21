@@ -59,9 +59,7 @@ export class AuthController {
     async googleCallback(@Req() req: { user: GoogleProfile }, @Res() res: Response) {
         const result = await this.authService.googleLogin(req.user);
         const base = this.config.getOrThrow<string>('NESTAUTH_URL');
-
-        // Tokens travel in the URL fragment, not the query string: the fragment is never
-        // sent to the server by the browser, so it never ends up in nginx/proxy access logs.
+        
         if ('accessToken' in result) {
             const url = new URL(`${base}/auth/callback`);
             url.hash = new URLSearchParams({ accessToken: result.accessToken, refreshToken: result.refreshToken }).toString();

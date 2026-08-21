@@ -5,8 +5,6 @@ export class VerificationCode {
     @PrimaryGeneratedColumn()
     id!: number;
 
-    // Plain column, not a @ManyToOne: this table is a short-lived one-time-code
-    // store, not a relation the rest of the domain should ever join against.
     @Column({ name: 'user_id' })
     userId!: number;
 

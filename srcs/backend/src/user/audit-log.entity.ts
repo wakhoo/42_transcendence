@@ -7,8 +7,6 @@ export class AuditLog {
     @PrimaryGeneratedColumn()
     id!: number;
 
-    // Plain column, not a @ManyToOne to User: an audit trail must survive
-    // the account it describes, so it must not cascade-delete with it.
     @Column({ name: 'user_id' })
     userId!: number;
 

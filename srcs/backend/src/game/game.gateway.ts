@@ -10,9 +10,7 @@ import { onUserDeleted } from '../common/user-events';
 
 
 
-// creation d'une map pour lier le socket a l'user via token et mariadb
 export const gameSocketUserMap = new Map<string, number>();
-// publicId (uuid) du meme utilisateur, pour tout ce qui part vers le client
 const gameSocketPublicIdMap = new Map<string, string>();
 
 // point d'entree reseau 
