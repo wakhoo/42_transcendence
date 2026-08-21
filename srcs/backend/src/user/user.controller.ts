@@ -48,7 +48,7 @@ export class UserController {
     @Post('me/export')
     @Throttle({ default: { limit: 5, ttl: 60_000 } })
     exportMe(@Req() req: AuthedRequest, @Body() dto: ExportDataDto) {
-        return this.userService.exportUserData(req.user.id, dto.code, req.ip ?? null);
+        return this.userService.exportUserData(req.user.id, dto, req.ip ?? null);
     }
 
     @Delete('me')

@@ -59,6 +59,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
     const [deleteError, setDeleteError]             = useState('');
 
     const [pendingExportIntent, setPendingExportIntent] = useState<'download' | 'view' | null>(null);
+    const [exportPassword, setExportPassword]           = useState('');
     const [exportCode, setExportCode]                   = useState('');
     const [exportError, setExportError]                 = useState('');
     const [exportLoading, setExportLoading]             = useState(false);
@@ -281,14 +282,17 @@ export function ProfileContent({ userId }: { userId?: string }) {
         URL.revokeObjectURL(url);
     }
 
-    async function runExport(intent: 'download' | 'view', code?: string) {
+    async function runExport(intent: 'download' | 'view', password?: string, code?: string) {
         setExportLoading(true);
         setExportError('');
         try {
             const res = await fetch('/api/user/me/export', {
                 method: 'POST',
                 headers: await authHeaders(),
-                body: JSON.stringify(code ? { code } : {}),
+                body: JSON.stringify({
+                    ...(password ? { password } : {}),
+                    ...(code ? { code } : {}),
+                }),
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) {
@@ -302,6 +306,7 @@ export function ProfileContent({ userId }: { userId?: string }) {
                 setShowExportModal(true);
             }
             setPendingExportIntent(null);
+            setExportPassword('');
             setExportCode('');
         } catch {
             setExportError('Unable to contact the server');
@@ -312,23 +317,21 @@ export function ProfileContent({ userId }: { userId?: string }) {
 
     function startExport(intent: 'download' | 'view') {
         setExportError('');
-        if (me?.totpEnabled) {
-            setPendingExportIntent(intent);
-            return;
-        }
-        runExport(intent);
+        setPendingExportIntent(intent);
     }
 
     async function confirmExportCode(e: FormEvent) {
         e.preventDefault();
         if (!pendingExportIntent) return;
-        await runExport(pendingExportIntent, exportCode);
+        await runExport(pendingExportIntent, exportPassword, exportCode);
     }
 
     function cancelExportCode() {
         setPendingExportIntent(null);
+        setExportPassword('');
         setExportCode('');
         setExportError('');
+        setEmailCodeMsg('');
     }
 
     async function addFriend(userId: string) {
@@ -472,20 +475,45 @@ export function ProfileContent({ userId }: { userId?: string }) {
                     {pendingExportIntent && (
                         <form onSubmit={confirmExportCode} className="flex flex-col gap-2 mb-4 bg-black rounded-xl border border-gray-800 p-3">
                             <p className="text-yellow-400 text-xs">
-                                Enter your 2FA code to {pendingExportIntent === 'download' ? 'export' : 'view'} your data.
+                                {me.hasPassword && me.totpEnabled && `Confirm your password and 2FA code to ${pendingExportIntent === 'download' ? 'export' : 'view'} your data.`}
+                                {me.hasPassword && !me.totpEnabled && `Confirm your password to ${pendingExportIntent === 'download' ? 'export' : 'view'} your data.`}
+                                {!me.hasPassword && me.totpEnabled && `Confirm your 2FA code to ${pendingExportIntent === 'download' ? 'export' : 'view'} your data.`}
+                                {!me.hasPassword && !me.totpEnabled && `Confirm the code emailed to you to ${pendingExportIntent === 'download' ? 'export' : 'view'} your data.`}
                             </p>
                             {exportError && <p className="text-red-500 text-xs">{exportError}</p>}
-                            <input
-                                value={exportCode}
-                                onChange={e => setExportCode(e.target.value)}
-                                placeholder="6-digit code"
-                                maxLength={6}
-                                className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
-                            />
+                            {me.hasPassword && (
+                                <input
+                                    type="password"
+                                    value={exportPassword}
+                                    onChange={e => setExportPassword(e.target.value)}
+                                    placeholder="Password"
+                                    className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm"
+                                />
+                            )}
+                            {!me.hasPassword && !me.totpEnabled && (
+                                <button
+                                    type="button"
+                                    onClick={requestEmailCode}
+                                    disabled={sendingEmailCode}
+                                    className="self-start px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 hover:bg-gray-700 border border-gray-700 transition-colors disabled:opacity-50"
+                                >
+                                    {sendingEmailCode ? 'Sending…' : 'Send code to my email'}
+                                </button>
+                            )}
+                            {emailCodeMsg && <p className="text-gray-400 text-xs">{emailCodeMsg}</p>}
+                            {(me.totpEnabled || !me.hasPassword) && (
+                                <input
+                                    value={exportCode}
+                                    onChange={e => setExportCode(e.target.value)}
+                                    placeholder={me.totpEnabled ? '6-digit 2FA code' : '6-digit code from email'}
+                                    maxLength={6}
+                                    className="w-full bg-gray-900 border border-gray-700 text-white px-3 py-2 rounded-lg outline-none focus:border-white transition-colors text-sm text-center tracking-widest"
+                                />
+                            )}
                             <div className="flex gap-2">
                                 <button
                                     type="submit"
-                                    disabled={exportCode.length !== 6 || exportLoading}
+                                    disabled={(me.hasPassword && !exportPassword) || ((me.totpEnabled || !me.hasPassword) && exportCode.length !== 6) || exportLoading}
                                     className="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-950 hover:bg-blue-900 border border-blue-800 transition-colors disabled:opacity-50"
                                 >
                                     Confirm

@@ -12,6 +12,7 @@ import { SessionService } from "../auth/session.service";
 import { UpdateUserDto } from "./dto/update-user.dto";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { DeleteAccountDto } from "./dto/delete-account.dto";
+import { ExportDataDto } from "./dto/export-data.dto";
 import { BCRYPT_ROUNDS } from "../common/constants";
 import { emitUserCreated, emitUserDeleted, emitUserUpdated } from "../common/user-events";
 import { VerificationCode } from "./verification-code.entity";
@@ -236,14 +237,25 @@ export class UserService {
         return createHash('sha256').update(code).digest('hex');
     }
 
-    async exportUserData(userId: number, code: string | undefined, ip: string | null) {
+    async exportUserData(userId: number, dto: ExportDataDto, ip: string | null) {
         const user = await this.findById(userId);
         if (!user) throw new UnauthorizedException();
 
+        if (user.passwordHash) {
+            if (!dto.password) throw new BadRequestException('Password confirmation required');
+            const valid = await bcrypt.compare(dto.password, user.passwordHash);
+            if (!valid) throw new UnauthorizedException('Invalid password');
+        }
+
         if (user.totpEnabled) {
-            if (!code) throw new BadRequestException('2FA code required');
-            const valid = authenticator.verify({ token: code, secret: user.totpSecret! });
+            if (!dto.code) throw new BadRequestException('2FA code required');
+            const valid = authenticator.verify({ token: dto.code, secret: user.totpSecret! });
             if (!valid) throw new UnauthorizedException('Invalid 2FA code');
+        }
+
+        if (!user.passwordHash && !user.totpEnabled) {
+            if (!dto.code) throw new BadRequestException('Email verification code required');
+            await this.verifyEmailCode(userId, dto.code);
         }
 
         await this.gdprAudit.logDataExported(user.id, ip);
