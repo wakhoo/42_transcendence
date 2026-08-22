@@ -1,4 +1,4 @@
-*This project has been created as part of the 42 curriculum by aboutale, asdiallo, chajeon, dancel.*
+*This project has been created as part of the 42 curriculum by aboutale([Hamediter](https://github.com/Hamediter)), asdiallo([Xasiyy](https://github.com/Xasiyy)), chajeon([wakhoo](https://github.com/wakhoo)), dancel([Tht4-x](https://github.com/Tht4-x)).*
 
 ---
 
